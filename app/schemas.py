@@ -1,8 +1,8 @@
 from typing import Optional
 
 from pydantic import BaseModel
-
-from .models import GroupType, RoomType
+from datetime import date, time
+from .models import GroupType, RoomType, AvailabilityType
 
 class RoomCreate(BaseModel):
     name: str
@@ -87,6 +87,48 @@ class SubjectResponse(BaseModel):
     hours_per_week: int
     requires_lab: bool
     is_active: bool
+
+    class Config:
+        from_attributes = True
+    
+class RoomBlackoutCreate(BaseModel):
+    room_id: int
+    date: date
+    slot_start: time
+    slot_end: time
+    reason: Optional[str] = None
+
+class RoomBlackoutResponse(BaseModel):
+    id: int
+    room_id: int
+    date: date
+    slot_start: time
+    slot_end: time
+    reason: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class FacultyAvailabilityCreate(BaseModel):
+    faculty_id: int
+    day_of_week: int  # 0=Monday, 6=Sunday
+    slot_start: Optional[time] = None
+    slot_end: Optional[time] = None
+    availability: AvailabilityType
+    reason: Optional[str] = None
+    effective_from: Optional[date] = None
+    effective_to: Optional[date] = None
+
+class FacultyAvailabilityResponse(BaseModel):
+    id: int
+    faculty_id: int
+    day_of_week: int  # 0=Monday, 6=Sunday
+    slot_start: Optional[time] = None
+    slot_end: Optional[time] = None
+    availability: AvailabilityType
+    reason: Optional[str] = None
+    effective_from: Optional[date] = None
+    effective_to: Optional[date] = None
 
     class Config:
         from_attributes = True

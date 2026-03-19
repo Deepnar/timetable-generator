@@ -1,7 +1,8 @@
 import enum
 
-from sqlalchemy import Boolean, Enum, String
+from sqlalchemy import Boolean, Enum, String, ForeignKey, Date
 from sqlalchemy.orm import Mapped, mapped_column
+from datetime import datetime, time, date, timezone
 
 from .database import Base
 
@@ -66,3 +67,31 @@ class Subject(Base):
     hours_per_week: Mapped[int]
     requires_lab: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+class RoomBlackouts(Base):
+    __tablename__ = "room_blackouts"
+
+    id : Mapped[int] = mapped_column(primary_key=True, nullable=False)
+    room_id : Mapped[int] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False)
+    date : Mapped[date] = mapped_column(Date, nullable=False)  
+    slot_start: Mapped[time | None] = mapped_column(nullable=True)
+    slot_end: Mapped[time | None] = mapped_column(nullable=True)
+    reason : Mapped[str | None] = mapped_column(String(255), nullable=True) 
+
+class AvailabilityType(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    UNAVAILABLE = "UNAVAILABLE"
+    PREFFERED = "PREFERRED"
+
+class FacultyAvailability(Base):
+    __tablename__ = "faculty_availability"
+
+    id: Mapped[int] = mapped_column(primary_key=True, nullable=False)
+    faculty_id: Mapped[int] = mapped_column(ForeignKey("faculty.id", ondelete="CASCADE"), nullable=False)
+    day_of_week: Mapped[int] = mapped_column(nullable=False)  # 0=Monday, 6=Sunday
+    slot_start: Mapped[time | None] = mapped_column(nullable=True)
+    slot_end: Mapped[time | None] = mapped_column(nullable=True)
+    availability : Mapped[AvailabilityType] = mapped_column(Enum(AvailabilityType), nullable=False)
+    reason : Mapped[str | None] = mapped_column(String(255), nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=False)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=False)
