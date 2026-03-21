@@ -1,0 +1,5 @@
+fastapi[all]
+sqlalchemy
+pymysql
+python-dotenv
+cryptography
