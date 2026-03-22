@@ -1,0 +1,6 @@
+name,room_code,room_type,capacity,building,floor,has_projector,has_ac
+Computer Lab 1,CL1,LAB,40,Main Block,1,true,false
+Classroom 101,CR101,CLASSROOM,60,Main Block,1,true,false
+Seminar Hall A,SHA,SEMINAR_HALL,100,Main Block,2,true,true
+Classroom 102,CR102,CLASSROOM,60,Main Block,1,false,false
+Computer Lab 2,CL2,LAB,40,Annex,1,true,false

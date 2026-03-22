@@ -1,0 +1,5 @@
+name,group_type,department,year,semester,strength
+CS-A,DIVISION,Computer Science,2,3,40
+CS-B,DIVISION,Computer Science,2,3,38
+TE-A,DIVISION,Computer Science,3,5,42
+TE-B,DIVISION,Computer Science,3,5,39

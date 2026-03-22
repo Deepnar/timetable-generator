@@ -1,0 +1,6 @@
+name,subject_code,department,semester,hours_per_week,requires_lab
+Database Management Systems,CS301,Computer Science,3,4,false
+DBMS Lab,CS301L,Computer Science,3,2,true
+Operating Systems,CS302,Computer Science,3,4,false
+Computer Networks,CS303,Computer Science,3,3,false
+Networks Lab,CS303L,Computer Science,3,2,true
