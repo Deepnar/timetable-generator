@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from ..config import settings
@@ -11,7 +11,7 @@ from ..models import Admin
 from ..schemas import TokenData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+security = HTTPBearer()
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -32,7 +32,7 @@ def create_access_token(data: dict) -> str:
     )
 
 def get_current_admin(
-    token: str = Depends(oauth2_scheme),
+    credentials=Depends(security),
     db: Session = Depends(get_db)
 ) -> Admin:
     credentials_exception = HTTPException(
@@ -42,7 +42,7 @@ def get_current_admin(
     )
     try:
         payload = jwt.decode(
-            token,
+            credentials.credentials,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
