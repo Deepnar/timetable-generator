@@ -1,14 +1,12 @@
 from fastapi import FastAPI
 
-
-from .database import engine
+from .database import engine, Base
+from . import models
 from .router import rooms, groups, faculty, subjects, room_blackout, faculty_availibility
 
-from . import models
+Base.metadata.create_all(bind=engine)
 
-models.Base.metadata.create_all(bind=engine)
-
-app = FastAPI()
+app = FastAPI(title="Timetable Generator API")
 app.include_router(rooms.router)
 app.include_router(groups.router)
 app.include_router(faculty.router)
