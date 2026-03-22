@@ -72,6 +72,7 @@ class ConstraintChecker:
         violations += self._check_room_type_match(candidate)
         violations += self._check_teacher_availability(candidate)
         violations += self._check_room_blackout(candidate)
+        violations += self._check_same_subject_same_day(candidate)  # add this
 
         return violations
 
@@ -232,5 +233,25 @@ class ConstraintChecker:
                     "RESPECT_ROOM_BLACKOUT",
                     f"Room {candidate.room_id} blacked out "
                     f"all day on {candidate.slot_date}"
+                )]
+        return []
+    def _check_same_subject_same_day(
+        self, candidate: SlotCandidate
+    ) -> list[ConstraintViolation]:
+        """
+        Soft-as-hard rule: same subject should not appear more than
+        once per day for the same student group.
+        """
+        for slot in self.committed_slots:
+            if (
+                slot.subject_id == candidate.subject_id
+                and slot.student_group_id == candidate.student_group_id
+                and slot.day_of_week == candidate.day_of_week
+            ):
+                return [ConstraintViolation(
+                    "SAME_SUBJECT_SAME_DAY",
+                    f"Subject {candidate.subject_id} already scheduled "
+                    f"for group {candidate.student_group_id} "
+                    f"on day {candidate.day_of_week}"
                 )]
         return []
