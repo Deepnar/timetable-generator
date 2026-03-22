@@ -1,6 +1,10 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from app.models.groups import GroupType
 
 from ..database import get_db
 from ..utils.auth import get_current_admin
@@ -13,9 +17,18 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=list[schemas.StudentGroupResponse])
-def get_groups(db: Session = Depends(get_db)):
-    groups = db.scalars(select(models.StudentGroup).where(
-        models.StudentGroup.is_active == True)).all()
+def get_groups(year: Optional[int] = None,
+    department: Optional[str] = None,
+    group_type: Optional[GroupType] = None,
+    db: Session = Depends(get_db)):
+    query = select(models.StudentGroup).where(models.StudentGroup.is_active == True)
+    if year is not None:
+        query = query.where(models.StudentGroup.year == year)
+    if department:
+        query = query.where(models.StudentGroup.department == department)
+    if group_type:
+        query = query.where(models.StudentGroup.group_type == group_type)
+    groups = db.scalars(query).all()
     return groups
 
 @router.get("/{id}", response_model=schemas.StudentGroupResponse)

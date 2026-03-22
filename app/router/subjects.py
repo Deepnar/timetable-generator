@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,9 +15,18 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=list[schemas.SubjectResponse])
-def get_subjects(db: Session = Depends(get_db)):
-    subjects = db.scalars(select(models.Subject).where(
-        models.Subject.is_active == True)).all()
+def get_subjects(semester: Optional[int] = None,
+    department: Optional[str] = None,
+    requires_lab: Optional[bool] = None,
+    db: Session = Depends(get_db)):
+    query = select(models.Subject).where(models.Subject.is_active == True)
+    if semester is not None:
+        query = query.where(models.Subject.semester == semester)
+    if department:
+        query = query.where(models.Subject.department == department)
+    if requires_lab is not None:
+        query = query.where(models.Subject.requires_lab == requires_lab)
+    subjects = db.scalars(query).all()
     return subjects
 
 @router.get("/{id}", response_model=schemas.SubjectResponse)

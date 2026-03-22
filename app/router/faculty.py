@@ -1,3 +1,5 @@
+from typing_extensions import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,9 +16,12 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=list[schemas.FacultyResponse])
-def get_faculty(db: Session = Depends(get_db)):
-    faculty = db.scalars(select(models.Faculty).where(
-        models.Faculty.is_active == True)).all()
+def get_faculty(department: Optional[str] = None,
+                db: Session = Depends(get_db)):
+    query = select(models.Faculty).where(models.Faculty.is_active == True)
+    if department:
+        query = query.where(models.Faculty.department == department)
+    faculty = db.scalars(query).all()
     return faculty
 
 @router.get("/{id}", response_model=schemas.FacultyResponse)

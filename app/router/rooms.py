@@ -1,6 +1,10 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from app.models.rooms import RoomType
 
 from ..database import get_db
 from ..utils.auth import get_current_admin
@@ -9,12 +13,24 @@ from .. import schemas
 
 router = APIRouter(prefix="/rooms", tags=["Rooms"])
 
-@router.get("/rooms", response_model=list[schemas.RoomResponse])
-def get_rooms(db: Session = Depends(get_db)):
-    rooms = db.scalars(select(models.Room).where(models.Room.is_active == True)).all()
+@router.get("/", response_model=list[schemas.RoomResponse])
+def get_rooms(
+    room_type: Optional[RoomType] = None,
+    min_capacity: Optional[int] = None,
+    building: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = select(models.Room).where(models.Room.is_active == True)
+    if room_type:
+        query = query.where(models.Room.room_type == room_type)
+    if min_capacity is not None:
+        query = query.where(models.Room.capacity >= min_capacity)
+    if building:
+        query = query.where(models.Room.building == building)
+    rooms = db.scalars(query).all()
     return rooms
 
-@router.get("/rooms/{id}", response_model=schemas.RoomResponse)
+@router.get("/{id}", response_model=schemas.RoomResponse)
 def get_room(id: int, db: Session = Depends(get_db)):
     room = db.scalars(select(models.Room).where(models.Room.id == id)).first()
     if not room:
@@ -22,7 +38,7 @@ def get_room(id: int, db: Session = Depends(get_db)):
                             detail=f"Room with id {id} not found")
     return room
 
-@router.post("/rooms", status_code=status.HTTP_201_CREATED,
+@router.post("/", status_code=status.HTTP_201_CREATED,
              response_model=schemas.RoomResponse)
 def create_room(room: schemas.RoomCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     new_room = models.Room(**room.model_dump())
@@ -31,7 +47,7 @@ def create_room(room: schemas.RoomCreate, db: Session = Depends(get_db), current
     db.refresh(new_room)
     return new_room
 
-@router.delete("/rooms/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_room(id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     room = db.scalars(select(models.Room).where(models.Room.id == id)).first()
     if not room:
@@ -41,7 +57,7 @@ def delete_room(id: int, db: Session = Depends(get_db), current_admin: models.Ad
     db.commit()
     return
 
-@router.put("/rooms/{id}", response_model=schemas.RoomResponse)
+@router.put("/{id}", response_model=schemas.RoomResponse)
 def update_room(id: int, updated_room: schemas.RoomCreate,
                 db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     room = db.scalars(select(models.Room).where(models.Room.id == id)).first()
