@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-
+from ..utils.auth import get_current_admin
 from .. import models
 from .. import schemas
 
@@ -30,7 +30,7 @@ def get_group(id: int, db: Session = Depends(get_db)):
 @router.post("/", status_code=status.HTTP_201_CREATED,
              response_model=schemas.StudentGroupResponse)
 def create_group(group: schemas.StudentGroupCreate,
-                 db: Session = Depends(get_db)):
+                 db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     new_group = models.StudentGroup(**group.model_dump())
     db.add(new_group)
     db.commit()
@@ -38,7 +38,7 @@ def create_group(group: schemas.StudentGroupCreate,
     return new_group
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_group(id: int, db: Session = Depends(get_db)):
+def delete_group(id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     group = db.scalars(select(models.StudentGroup).where(
         models.StudentGroup.id == id)).first()
     if not group:

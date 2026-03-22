@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-
+from ..utils.auth import get_current_admin
 from .. import models
 from .. import schemas
 
@@ -31,7 +31,7 @@ def get_one_faculty(id: int, db: Session = Depends(get_db)):
 @router.post("/", status_code=status.HTTP_201_CREATED,
              response_model=schemas.FacultyResponse)
 def create_faculty(faculty: schemas.FacultyCreate,
-                   db: Session = Depends(get_db)):
+                   db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     existing = db.scalars(select(models.Faculty).where(
         models.Faculty.email == faculty.email)).first()
     if existing:
@@ -44,7 +44,7 @@ def create_faculty(faculty: schemas.FacultyCreate,
     return new_faculty
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_faculty(id: int, db: Session = Depends(get_db)):
+def delete_faculty(id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     faculty = db.scalars(select(models.Faculty).where(
         models.Faculty.id == id)).first()
     if not faculty:
@@ -56,7 +56,7 @@ def delete_faculty(id: int, db: Session = Depends(get_db)):
 
 @router.put("/{id}", response_model=schemas.FacultyResponse)
 def update_faculty(id: int, updated: schemas.FacultyCreate,
-                   db: Session = Depends(get_db)):
+                   db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     faculty = db.scalars(select(models.Faculty).where(
         models.Faculty.id == id)).first()
     if not faculty:

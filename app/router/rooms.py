@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-
+from ..utils.auth import get_current_admin
 from .. import models
 from .. import schemas
 
@@ -24,7 +24,7 @@ def get_room(id: int, db: Session = Depends(get_db)):
 
 @router.post("/rooms", status_code=status.HTTP_201_CREATED,
              response_model=schemas.RoomResponse)
-def create_room(room: schemas.RoomCreate, db: Session = Depends(get_db)):
+def create_room(room: schemas.RoomCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     new_room = models.Room(**room.model_dump())
     db.add(new_room)
     db.commit()
@@ -32,7 +32,7 @@ def create_room(room: schemas.RoomCreate, db: Session = Depends(get_db)):
     return new_room
 
 @router.delete("/rooms/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_room(id: int, db: Session = Depends(get_db)):
+def delete_room(id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     room = db.scalars(select(models.Room).where(models.Room.id == id)).first()
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -43,7 +43,7 @@ def delete_room(id: int, db: Session = Depends(get_db)):
 
 @router.put("/rooms/{id}", response_model=schemas.RoomResponse)
 def update_room(id: int, updated_room: schemas.RoomCreate,
-                db: Session = Depends(get_db)):
+                db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     room = db.scalars(select(models.Room).where(models.Room.id == id)).first()
     if not room:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,

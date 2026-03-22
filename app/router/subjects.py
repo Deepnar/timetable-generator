@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-
+from ..utils.auth import get_current_admin
 from .. import models
 from .. import schemas
 
@@ -30,7 +30,7 @@ def get_subject(id: int, db: Session = Depends(get_db)):
 @router.post("/", status_code=status.HTTP_201_CREATED,
              response_model=schemas.SubjectResponse)
 def create_subject(subject: schemas.SubjectCreate,
-                   db: Session = Depends(get_db)):
+                   db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     existing = db.scalars(select(models.Subject).where(
         models.Subject.subject_code == subject.subject_code)).first()
     if existing:
@@ -43,7 +43,7 @@ def create_subject(subject: schemas.SubjectCreate,
     return new_subject
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_subject(id: int, db: Session = Depends(get_db)):
+def delete_subject(id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     subject = db.scalars(select(models.Subject).where(
         models.Subject.id == id)).first()
     if not subject:
@@ -55,7 +55,7 @@ def delete_subject(id: int, db: Session = Depends(get_db)):
 
 @router.put("/{id}", response_model=schemas.SubjectResponse)
 def update_subject(id: int, updated: schemas.SubjectCreate,
-                   db: Session = Depends(get_db)):
+                   db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     subject = db.scalars(select(models.Subject).where(
         models.Subject.id == id)).first()
     if not subject:

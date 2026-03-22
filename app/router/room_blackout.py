@@ -3,14 +3,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-
+from ..utils.auth import get_current_admin
 from .. import models
 from .. import schemas
 
 router = APIRouter(prefix="/blackouts", tags=["Room Blackouts"])
 
 @router.post("/", status_code=status.HTTP_201_CREATED,response_model=schemas.RoomBlackoutResponse)
-def create_room_blackout(blackout: schemas.RoomBlackoutCreate, db: Session = Depends(get_db)):
+def create_room_blackout(blackout: schemas.RoomBlackoutCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     new_blackout = models.RoomBlackout(**blackout.model_dump())
     db.add(new_blackout)
     db.commit()
@@ -31,7 +31,7 @@ def get_room_blackout(id: int, db: Session = Depends(get_db)):
     return blackout
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_room_blackout(id: int, db: Session = Depends(get_db)):
+def delete_room_blackout(id: int, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     blackout = db.scalars(select(models.RoomBlackout).where(models.RoomBlackout.id == id)).first()
     if not blackout:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -42,7 +42,7 @@ def delete_room_blackout(id: int, db: Session = Depends(get_db)):
 
 @router.put("/{id}", response_model=schemas.RoomBlackoutResponse)
 def update_room_blackout(id: int, updated_blackout: schemas.RoomBlackoutCreate,
-                db: Session = Depends(get_db)):
+                db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):
     blackout = db.scalars(select(models.RoomBlackout).where(models.RoomBlackout.id == id)).first()
     if not blackout:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
