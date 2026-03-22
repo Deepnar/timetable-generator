@@ -1,10 +1,19 @@
 from fastapi import FastAPI
-
+from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 from . import models
 from .router import rooms, groups, faculty, subjects, room_blackout, faculty_availibility, auth, profiles, constraints, generate, instances
 
 app = FastAPI(title="Timetable Generator API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(auth.router)
 app.include_router(rooms.router)
 app.include_router(faculty.router)
