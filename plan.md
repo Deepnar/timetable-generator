@@ -9,7 +9,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 
 - [ ] **Subject-Faculty-Group Mapping Table**
   - Design `subject_assignments` table (subject_id, faculty_id, group_id, split_ratio).
-  - Handle cross-department subjects (Maths teaching CS + IT) and shared teaching loads (80/20 splits).
+  - Handle cross-department subjects (Maths teaching CS + IT) and shared teaching loads (80/20 splits), and not just restricted to one subject.
   - Update greedy solver to load assignment matrix instead of assuming all teachers teach all subjects.
 - [ ] **Cross-Timetable Contamination Fix**
   - Add `load_published_conflicts()` to the scheduler. Before a new generation run, fetch all slots from instances with status `PUBLISHED`.
@@ -17,6 +17,9 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [ ] **College Settings / Feature Flags Table**
   - Create `college_settings` table with boolean toggles per feature (e.g., `enable_lab_batches`, `allow_cross_dept_subjects`).
   - Wrap new optional logic behind these flags so colleges can upgrade incrementally.
+  - [ ] **Making the system extremely flexible**
+  - Adding or doing something in a way that like does restrict the type of timetable any one wants to create or any restriction or special type of particularity that an organisations timetable may have, as we might not know about that, so adding or making a feature that helps for this and check if we are already implementing it in the following phases if yes then ignore this. if not completely then do it.
+
 
 ## Phase 2: Constraint Engine Overhaul & New Rules
 *Goal: Move from hardcoded checks to a dynamic, data-driven constraint system.*

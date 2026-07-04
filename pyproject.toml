@@ -27,6 +27,7 @@ dependencies = [
     "colorama>=0.4.6",
     "annotated-doc>=0.0.4",
     "fastapi-cli>=0.0.28",
+    "psycopg2-binary>=2.9.12",
 ]
 
 [tool.uv]

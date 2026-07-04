@@ -17,7 +17,7 @@ Ensure this is active before running any Python scripts, migrations, or the Fast
 This is the **Enterprise Timetable Management System** — a standalone, full-stack application that produces and manages seven timetable types: Class, Faculty, Room Utilization, Event/Seminar, Industry Program (IP), Exam, and Lab schedules. It replaces manual spreadsheet-based scheduling with a constraint-driven engine that guarantees zero cross-timetable conflicts across the entire institution.
 
 ### Project Overview & Current Context
-This project is a **complete full-stack application** (Backend + Database + Frontend). It is built on **FastAPI**, **SQLAlchemy 2.0**, **MySQL**, and will soon include a **Next.js/React frontend**. It is NOT a microservice for another ERP; it is the primary scheduling product itself.
+This project is a **complete full-stack application** (Backend + Database + Frontend). It is built on **FastAPI**, **SQLAlchemy 2.0**, and uses a **PostgreSQL database managed via Docker**. It is NOT a microservice for another ERP; it is the primary scheduling product itself.
 
 **Current Development State:**
 The backend system is at the **`v0.greedy-complete`** checkpoint. 
@@ -61,7 +61,7 @@ To fully understand the architecture, current progress, and future plans, please
 app/
 ├── main.py                       # FastAPI entry point, router mounting, CORS
 ├── config.py                     # Pydantic Settings loaded from .env
-├── database.py                   # SQLAlchemy engine + session factory (MySQL via PyMySQL)
+├── database.py                   # SQLAlchemy engine + session factory (PostgreSQL via psycopg2)
 │
 ├── models/                       # SQLAlchemy ORM models — one file per entity domain
 │   ├── rooms.py                  # Rooms + RoomBlackout
@@ -96,6 +96,7 @@ app/
     └── auth.py                   # JWT creation, verification, password hashing
 
 alembic/                          # DB migrations (configured via alembic.ini)
+docker/                           # Docker configuration for PostgreSQL database
 test_data/                        # Sample CSV fixtures for bulk import
 ```
 
@@ -103,22 +104,25 @@ test_data/                        # Sample CSV fixtures for bulk import
 
 ## Build, Test, and Development Commands
 
-This project uses **[uv](https://github.com/astral-sh/uv)** for fast dependency management and virtual environments.
+This project uses **[uv](https://github.com/astral-sh/uv)** for fast dependency management and virtual environments. The database is managed via **Docker Compose**.
 
 ```bash
 # 1. Install dependencies & create the managed .venv
 uv sync
 
-# 2. Run the dev server (auto-reload on file changes)
+# 2. Start the PostgreSQL database container
+cd docker && docker compose up -d
+
+# 3. Run the dev server (auto-reload on file changes)
 uv run uvicorn app.main:app --reload --port 8000
 
-# 3. Add a new dependency
+# 4. Add a new dependency
 uv add <package_name>
 
-# 4. Generate an Alembic migration
+# 5. Generate an Alembic migration
 uv run alembic revision --autogenerate -m "describe change"
 
-# 5. Apply pending migrations
+# 6. Apply pending migrations
 uv run alembic upgrade head
 ```
 
@@ -194,5 +198,5 @@ When contributing to future phases, always reference the architecture doc for th
 
 - **Never commit `.env`**. Copy from `.env.example` and set your own values.
 - `SECRET_KEY` must be a strong random string — rotate in production.
-- The database uses MySQL via PyMySQL; ensure credentials match your server configuration.
+- The database is now managed via Docker Compose (`docker/docker-compose.yml`) using PostgreSQL 15. Ensure the container is running before starting the FastAPI server.
 - This is a **standalone full-stack application**. It handles its own authentication, database connection, and frontend serving (when implemented).
