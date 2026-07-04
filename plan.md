@@ -7,11 +7,11 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 ## Phase 1: Core Engine & Data Mapping Completion
 *Goal: Make the current generator actually usable for real college data.*
 
-- [ ] **Subject-Faculty-Group Mapping Table**
+- [x] **Subject-Faculty-Group Mapping Table**
   - Design `subject_assignments` table (subject_id, faculty_id, group_id, split_ratio).
   - Handle cross-department subjects (Maths teaching CS + IT) and shared teaching loads (80/20 splits), and not just restricted to one subject.
   - Update greedy solver to load assignment matrix instead of assuming all teachers teach all subjects.
-- [ ] **Cross-Timetable Contamination Fix**
+- [x] **Cross-Timetable Contamination Fix**
   - Add `load_published_conflicts()` to the scheduler. Before a new generation run, fetch all slots from instances with status `PUBLISHED`.
   - Mark those time-room-teacher-group combinations as pre-blocked for the current solver instance.
 - [ ] **College Settings / Feature Flags Table**
