@@ -67,24 +67,23 @@ test_data/                        # Sample CSV fixtures for bulk import
 
 ## Build, Test, and Development Commands
 
+This project uses **[uv](https://github.com/astral-sh/uv)** for fast dependency management and virtual environments.
+
 ```bash
-# 1. Create & activate virtual environment
-python -m venv venv && source venv/bin/activate
+# 1. Install dependencies & create the managed .venv
+uv sync
 
-# 2. Install dependencies
-pip install -r requirements.txt
+# 2. Run the dev server (auto-reload on file changes)
+uv run uvicorn app.main:app --reload --port 8000
 
-# 3. Configure environment (copy example, edit values)
-cp .env.example .env
+# 3. Add a new dependency
+uv add <package_name>
 
-# 4. Run the dev server (auto-reload on file changes)
-uvicorn app.main:app --reload --port 8000
+# 4. Generate an Alembic migration
+uv run alembic revision --autogenerate -m "describe change"
 
-# 5. Generate an Alembic migration
-alembic revision --autogenerate -m "describe change"
-
-# 6. Apply pending migrations
-alembic upgrade head
+# 5. Apply pending migrations
+uv run alembic upgrade head
 ```
 
 > The API is reachable at `http://localhost:8000`. Interactive Swagger docs are at `/docs`.
@@ -107,13 +106,13 @@ alembic upgrade head
 
 No test suite exists yet. When adding tests:
 
-- Use **pytest** (`pip install pytest`).
+- Use **pytest** (`uv add --dev pytest`).
 - Place files under `app/tests/test_<module>.py`.
 - Name functions `test_<action>_<expected_outcome>` (e.g., `test_create_room_success`, `test_constraint_violation_detected`).
 - Prioritize coverage for: router endpoints, engine/solver logic, constraint checker, and profile management.
 
 ```bash
-pytest app/tests/ -v
+uv run pytest app/tests/ -v
 ```
 
 ---

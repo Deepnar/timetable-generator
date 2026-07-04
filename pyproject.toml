@@ -1,0 +1,33 @@
+[project]
+name = "timetable-api"
+version = "0.1.0"
+description = "Multi-domain scheduling engine for institutional ERP"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "alembic",
+    "bcrypt",
+    "email-validator",
+    "fastapi",
+    "passlib",
+    "pillow",
+    "pymysql",
+    "pydantic",
+    "pydantic-settings",
+    "python-dotenv",
+    "python-jose",
+    "python-multipart",
+    "reportlab",
+    "sqlalchemy",
+    "starlette",
+    "sentry-sdk",
+    "uvicorn",
+    "typer>=0.26.8",
+    "rich-toolkit>=0.20.1",
+    "colorama>=0.4.6",
+    "annotated-doc>=0.0.4",
+    "fastapi-cli>=0.0.28",
+]
+
+[tool.uv]
+package = false
