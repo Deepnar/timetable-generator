@@ -3,6 +3,7 @@
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
 **Current State:** `v0.greedy-complete` (Foundation + Greedy Engine phase fully implemented).
+**Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, database management, and will soon integrate a frontend interface for college admins.
 
 ---
 
@@ -46,6 +47,7 @@ This document provides a living status of every feature, table, and improvement 
 
 ### API Utilities
 - [x] **Query Param Filtering**: Applied across all primary GET routes.
+- [x] **Dependency Management Migrated to `uv`**: Removed old `pip`/`requirements.txt` setup; using modern `pyproject.toml`.
 
 ---
 
@@ -86,16 +88,18 @@ This document provides a living status of every feature, table, and improvement 
 - [ ] **API Polish**
   - Pagination (`page/limit`), global error middleware, request logging/audit trail, `GET /health`, API versioning (`/api/v1/`).
 
-### 🟢 Frontend Development (Next.js / React)
-- [ ] **Auth & Dashboard**: Login, stats view, quick actions.
-- [ ] **Resource Management Pages**: Tables, CSV uploads, CRUD modals.
+### 🟢 Full Stack Frontend Development (Next.js / React)
+*This is now a core part of this project, not an external consumer.*
+- [ ] **Frontend Initialization**: Setup Next.js app within the full-stack deployment pipeline.
+- [ ] **Auth & Dashboard**: Login page, JWT handling, stats view, quick actions.
+- [ ] **Resource Management Pages**: Tables with search/filter, CSV uploads, CRUD modals.
 - [ ] **Master Assignment Grid**: UI to map teachers → subjects → divisions.
 - [ ] **Profile & Constraint Builder**: Visual form for profiles and dynamic constraints.
 - [ ] **Generation Viewer**: Side-by-side instance comparison grid, progress bar for async runs.
 - [ ] **Instance Editor**: Click-to-edit slots with live conflict re-checking.
 
 ### 🔵 Deployment & Final Polish
-- [ ] **Dockerization**: `Dockerfile` + `docker-compose.yml` (App, MySQL, Redis).
+- [ ] **Full Stack Dockerization**: `Dockerfile` + `docker-compose.yml` (App, Frontend, MySQL, Redis).
 - [ ] **README & Docs**: Setup guide, architecture diagram link, API examples.
 - [ ] **Historical Data Import**: Upload past semesters' timetables for pattern reference.
 - [ ] **ML Preference Learning (Phase 2)**: Learn from manual overrides to suggest constraints automatically.
