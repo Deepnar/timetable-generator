@@ -5,14 +5,17 @@ from app.config import settings
 from app.database import Base
 
 # import all models so alembic can detect them
-from app.models import rooms, faculty, groups, subjects
+from app.models import (
+    rooms, faculty, groups, subjects, subject_assignments, settings as college_settings,
+    admin, profiles, constraints, generation, history
+)
 
 config = context.config
 
 config.set_main_option(
     "sqlalchemy.url",
-    f"mysql+pymysql://{settings.DB_USER}:{settings.DB_PASSWORD}"
-    f"@{settings.DB_HOST}/{settings.DB_NAME}"
+    f"postgresql+psycopg2://{settings.DB_USER}:{settings.DB_PASSWORD}"
+    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 )
 
 if config.config_file_name is not None:
@@ -29,6 +32,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
+
     with context.begin_transaction():
         context.run_migrations()
 
@@ -39,11 +43,12 @@ def run_migrations_online() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
+
     with connectable.connect() as connection:
         context.configure(
-            connection=connection,
-            target_metadata=target_metadata
+            connection=connection, target_metadata=target_metadata
         )
+
         with context.begin_transaction():
             context.run_migrations()
 
@@ -52,4 +57,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

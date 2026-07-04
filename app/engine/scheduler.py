@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from app.models.generation import (TimetableGeneration, TimetableInstance,
                                     TimetableSlot, GenerationStatus,
                                     InstanceStatus, AlgorithmType)
@@ -13,9 +13,10 @@ class Scheduler:
     Orchestrates the full generation run.
     1. Validates the profile exists
     2. Creates TimetableGeneration record
-    3. Runs solver N times for N instances
-    4. Saves all slots to DB
-    5. Updates generation status
+    3. Loads cross-timetable conflicts from PUBLISHED instances
+    4. Runs solver N times for N instances
+    5. Saves all slots to DB
+    6. Updates generation status
     """
 
     def __init__(self, db: Session):
@@ -50,86 +51,85 @@ class Scheduler:
             academic_year=academic_year,
             semester=semester,
             timetable_type=timetable_type,
-            generation_status=GenerationStatus.RUNNING,
-            algorithm_used=algorithm,
             instances_requested=instances_requested,
-            instances_produced=0,
+            algorithm=algorithm,
             triggered_by=triggered_by,
-            triggered_at=datetime.utcnow()
+            status=GenerationStatus.PENDING
         )
         self.db.add(generation)
+        self.db.flush()
+
+        # Load cross-timetable conflicts (slots already published)
+        reserved_conflicts = self._load_published_conflicts()
+
+        generation.status = GenerationStatus.RUNNING
+        self.db.flush()
+
+        instances_created = 0
+        
+        for _ in range(instances_requested):
+            instance = TimetableInstance(
+                generation_id=generation.id,
+                status=InstanceStatus.DRAFT
+            )
+            self.db.add(instance)
+            self.db.flush()
+
+            # Run solver
+            solver = GreedySolver(
+                db=self.db,
+                profile_id=profile_id,
+                instance_id=instance.id
+            )
+            
+            # Inject reserved conflicts into the solver
+            solver.reserved_conflicts = reserved_conflicts
+
+            slots = solver.solve()
+            
+            for slot in slots:
+                self.db.add(slot)
+            
+            instances_created += 1
+
+        generation.status = GenerationStatus.COMPLETED
+        generation.instances_generated = instances_created
+        generation.completed_at = datetime.now()
         self.db.commit()
-        self.db.refresh(generation)
-
-        try:
-            instances_produced = 0
-            best_score = 0.0
-
-            for i in range(1, instances_requested + 1):
-                instance = TimetableInstance(
-                    generation_id=generation.id,
-                    instance_number=i,
-                    label=self._instance_label(i),
-                    status=InstanceStatus.DRAFT,
-                    hard_violations=0
-                )
-                self.db.add(instance)
-                self.db.commit()
-                self.db.refresh(instance)
-
-                # run solver
-                if algorithm == AlgorithmType.GREEDY:
-                    solver = GreedySolver(
-                        db=self.db,
-                        profile_id=profile_id,
-                        instance_id=instance.id
-                    )
-                    slots = solver.solve()
-                else:
-                    # OR-Tools comes later
-                    # for now fall back to greedy
-                    solver = GreedySolver(
-                        db=self.db,
-                        profile_id=profile_id,
-                        instance_id=instance.id
-                    )
-                    slots = solver.solve()
-
-                # save slots
-                for slot in slots:
-                    self.db.add(slot)
-                self.db.commit()
-
-                # score — for now just count slots placed
-                score = float(len(slots))
-                instance.soft_score = score
-                if score > best_score:
-                    best_score = score
-
-                self.db.commit()
-                instances_produced += 1
-
-            # update generation record
-            generation.generation_status = GenerationStatus.COMPLETED
-            generation.instances_produced = instances_produced
-            generation.score_best_instance = best_score
-            generation.completed_at = datetime.utcnow()
-            self.db.commit()
-            self.db.refresh(generation)
-
-        except Exception as e:
-            generation.generation_status = GenerationStatus.FAILED
-            generation.error_log = str(e)
-            generation.completed_at = datetime.utcnow()
-            self.db.commit()
-            raise e
 
         return generation
 
-    def _instance_label(self, number: int) -> str:
-        labels = {
-            1: "Best overall",
-            2: "Balanced load",
-            3: "Distributed spread"
-        }
-        return labels.get(number, f"Option {number}")
+    def _load_published_conflicts(self):
+        """
+        Fetches all slots from PUBLISHED timetable instances.
+        Returns a set of (faculty_id, room_id, group_id, day_of_week, slot_number) tuples
+        representing times that are absolutely booked and cannot be touched by new runs.
+        """
+        # Find all published instances across ALL generations
+        published_ids = self.db.scalars(
+            select(TimetableInstance.id).where(
+                TimetableInstance.status == InstanceStatus.PUBLISHED
+            )
+        ).all()
+
+        if not published_ids:
+            return set()
+
+        # Load their slots
+        published_slots = self.db.scalars(
+            select(TimetableSlot).where(
+                TimetableSlot.instance_id.in_(published_ids)
+            )
+        ).all()
+
+        reserved = set()
+        for slot in published_slots:
+            reserved.add((
+                slot.faculty_id, 
+                slot.room_id, 
+                slot.student_group_id, 
+                slot.day_of_week, 
+                slot.slot_number
+            ))
+        
+        return reserved

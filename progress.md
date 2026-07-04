@@ -3,7 +3,7 @@
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
 **Current State:** `v0.greedy-complete` (Foundation + Greedy Engine phase fully implemented).
-**Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, database management, and will soon integrate a frontend interface for college admins.
+**Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, PostgreSQL database via Docker, and will soon integrate a frontend interface for college admins.
 
 ---
 
@@ -12,6 +12,7 @@ This document provides a living status of every feature, table, and improvement 
 ### Database & Models
 - [x] **18 Database Tables**: Migrated via Alembic (rooms, blackouts, faculty, availability, groups, subjects, profiles, parameters, constraints, generation runs, instances, slots, history, admin, etc.)
 - [x] **SQLAlchemy 2.0 ORM**: Declarative models with `mapped_column` and relationship mappings.
+- [x] **Database Migration to PostgreSQL**: Switched from local MySQL to Docker-managed Postgres 15 container.
 
 ### Authentication & Security
 - [x] **JWT Auth**: Admin login, token refresh, bcrypt password hashing.
@@ -30,10 +31,11 @@ This document provides a living status of every feature, table, and improvement 
 - [x] **Profile Combinations**: Merge multiple profiles, preview conflict resolution.
 - [x] **Constraint CRUD**: Hard and soft constraint tables, weight management, profile scoping.
 
-### Scheduling Engine
+### Scheduling Engine & Data Mapping (Phase 1)
 - [x] **Greedy Solver**: Priority-based assignment with fast execution for previews.
 - [x] **Hard Constraint Checker**: Validates room capacity, faculty availability, blackouts, and basic double-booking prevention before committing slots.
-- [x] **Same Subject/Day Rule**: Prevents duplicate subjects on the same day for a group.
+- [x] **Subject-Faculty-Group Mapping Table**: `subject_assignments` table created to handle exact mappings, cross-dept subjects, and shared teaching loads (80/20 splits). Greedy solver now reads from this table instead of guessing.
+- [x] **Cross-Timetable Contamination Fix**: Scheduler now fetches all `PUBLISHED` slots before running a new generation, preventing double-bookings across separate timetable runs.
 
 ### Generation Workflow & Instances
 - [x] **Generation Trigger**: `POST /generate` accepts profile/combination, runs solver synchronously.
@@ -54,13 +56,8 @@ This document provides a living status of every feature, table, and improvement 
 ## ⏳ Planned / Pending Features
 
 ### 🔴 Critical Missing (Blockers for Real Usage)
-- [ ] **Subject-Faculty-Group Mapping Table**
-  - Who teaches what to which division.
-  - Support for cross-department subjects and shared teaching loads (e.g., 80/20 splits).
-- [ ] **Cross-Timetable Contamination Fix**
-  - Solver must load all currently `PUBLISHED` slots before starting a new run to prevent double-booking across separate generation tasks.
 - [ ] **College Settings / Feature Flags Table**
-  - ON/OFF toggles per feature so colleges can enable/disable functionality (lab batches, cross-dept, etc.).
+  - *Implemented:* `college_settings` model is in place. Next: Wrap specific endpoints and solver logic with these flags so colleges can toggle optional features.
 
 ### 🟠 Engine & Solver Improvements
 - [ ] **Dynamic Constraint Checker**

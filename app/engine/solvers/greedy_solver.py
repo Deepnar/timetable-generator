@@ -7,14 +7,15 @@ from app.models.rooms import Room
 from app.models.faculty import Faculty
 from app.models.groups import StudentGroup
 from app.models.subjects import Subject
-from app.models.generation import TimetableSlot, SessionType
+from app.models.subject_assignments import SubjectAssignment
+from app.models.generation import TimetableSlot, SessionType, InstanceStatus
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 
 
 class SessionToSchedule:
     """
     Represents one lecture/lab that needs to be placed in the timetable.
-    Created by expanding subject hours_per_week into individual sessions.
+    Created by expanding subject assignments into individual sessions.
     """
     def __init__(
         self,
@@ -43,6 +44,7 @@ class GreedySolver:
         self.profile_id = profile_id
         self.instance_id = instance_id
         self.committed_slots: list[TimetableSlot] = []
+        self.reserved_conflicts: set[tuple[int, int, int, int, int]] = set()
         self.params = {}
         self._load_params()
 
@@ -129,49 +131,37 @@ class GreedySolver:
     def _build_sessions(self) -> list[SessionToSchedule]:
         """
         Expands subjects into individual sessions based on hours_per_week.
-        A subject needing 4 hours/week becomes 4 SessionToSchedule objects.
-        Labs get double slot duration — counted as 2 sessions.
+        Reads from the subject_assignments table to know EXACTLY who teaches what to whom.
         """
         sessions = []
+        profile_subject_ids = self._get_profile_resources(ResourceType.SUBJECT)
 
-        subject_ids = self._get_profile_resources(ResourceType.SUBJECT)
-        faculty_ids = self._get_profile_resources(ResourceType.FACULTY)
-        group_ids = self._get_profile_resources(ResourceType.STUDENT_GROUP)
-
-        subjects = self.db.scalars(
-            select(Subject).where(Subject.id.in_(subject_ids))
+        # Load all relevant assignments for this profile's subjects
+        assignments = self.db.scalars(
+            select(SubjectAssignment).where(
+                SubjectAssignment.subject_id.in_(profile_subject_ids)
+            )
         ).all()
 
-        # simple assignment — first faculty to first group
-        # in a real system this would come from a subject_assignments table
-        # for now we pair them round-robin
-        faculty_index = 0
-        group_index = 0
-
-        for subject in subjects:
-            if not faculty_ids or not group_ids:
+        for assignment in assignments:
+            if not assignment.faculty_id or not assignment.weekly_hours:
                 continue
 
-            faculty_id = faculty_ids[faculty_index % len(faculty_ids)]
-            group_id = group_ids[group_index % len(group_ids)]
-
+            subject = assignment.subject
             session_type = (
                 SessionType.LAB if subject.requires_lab
                 else SessionType.LECTURE
             )
 
-            # each hour_per_week = one session
-            for _ in range(subject.hours_per_week):
+            # Create individual sessions based on weekly_hours
+            for _ in range(assignment.weekly_hours):
                 sessions.append(SessionToSchedule(
                     subject_id=subject.id,
-                    faculty_id=faculty_id,
-                    student_group_id=group_id,
+                    faculty_id=assignment.faculty_id,
+                    student_group_id=assignment.group_id,
                     session_type=session_type,
                     requires_lab=subject.requires_lab
                 ))
-
-            faculty_index += 1
-            group_index += 1
 
         # most constrained first — labs before lectures
         sessions.sort(key=lambda s: (0 if s.requires_lab else 1))
@@ -188,6 +178,10 @@ class GreedySolver:
             from app.models.rooms import RoomType
             query = query.where(Room.room_type == RoomType.LAB)
         return self.db.scalars(query).all()
+
+    def _is_reserved(self, faculty_id, room_id, group_id, day, slot_num):
+        """Check if this exact combination is already booked in a published timetable."""
+        return (faculty_id, room_id, group_id, day, slot_num) in self.reserved_conflicts
 
     def solve(self) -> list[TimetableSlot]:
         """
@@ -210,7 +204,22 @@ class GreedySolver:
                 for slot_number, start_time, end_time in slot_times:
                     if placed:
                         break
+                    
+                    # Cross-timetable contamination check before room loop
+                    if self._is_reserved(
+                        session.faculty_id, None, # Room isn't assigned yet
+                        session.student_group_id, day, slot_number
+                    ):
+                        continue
+
                     for room in rooms:
+                        # Final double-book check against published data
+                        if self._is_reserved(
+                            session.faculty_id, room.id, 
+                            session.student_group_id, day, slot_number
+                        ):
+                            continue
+
                         candidate = SlotCandidate(
                             instance_id=self.instance_id,
                             day_of_week=day,
