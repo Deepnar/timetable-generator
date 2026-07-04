@@ -1,6 +1,6 @@
 # Implementation Plan — Timetable Generator
 
-This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.greedy-complete`) and the full enterprise vision outlined in `documentation/timetable-generator-architecture.md`. It prioritizes the most critical missing pieces (like subject-faculty mapping and cross-timetable safety) before moving to advanced solvers and frontend development.
+This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.greedy-complete`) and a **complete, standalone full-stack enterprise application**. It prioritizes the most critical missing pieces (like subject-faculty mapping and cross-timetable safety) before moving to advanced solvers and frontend development.
 
 ---
 
@@ -46,7 +46,24 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - Move `POST /generate` to fire a Celery task and immediately return `{status: "PENDING", run_id: X}`.
   - Implement `GET /generate/{run_id}/status` for polling (future: WebSocket upgrades).
 
-## Phase 4: Export, Notifications & Enterprise Polish
+## Phase 4: Full Stack Integration & Frontend Development
+*Goal: Provide a complete user experience within this single application.*
+
+- [ ] **Frontend Setup**
+  - Initialize Next.js/React frontend inside this project (or as a tightly coupled sibling).
+  - Set up API client, authentication context, and routing.
+- [ ] **Auth & Dashboard**
+  - Login page, JWT storage, protected routes.
+  - Dashboard showing recent generation runs, system stats, and quick actions.
+- [ ] **Resource Management Pages**
+  - Tables with search/filter, CSV upload modals, and CRUD forms for Rooms, Faculty, Groups, Subjects.
+  - **Master Assignment Grid**: UI to assign teachers to subjects and divisions (Phase 1's critical missing piece).
+- [ ] **Generation & Instance Viewer**
+  - Trigger generation form with progress bar.
+  - Side-by-side timetable grid viewer to compare instances.
+  - Manual override interface (click slot -> change time/room -> re-validate).
+
+## Phase 5: Enterprise Polish, Exports & Notifications
 *Goal: Production-grade APIs and stakeholder communication.*
 
 - [ ] **Filtered Exports**
@@ -61,32 +78,17 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - Request logging / audit trail for every mutation.
   - `GET /health` endpoint for deployment monitoring.
 
-## Phase 5: Frontend Development (React/Next.js)
-*Goal: Intuitive UI for college admins who are not technical.*
-
-- [ ] **Auth & Dashboard**
-  - Login page, JWT storage, protected routes.
-  - Dashboard showing recent generation runs, system stats, and quick actions.
-- [ ] **Resource Management Pages**
-  - Tables with search/filter, CSV upload modals, and CRUD forms for Rooms, Faculty, Groups, Subjects.
-  - **Master Assignment Grid**: UI to assign teachers to subjects and divisions (Phase 1's critical missing piece).
-- [ ] **Profile & Constraint UI**
-  - Form to build profiles, set parameters, and toggle feature flags.
-  - Visual constraint builder (dropdowns for type, weight, and config JSON).
-- [ ] **Generation & Instance Viewer**
-  - Trigger generation form with progress bar.
-  - Side-by-side timetable grid viewer to compare instances.
-  - Manual override interface (click slot -> change time/room -> re-validate).
-
 ## Phase 6: Deployment & Final Polish
-*Goal: Ship a stable, self-contained application.*
+*Goal: Ship a stable, self-contained full-stack application.*
 
-- [ ] **Dockerization**
-  - `Dockerfile` for FastAPI app, Redis container config, and `docker-compose.yml` for local/env parity.
+- [ ] **Full Stack Dockerization**
+  - Create `docker-compose.yml` that spins up the entire application: **FastAPI Backend**, **Next.js Frontend**, **MySQL Database**, and **Redis** in one command.
 - [ ] **README & Documentation**
   - Update `README.md` with setup instructions, architecture diagram link, and API examples.
   - Final code cleanup, type hinting pass, and docstrings.
+- [ ] **Historical Data Import**
+  - Upload past semesters' timetables for pattern reference.
 
 ---
 
-> **Note:** All frontend work assumes a separate Next.js repository or an `/frontend` directory. Backend APIs will be versioned at `/api/v1/` during Phase 4 to prevent breaking changes once the frontend is live.
+> **Note:** This application is now a standalone full-stack project. All frontend work will be integrated into the deployment pipeline, making this a single deployable artifact.
