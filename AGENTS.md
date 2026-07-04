@@ -1,10 +1,31 @@
+## 🚀 Session Initialization
+
+Before doing anything else, you MUST activate the virtual environment. All dependencies are managed by `uv`.
+
+```bash
+source .venv/bin/activate
+```
+
+Ensure this is active before running any Python scripts, migrations, or the FastAPI server. Never use `pip`—use `uv add`, `uv sync`, and `uv run` exclusively.
+
+---
+
 # Repository Guidelines
 
 ## What This Module Does
 
 This is the **Timetable Generator** — a multi-domain scheduling engine that produces and manages seven timetable types: Class, Faculty, Room Utilization, Event/Seminar, Industry Program (IP), Exam, and Lab schedules. All types share the same constraint engine and resource pool to guarantee zero cross-timetable conflicts.
 
-The full architectural blueprint lives at `documentation/timetable-generator-architecture.md`. Refer to it for database schema definitions, endpoint contracts, solver strategy details, and the implementation roadmap.
+### Project Overview & Current Context
+This project serves as a **FastAPI Microservice** for an Institutional ERP. It is built on **SQLAlchemy 2.0** and uses **MySQL** via PyMySQL. 
+
+**Current Development State:**
+The system is at the **`v0.greedy-complete`** checkpoint. 
+- **Completed:** The foundational phase is fully built. This includes 18 database tables, full CRUD for all resources (rooms, faculty, groups, subjects), JWT authentication, CSV bulk imports, a dynamic profile/constraint system, a greedy constraint-based solver, synchronous timetable generation, manual slot overrides, PDF/CSV exports, and history/reset workflows.
+- **Dependency Management:** Fully migrated to `uv` (`pyproject.toml`). The old `pip` and `requirements.txt` workflow has been retired.
+
+**Next Major Goal:**
+We are moving into **Phase 1** of the implementation plan: fixing the missing Subject-Faculty-Group mapping table, implementing cross-timetable conflict prevention, and adding college-wide feature flags before tackling advanced solvers (OR-Tools) and Celery async tasks.
 
 ---
 
@@ -16,6 +37,21 @@ The full architectural blueprint lives at `documentation/timetable-generator-arc
 | **Constraints** | Hard (inviolable; generation fails) and Soft (preferences scored & weighted) |
 | **Profiles** | Named, saveable bundles of resources + constraints + parameters (think "presets" like *CS Dept Full Semester*) |
 | **Instances** | Every generation run produces multiple candidate timetables; the admin picks one — no auto-commit |
+
+---
+
+## 📚 Essential Reference Files
+
+To fully understand the architecture, current progress, and future plans, please read these files:
+
+1.  **`documentation/timetable-generator-architecture.md`** 
+    The master architectural blueprint. It contains the complete database schema designs, endpoint contracts, solver strategies (Greedy vs OR-Tools), and the overall system vision.
+2.  **`plan.md`** 
+    The phased implementation roadmap. It outlines exactly how to bridge the gap from the current greedy engine to the final enterprise-grade system.
+3.  **`progress.md`** 
+    A living feature checklist. Use this to track completed work and identify what is currently blocked or planned.
+4.  **`rough_plan.md`** 
+    Raw session notes containing brainstormed ideas, late-night discoveries (like college settings tables), and frontend/API polish requirements.
 
 ---
 
