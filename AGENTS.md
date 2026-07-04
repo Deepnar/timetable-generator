@@ -12,20 +12,20 @@ Ensure this is active before running any Python scripts, migrations, or the Fast
 
 # Repository Guidelines
 
-## What This Module Does
+## What This Application Does
 
-This is the **Timetable Generator** — a multi-domain scheduling engine that produces and manages seven timetable types: Class, Faculty, Room Utilization, Event/Seminar, Industry Program (IP), Exam, and Lab schedules. All types share the same constraint engine and resource pool to guarantee zero cross-timetable conflicts.
+This is the **Enterprise Timetable Management System** — a standalone, full-stack application that produces and manages seven timetable types: Class, Faculty, Room Utilization, Event/Seminar, Industry Program (IP), Exam, and Lab schedules. It replaces manual spreadsheet-based scheduling with a constraint-driven engine that guarantees zero cross-timetable conflicts across the entire institution.
 
 ### Project Overview & Current Context
-This project serves as a **FastAPI Microservice** for an Institutional ERP. It is built on **SQLAlchemy 2.0** and uses **MySQL** via PyMySQL. 
+This project is a **complete full-stack application** (Backend + Database + Frontend). It is built on **FastAPI**, **SQLAlchemy 2.0**, **MySQL**, and will soon include a **Next.js/React frontend**. It is NOT a microservice for another ERP; it is the primary scheduling product itself.
 
 **Current Development State:**
-The system is at the **`v0.greedy-complete`** checkpoint. 
-- **Completed:** The foundational phase is fully built. This includes 18 database tables, full CRUD for all resources (rooms, faculty, groups, subjects), JWT authentication, CSV bulk imports, a dynamic profile/constraint system, a greedy constraint-based solver, synchronous timetable generation, manual slot overrides, PDF/CSV exports, and history/reset workflows.
+The backend system is at the **`v0.greedy-complete`** checkpoint. 
+- **Completed:** The foundational backend is fully built. This includes 18 database tables, full CRUD for all resources (rooms, faculty, groups, subjects), JWT authentication, CSV bulk imports, a dynamic profile/constraint system, a greedy constraint-based solver, synchronous timetable generation, manual slot overrides, PDF/CSV exports, and history/reset workflows.
 - **Dependency Management:** Fully migrated to `uv` (`pyproject.toml`). The old `pip` and `requirements.txt` workflow has been retired.
 
 **Next Major Goal:**
-We are moving into **Phase 1** of the implementation plan: fixing the missing Subject-Faculty-Group mapping table, implementing cross-timetable conflict prevention, and adding college-wide feature flags before tackling advanced solvers (OR-Tools) and Celery async tasks.
+We are moving into **Phase 1**: fixing the missing Subject-Faculty-Group mapping table, implementing cross-timetable conflict prevention, and adding college-wide feature flags before tackling advanced solvers (OR-Tools) and building the full-stack frontend.
 
 ---
 
@@ -47,7 +47,7 @@ To fully understand the architecture, current progress, and future plans, please
 1.  **`documentation/timetable-generator-architecture.md`** 
     The master architectural blueprint. It contains the complete database schema designs, endpoint contracts, solver strategies (Greedy vs OR-Tools), and the overall system vision.
 2.  **`plan.md`** 
-    The phased implementation roadmap. It outlines exactly how to bridge the gap from the current greedy engine to the final enterprise-grade system.
+    The phased implementation roadmap. It outlines exactly how to bridge the gap from the current greedy engine to the final enterprise-grade full-stack application.
 3.  **`progress.md`** 
     A living feature checklist. Use this to track completed work and identify what is currently blocked or planned.
 4.  **`rough_plan.md`** 
@@ -195,4 +195,4 @@ When contributing to future phases, always reference the architecture doc for th
 - **Never commit `.env`**. Copy from `.env.example` and set your own values.
 - `SECRET_KEY` must be a strong random string — rotate in production.
 - The database uses MySQL via PyMySQL; ensure credentials match your server configuration.
-- This service runs as a standalone FastAPI microservice (default port `:8000`). The main ERP backend (Node.js) communicates with it over HTTP.
+- This is a **standalone full-stack application**. It handles its own authentication, database connection, and frontend serving (when implemented).
