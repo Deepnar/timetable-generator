@@ -24,6 +24,7 @@ class GenerationResponse(BaseModel):
     algorithm_used: AlgorithmType
     instances_requested: int
     instances_produced: int
+    score_best_instance: Optional[float] = None
     triggered_at: datetime
     completed_at: Optional[datetime] = None
     error_log: Optional[str] = None

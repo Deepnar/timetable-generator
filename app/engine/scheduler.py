@@ -9,7 +9,7 @@ Flow:
 """
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, or_
 
 from app.models.generation import (
     TimetableGeneration,
@@ -20,7 +20,10 @@ from app.models.generation import (
     AlgorithmType,
 )
 from app.models.profiles import TimetableProfile
+from app.models.constraints import SoftConstraint
+from app.services.settings_service import get_settings
 from app.engine.solvers.greedy_solver import GreedySolver
+from app.engine.scorer import score_instance, ScoringContext
 
 
 class Scheduler:
@@ -67,10 +70,21 @@ class Scheduler:
         # can never double-book an already-live timetable.
         reserved_conflicts = self._load_published_conflicts()
 
+        # Soft-constraint scoring (opt-in per college). When enabled, each
+        # instance is scored so the admin can rank the candidates.
+        settings = get_settings(self.db)
+        soft_rules = (
+            self._load_soft_constraints(profile_id)
+            if settings.enable_soft_constraint_scoring
+            else []
+        )
+        scoring_ctx = ScoringContext(self.db)
+
         generation.generation_status = GenerationStatus.RUNNING
         self.db.flush()
 
         instances_created = 0
+        best_score: float | None = None
         for i in range(instances_requested):
             instance = TimetableInstance(
                 generation_id=generation.id,
@@ -90,14 +104,33 @@ class Scheduler:
             slots = solver.solve()
             for slot in slots:
                 self.db.add(slot)
+
+            if soft_rules:
+                score = score_instance(slots, soft_rules, scoring_ctx)
+                instance.soft_score = score
+                best_score = score if best_score is None else max(best_score, score)
+
             instances_created += 1
 
         generation.generation_status = GenerationStatus.COMPLETED
         generation.instances_produced = instances_created
+        generation.score_best_instance = best_score
         generation.completed_at = datetime.utcnow()
         self.db.commit()
 
         return generation
+
+    def _load_soft_constraints(self, profile_id: int) -> list[SoftConstraint]:
+        """Active soft constraints for this profile plus any global ones."""
+        return self.db.scalars(
+            select(SoftConstraint).where(
+                SoftConstraint.is_active == True,
+                or_(
+                    SoftConstraint.profile_id == profile_id,
+                    SoftConstraint.profile_id.is_(None),
+                ),
+            )
+        ).all()
 
     def _load_published_conflicts(self) -> dict[str, set[tuple]]:
         """Fetch every slot of every PUBLISHED instance.
