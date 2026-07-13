@@ -80,9 +80,9 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 ## Phase 5: Enterprise Polish, Exports & Notifications
 *Goal: Production-grade APIs and stakeholder communication.*
 
-- [ ] **Filtered Exports**
-  - Update PDF/CSV exports to accept filters: `?group_id=CS-A`, `?faculty_id=5`, or `?year=2`.
-  - Implement **iCal (.ics)** export for individual faculty calendar integration.
+- [x] **Filtered Exports**
+  - PDF/CSV/iCal all accept `?group_id=`, `?faculty_id=`, `?year=`, `?department=` (shared `get_filtered_slots`).
+  - **iCal (.ics)** export implemented — weekly-recurring `VEVENT`s with `?term_start`/`?term_end`, ideal for a teacher importing their personal schedule (`?faculty_id=`).
 - [ ] **Notification Service**
   - Set up FastAPI-mail (SMTP).
   - Trigger emails on `POST /instances/{id}/publish`: send individual PDFs to teachers, summary to HODs.

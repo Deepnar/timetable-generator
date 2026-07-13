@@ -544,14 +544,19 @@ GET    /instances/{id}/diff/{other_id} Compare two instances side by side
 POST   /instances/{id}/clone           Clone an instance for editing without affecting original
 ```
 
-#### Export
+#### Export (implemented — filters on all three)
 
 ```
-GET    /instances/{id}/export/pdf      Download timetable as PDF
-GET    /instances/{id}/export/csv      Download as CSV
-GET    /instances/{id}/export/ical     Download as .ics calendar file
-GET    /instances/{id}/export/faculty/{faculty_id}/pdf  Individual teacher timetable PDF
+GET /export/instances/{id}/pdf     Timetable grid as PDF
+GET /export/instances/{id}/csv     Rows as CSV
+GET /export/instances/{id}/ical    Weekly-recurring .ics calendar
+    # shared query filters (any combination):
+    #   ?group_id=   one division      ?faculty_id= one teacher's schedule
+    #   ?year=       a whole year       ?department= a department
+    # iCal only: ?term_start=YYYY-MM-DD&term_end=YYYY-MM-DD  (anchor + UNTIL)
 ```
+
+An individual teacher's PDF is just `?faculty_id=`; an empty filter result is a 404 (PDF renders an empty grid).
 
 #### History & Reset
 
@@ -813,13 +818,17 @@ Every mutation writes to the ERP's `audit_logs`:
 - Manual slot override
 - Annual reset
 
-### 7.6 Export Formats
+### 7.6 Export Formats — *implemented*
+
+All three live in `app/services/export_service.py` and share one filter layer
+(`get_filtered_slots`: group / faculty / year / department). See the Export
+endpoints in §4.2.
 
 | Format  | Use Case                                             |
 |---------|------------------------------------------------------|
-| PDF     | Printable wall charts, individual faculty timetables |
+| PDF     | Printable wall charts, individual faculty timetables (ReportLab) |
 | CSV     | Data portability, admin review in Excel              |
-| iCal    | Import into Google Calendar, Outlook                 |
+| iCal    | Import into Google Calendar / Outlook — weekly-recurring `VEVENT`s (`RRULE FREQ=WEEKLY`, hand-written RFC 5545), anchored to `term_start` with optional `UNTIL` from `term_end` |
 | JSON    | API consumers (student app, faculty app)             |
 
 ### 7.7 Notification on Publish

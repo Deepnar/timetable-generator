@@ -98,10 +98,8 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Diversity Filter** — instance #1 is a deterministic baseline; later instances are re-seeded (greedy shuffles search order, OR-Tools varies `random_seed`) and accepted only if their Hamming distance from earlier instances clears a threshold (retries otherwise). Fixes the "3 identical instances" problem.
 
 ### 🟡 Exports, Notifications & Polish
-- [ ] **Filtered Exports**
-  - Export by division, individual teacher, year, or department.
-- [ ] **iCal (.ics) Export**
-  - Calendar file for Google Calendar / Outlook integration.
+- [x] **Filtered Exports** — PDF/CSV/iCal accept `group_id` / `faculty_id` / `year` / `department` via a shared `get_filtered_slots` helper (`/export/instances/{id}/{pdf,csv,ical}`).
+- [x] **iCal (.ics) Export** — weekly-recurring `VEVENT`s (RFC 5545, `RRULE FREQ=WEEKLY`) anchored to `term_start`, optional `term_end`; a teacher imports their schedule with `?faculty_id=`.
 - [ ] **Email Notifications on Publish**
   - SMTP setup, trigger emails to faculty (personal PDF), HOD (summary), and class incharges.
 - [ ] **Redis Integration**
