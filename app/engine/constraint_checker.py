@@ -1,18 +1,23 @@
+"""Hard-constraint validator for the greedy solver.
+
+Every rule returns a list of :class:`ConstraintViolation`; an empty list
+means the candidate slot is acceptable.
+"""
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from datetime import time
+
 from app.models.generation import TimetableSlot
-from app.models.rooms import Room, RoomType
-from app.models.faculty import FacultyAvailability, AvailabilityType
-from app.models.rooms import RoomBlackout
+from app.models.rooms import Room, RoomType, RoomBlackout
+from app.models.faculty import Faculty, FacultyAvailability, AvailabilityType
 from app.models.subjects import Subject
+from app.models.groups import StudentGroup
+from app.models.settings import CollegeSettings
 
 
 class SlotCandidate:
-    """
-    Represents one possible assignment the solver is considering.
-    Before committing, this gets validated by the constraint checker.
-    """
+    """A potential placement the solver is considering."""
+
     def __init__(
         self,
         instance_id: int,
@@ -25,7 +30,8 @@ class SlotCandidate:
         student_group_id: int,
         subject_id: int,
         session_type: str,
-        slot_date=None
+        slot_date=None,
+        is_cross_department: bool = False,
     ):
         self.instance_id = instance_id
         self.day_of_week = day_of_week
@@ -38,220 +44,275 @@ class SlotCandidate:
         self.subject_id = subject_id
         self.session_type = session_type
         self.slot_date = slot_date
+        self.is_cross_department = is_cross_department
 
 
 class ConstraintViolation:
-    """Describes why a slot candidate failed validation."""
+    """Describes why a candidate failed validation."""
+
     def __init__(self, constraint: str, reason: str):
         self.constraint = constraint
         self.reason = reason
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.constraint}: {self.reason}"
 
 
 class ConstraintChecker:
-    """
-    Validates a SlotCandidate against all hard constraints.
-    Returns a list of violations — empty list means the slot is valid.
-    """
+    """Validates a :class:`SlotCandidate` against all hard rules."""
 
-    def __init__(self, db: Session, committed_slots: list[TimetableSlot]):
+    def __init__(
+        self,
+        db: Session,
+        committed_slots: list[TimetableSlot],
+        settings: CollegeSettings | None = None,
+        reserved: dict[str, set[tuple]] | None = None,
+    ):
         self.db = db
-        # These are already assigned slots in the current generation run
-        # Used to check double-booking
         self.committed_slots = committed_slots
+        # settings is optional so the checker is still usable in tests
+        # that only care about core constraints.
+        self.settings = settings
+        # ``reserved`` holds resource-level (id, day, slot) tuples that are
+        # already taken by PUBLISHED timetables from *other* generation runs.
+        # Split per resource so a published booking blocks the faculty, room,
+        # or group at that time slot regardless of the other two dimensions.
+        self.reserved = reserved or {}
 
+    # ── public api ───────────────────────────────────────────
     def check_all(self, candidate: SlotCandidate) -> list[ConstraintViolation]:
-        violations = []
-
+        violations: list[ConstraintViolation] = []
         violations += self._check_teacher_double_book(candidate)
         violations += self._check_room_double_book(candidate)
         violations += self._check_group_double_book(candidate)
+        violations += self._check_published_conflicts(candidate)
         violations += self._check_room_capacity(candidate)
         violations += self._check_room_type_match(candidate)
         violations += self._check_teacher_availability(candidate)
+        violations += self._check_faculty_load(candidate)
         violations += self._check_room_blackout(candidate)
-        violations += self._check_same_subject_same_day(candidate)  # add this
-
+        violations += self._check_same_subject_same_day(candidate)
+        violations += self._check_cross_dept_cap(candidate)
         return violations
 
     def is_valid(self, candidate: SlotCandidate) -> bool:
         return len(self.check_all(candidate)) == 0
 
-    # ── Individual constraint checks ─────────────────────────
-
-    def _check_teacher_double_book(
-        self, candidate: SlotCandidate
-    ) -> list[ConstraintViolation]:
-        """Teacher cannot be in two places at the same time."""
-        for slot in self.committed_slots:
+    # ── individual checks ────────────────────────────────────
+    def _check_teacher_double_book(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        for s in self.committed_slots:
             if (
-                slot.faculty_id == candidate.faculty_id
-                and slot.day_of_week == candidate.day_of_week
-                and slot.slot_number == candidate.slot_number
+                s.faculty_id == c.faculty_id
+                and s.day_of_week == c.day_of_week
+                and s.slot_number == c.slot_number
             ):
                 return [ConstraintViolation(
                     "NO_TEACHER_DOUBLE_BOOK",
-                    f"Faculty {candidate.faculty_id} already assigned "
-                    f"day {candidate.day_of_week} slot {candidate.slot_number}"
+                    f"Faculty {c.faculty_id} already assigned "
+                    f"day {c.day_of_week} slot {c.slot_number}",
                 )]
         return []
 
-    def _check_room_double_book(
-        self, candidate: SlotCandidate
-    ) -> list[ConstraintViolation]:
-        """Room cannot host two sessions simultaneously."""
-        for slot in self.committed_slots:
+    def _check_room_double_book(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        for s in self.committed_slots:
             if (
-                slot.room_id == candidate.room_id
-                and slot.day_of_week == candidate.day_of_week
-                and slot.slot_number == candidate.slot_number
+                s.room_id == c.room_id
+                and s.day_of_week == c.day_of_week
+                and s.slot_number == c.slot_number
             ):
                 return [ConstraintViolation(
                     "NO_ROOM_DOUBLE_BOOK",
-                    f"Room {candidate.room_id} already booked "
-                    f"day {candidate.day_of_week} slot {candidate.slot_number}"
+                    f"Room {c.room_id} already booked "
+                    f"day {c.day_of_week} slot {c.slot_number}",
                 )]
         return []
 
-    def _check_group_double_book(
-        self, candidate: SlotCandidate
-    ) -> list[ConstraintViolation]:
-        """Student group cannot attend two sessions at once."""
-        for slot in self.committed_slots:
+    def _check_group_double_book(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        for s in self.committed_slots:
             if (
-                slot.student_group_id == candidate.student_group_id
-                and slot.day_of_week == candidate.day_of_week
-                and slot.slot_number == candidate.slot_number
+                s.student_group_id == c.student_group_id
+                and s.day_of_week == c.day_of_week
+                and s.slot_number == c.slot_number
             ):
                 return [ConstraintViolation(
                     "NO_GROUP_DOUBLE_BOOK",
-                    f"Group {candidate.student_group_id} already scheduled "
-                    f"day {candidate.day_of_week} slot {candidate.slot_number}"
+                    f"Group {c.student_group_id} already scheduled "
+                    f"day {c.day_of_week} slot {c.slot_number}",
                 )]
         return []
 
-    def _check_room_capacity(
-        self, candidate: SlotCandidate
-    ) -> list[ConstraintViolation]:
-        """Room capacity must be enough for the student group."""
-        from app.models.groups import StudentGroup
-        room = self.db.scalars(
-            select(Room).where(Room.id == candidate.room_id)
-        ).first()
+    def _check_published_conflicts(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        """Reject placements that collide with an already-PUBLISHED timetable.
+
+        Cross-timetable safety: a teacher, room, or group booked at
+        (day, slot) in any published instance cannot be reused here, even if
+        the other two dimensions differ.
+        """
+        if not self.reserved:
+            return []
+        key = (c.day_of_week, c.slot_number)
+        if (c.faculty_id, *key) in self.reserved.get("faculty", ()):
+            return [ConstraintViolation(
+                "NO_CROSS_TIMETABLE_TEACHER_CONFLICT",
+                f"Faculty {c.faculty_id} already booked in a published "
+                f"timetable on day {c.day_of_week} slot {c.slot_number}",
+            )]
+        if (c.room_id, *key) in self.reserved.get("room", ()):
+            return [ConstraintViolation(
+                "NO_CROSS_TIMETABLE_ROOM_CONFLICT",
+                f"Room {c.room_id} already booked in a published "
+                f"timetable on day {c.day_of_week} slot {c.slot_number}",
+            )]
+        if (c.student_group_id, *key) in self.reserved.get("group", ()):
+            return [ConstraintViolation(
+                "NO_CROSS_TIMETABLE_GROUP_CONFLICT",
+                f"Group {c.student_group_id} already scheduled in a published "
+                f"timetable on day {c.day_of_week} slot {c.slot_number}",
+            )]
+        return []
+
+    def _check_room_capacity(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        room = self.db.scalars(select(Room).where(Room.id == c.room_id)).first()
         group = self.db.scalars(
-            select(StudentGroup).where(
-                StudentGroup.id == candidate.student_group_id)
+            select(StudentGroup).where(StudentGroup.id == c.student_group_id)
         ).first()
         if room and group and room.capacity < group.strength:
             return [ConstraintViolation(
                 "ROOM_CAPACITY_SUFFICIENT",
                 f"Room {room.name} capacity {room.capacity} "
-                f"< group strength {group.strength}"
+                f"< group strength {group.strength}",
             )]
         return []
 
-    def _check_room_type_match(
-        self, candidate: SlotCandidate
-    ) -> list[ConstraintViolation]:
-        """Lab subjects must be assigned to lab rooms."""
+    def _check_room_type_match(self, c: SlotCandidate) -> list[ConstraintViolation]:
         subject = self.db.scalars(
-            select(Subject).where(Subject.id == candidate.subject_id)
+            select(Subject).where(Subject.id == c.subject_id)
         ).first()
-        room = self.db.scalars(
-            select(Room).where(Room.id == candidate.room_id)
-        ).first()
-        if subject and room:
-            if subject.requires_lab and room.room_type != RoomType.LAB:
-                return [ConstraintViolation(
-                    "ROOM_TYPE_MATCH",
-                    f"Subject {subject.name} requires lab "
-                    f"but room {room.name} is {room.room_type}"
-                )]
+        room = self.db.scalars(select(Room).where(Room.id == c.room_id)).first()
+        if subject and room and subject.requires_lab and room.room_type != RoomType.LAB:
+            return [ConstraintViolation(
+                "ROOM_TYPE_MATCH",
+                f"Subject {subject.name} requires lab but room {room.name} "
+                f"is {room.room_type}",
+            )]
         return []
 
-    def _check_teacher_availability(
-        self, candidate: SlotCandidate
-    ) -> list[ConstraintViolation]:
-        """Respect teacher unavailability windows."""
-        unavailable_windows = self.db.scalars(
+    def _check_teacher_availability(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        windows = self.db.scalars(
             select(FacultyAvailability).where(
-                FacultyAvailability.faculty_id == candidate.faculty_id,
-                FacultyAvailability.day_of_week == candidate.day_of_week,
-                FacultyAvailability.availability == AvailabilityType.UNAVAILABLE
+                FacultyAvailability.faculty_id == c.faculty_id,
+                FacultyAvailability.day_of_week == c.day_of_week,
+                FacultyAvailability.availability == AvailabilityType.UNAVAILABLE,
             )
         ).all()
-        for window in unavailable_windows:
-            if window.slot_start and window.slot_end:
-                # check if candidate slot overlaps with unavailability window
-                if (
-                    candidate.start_time < window.slot_end
-                    and candidate.end_time > window.slot_start
-                ):
+        for w in windows:
+            if w.slot_start and w.slot_end:
+                if c.start_time < w.slot_end and c.end_time > w.slot_start:
                     return [ConstraintViolation(
                         "RESPECT_TEACHER_UNAVAILABILITY",
-                        f"Faculty {candidate.faculty_id} unavailable "
-                        f"day {candidate.day_of_week} "
-                        f"{window.slot_start}-{window.slot_end}"
+                        f"Faculty {c.faculty_id} unavailable "
+                        f"day {c.day_of_week} {w.slot_start}-{w.slot_end}",
                     )]
             else:
-                # full day unavailability
                 return [ConstraintViolation(
                     "RESPECT_TEACHER_UNAVAILABILITY",
-                    f"Faculty {candidate.faculty_id} unavailable "
-                    f"all day on day {candidate.day_of_week}"
+                    f"Faculty {c.faculty_id} unavailable all day {c.day_of_week}",
                 )]
         return []
 
-    def _check_room_blackout(
-        self, candidate: SlotCandidate
-    ) -> list[ConstraintViolation]:
-        """Respect room blackout windows."""
-        if not candidate.slot_date:
+    def _check_faculty_load(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        """Enforce a teacher's ``max_hours_per_day`` / ``max_hours_per_week``.
+
+        One slot counts as one hour (the domain uses "hours" and "slots"
+        interchangeably). A ``0``/falsy limit means "no limit".
+        """
+        faculty = self.db.get(Faculty, c.faculty_id)
+        if not faculty:
+            return []
+        if faculty.max_hours_per_day:
+            day_count = sum(
+                1
+                for s in self.committed_slots
+                if s.faculty_id == c.faculty_id and s.day_of_week == c.day_of_week
+            )
+            if day_count >= faculty.max_hours_per_day:
+                return [ConstraintViolation(
+                    "FACULTY_MAX_HOURS_PER_DAY",
+                    f"Faculty {c.faculty_id} already at daily cap "
+                    f"{faculty.max_hours_per_day} on day {c.day_of_week}",
+                )]
+        if faculty.max_hours_per_week:
+            week_count = sum(
+                1 for s in self.committed_slots if s.faculty_id == c.faculty_id
+            )
+            if week_count >= faculty.max_hours_per_week:
+                return [ConstraintViolation(
+                    "FACULTY_MAX_HOURS_PER_WEEK",
+                    f"Faculty {c.faculty_id} already at weekly cap "
+                    f"{faculty.max_hours_per_week}",
+                )]
+        return []
+
+    def _check_room_blackout(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        if not c.slot_date:
             return []
         blackouts = self.db.scalars(
             select(RoomBlackout).where(
-                RoomBlackout.room_id == candidate.room_id,
-                RoomBlackout.date == candidate.slot_date
+                RoomBlackout.room_id == c.room_id,
+                RoomBlackout.date == c.slot_date,
             )
         ).all()
-        for blackout in blackouts:
-            if blackout.slot_start and blackout.slot_end:
-                if (
-                    candidate.start_time < blackout.slot_end
-                    and candidate.end_time > blackout.slot_start
-                ):
+        for b in blackouts:
+            if b.slot_start and b.slot_end:
+                if c.start_time < b.slot_end and c.end_time > b.slot_start:
                     return [ConstraintViolation(
                         "RESPECT_ROOM_BLACKOUT",
-                        f"Room {candidate.room_id} blacked out "
-                        f"{blackout.slot_start}-{blackout.slot_end} "
-                        f"on {candidate.slot_date}"
+                        f"Room {c.room_id} blacked out "
+                        f"{b.slot_start}-{b.slot_end} on {c.slot_date}",
                     )]
             else:
                 return [ConstraintViolation(
                     "RESPECT_ROOM_BLACKOUT",
-                    f"Room {candidate.room_id} blacked out "
-                    f"all day on {candidate.slot_date}"
+                    f"Room {c.room_id} blacked out all day on {c.slot_date}",
                 )]
         return []
-    def _check_same_subject_same_day(
-        self, candidate: SlotCandidate
-    ) -> list[ConstraintViolation]:
-        """
-        Soft-as-hard rule: same subject should not appear more than
-        once per day for the same student group.
-        """
-        for slot in self.committed_slots:
+
+    def _check_same_subject_same_day(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        for s in self.committed_slots:
             if (
-                slot.subject_id == candidate.subject_id
-                and slot.student_group_id == candidate.student_group_id
-                and slot.day_of_week == candidate.day_of_week
+                s.subject_id == c.subject_id
+                and s.student_group_id == c.student_group_id
+                and s.day_of_week == c.day_of_week
             ):
                 return [ConstraintViolation(
                     "SAME_SUBJECT_SAME_DAY",
-                    f"Subject {candidate.subject_id} already scheduled "
-                    f"for group {candidate.student_group_id} "
-                    f"on day {candidate.day_of_week}"
+                    f"Subject {c.subject_id} already scheduled for group "
+                    f"{c.student_group_id} on day {c.day_of_week}",
                 )]
+        return []
+
+    def _check_cross_dept_cap(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        """Optional hard rule driven by college feature flag.
+
+        If the college has ``max_cross_dept_per_day`` configured in its
+        ``config_json`` blob, refuse the placement when the same faculty
+        would teach a cross-department group more than N times on this day.
+        """
+        if not self.settings or not c.is_cross_department:
+            return []
+        cap = (self.settings.config_json or {}).get("max_cross_dept_per_day")
+        if cap is None:
+            return []
+        count = sum(
+            1
+            for s in self.committed_slots
+            if s.faculty_id == c.faculty_id
+            and s.day_of_week == c.day_of_week
+        )
+        if count >= int(cap):
+            return [ConstraintViolation(
+                "CROSS_DEPT_DAILY_CAP",
+                f"Faculty {c.faculty_id} already teaches {count} cross-dept "
+                f"sessions on day {c.day_of_week} (cap {cap})",
+            )]
         return []

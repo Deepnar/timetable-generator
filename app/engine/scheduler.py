@@ -1,23 +1,30 @@
+"""Orchestrates the full timetable generation run.
+
+Flow:
+1. Validate the profile exists.
+2. Create a ``TimetableGeneration`` record (status=PENDING).
+3. Load cross-timetable conflicts from any PUBLISHED instance.
+4. Run the solver N times for N candidate instances.
+5. Save all slots and mark the run COMPLETED.
+"""
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import select, and_
-from app.models.generation import (TimetableGeneration, TimetableInstance,
-                                    TimetableSlot, GenerationStatus,
-                                    InstanceStatus, AlgorithmType)
+from sqlalchemy import select
+
+from app.models.generation import (
+    TimetableGeneration,
+    TimetableInstance,
+    TimetableSlot,
+    GenerationStatus,
+    InstanceStatus,
+    AlgorithmType,
+)
 from app.models.profiles import TimetableProfile
 from app.engine.solvers.greedy_solver import GreedySolver
 
 
 class Scheduler:
-    """
-    Orchestrates the full generation run.
-    1. Validates the profile exists
-    2. Creates TimetableGeneration record
-    3. Loads cross-timetable conflicts from PUBLISHED instances
-    4. Runs solver N times for N instances
-    5. Saves all slots to DB
-    6. Updates generation status
-    """
+    """Coordinator between the API and the solver."""
 
     def __init__(self, db: Session):
         self.db = db
@@ -31,20 +38,17 @@ class Scheduler:
         instances_requested: int,
         algorithm: AlgorithmType,
         triggered_by: int,
-        combination_id: int | None = None
+        combination_id: int | None = None,
     ) -> TimetableGeneration:
-
-        # validate profile exists
         profile = self.db.scalars(
             select(TimetableProfile).where(
                 TimetableProfile.id == profile_id,
-                TimetableProfile.is_active == True
+                TimetableProfile.is_active == True,
             )
         ).first()
         if not profile:
             raise ValueError(f"Profile {profile_id} not found or inactive")
 
-        # create generation record
         generation = TimetableGeneration(
             profile_id=profile_id,
             combination_id=combination_id,
@@ -52,84 +56,89 @@ class Scheduler:
             semester=semester,
             timetable_type=timetable_type,
             instances_requested=instances_requested,
-            algorithm=algorithm,
+            algorithm_used=algorithm,
             triggered_by=triggered_by,
-            status=GenerationStatus.PENDING
+            generation_status=GenerationStatus.PENDING,
         )
         self.db.add(generation)
         self.db.flush()
 
-        # Load cross-timetable conflicts (slots already published)
+        # Pre-load slots from every PUBLISHED instance, so the solver
+        # can never double-book an already-live timetable.
         reserved_conflicts = self._load_published_conflicts()
 
-        generation.status = GenerationStatus.RUNNING
+        generation.generation_status = GenerationStatus.RUNNING
         self.db.flush()
 
         instances_created = 0
-        
-        for _ in range(instances_requested):
+        for i in range(instances_requested):
             instance = TimetableInstance(
                 generation_id=generation.id,
-                status=InstanceStatus.DRAFT
+                instance_number=i + 1,
+                status=InstanceStatus.DRAFT,
             )
             self.db.add(instance)
             self.db.flush()
 
-            # Run solver
             solver = GreedySolver(
                 db=self.db,
                 profile_id=profile_id,
-                instance_id=instance.id
+                instance_id=instance.id,
             )
-            
-            # Inject reserved conflicts into the solver
             solver.reserved_conflicts = reserved_conflicts
 
             slots = solver.solve()
-            
             for slot in slots:
                 self.db.add(slot)
-            
             instances_created += 1
 
-        generation.status = GenerationStatus.COMPLETED
-        generation.instances_generated = instances_created
-        generation.completed_at = datetime.now()
+        generation.generation_status = GenerationStatus.COMPLETED
+        generation.instances_produced = instances_created
+        generation.completed_at = datetime.utcnow()
         self.db.commit()
 
         return generation
 
-    def _load_published_conflicts(self):
+    def _load_published_conflicts(self) -> dict[str, set[tuple]]:
+        """Fetch every slot of every PUBLISHED instance.
+
+        Returns resource-level reservations keyed by dimension::
+
+            {
+                "faculty": {(faculty_id, day, slot), ...},
+                "room":    {(room_id, day, slot), ...},
+                "group":   {(group_id, day, slot), ...},
+            }
+
+        Splitting per resource lets the constraint checker block a teacher,
+        room, or group at a given time slot independently — a published
+        booking conflicts no matter what the other two dimensions are.
         """
-        Fetches all slots from PUBLISHED timetable instances.
-        Returns a set of (faculty_id, room_id, group_id, day_of_week, slot_number) tuples
-        representing times that are absolutely booked and cannot be touched by new runs.
-        """
-        # Find all published instances across ALL generations
+        reserved: dict[str, set[tuple]] = {
+            "faculty": set(),
+            "room": set(),
+            "group": set(),
+        }
         published_ids = self.db.scalars(
             select(TimetableInstance.id).where(
                 TimetableInstance.status == InstanceStatus.PUBLISHED
             )
         ).all()
-
         if not published_ids:
-            return set()
+            return reserved
 
-        # Load their slots
         published_slots = self.db.scalars(
             select(TimetableSlot).where(
                 TimetableSlot.instance_id.in_(published_ids)
             )
         ).all()
 
-        reserved = set()
         for slot in published_slots:
-            reserved.add((
-                slot.faculty_id, 
-                slot.room_id, 
-                slot.student_group_id, 
-                slot.day_of_week, 
-                slot.slot_number
-            ))
-        
+            key = (slot.day_of_week, slot.slot_number)
+            if slot.faculty_id is not None:
+                reserved["faculty"].add((slot.faculty_id, *key))
+            if slot.room_id is not None:
+                reserved["room"].add((slot.room_id, *key))
+            if slot.student_group_id is not None:
+                reserved["group"].add((slot.student_group_id, *key))
         return reserved
