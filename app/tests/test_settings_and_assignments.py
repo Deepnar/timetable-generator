@@ -500,3 +500,51 @@ def _phase2_recurring(s):
         assert v(_cand(0), [], cfg, None) is None         # Monday allowed
 
     return [t_recurring_blackout, t_blackout_validation, t_lab_rotation]
+
+
+@suite("Phase 3 — OR-Tools CP-SAT solver")
+def _phase3_ortools(s):
+    def _gen(client, headers, profile_id, algorithm):
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": profile_id, "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": algorithm,
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        inst_id = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]["id"]
+        return client.get(f"/instances/{inst_id}/slots", headers=headers).json()
+
+    @test("OR-Tools produces a complete, conflict-free timetable")
+    def t_ortools_basic(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        slots = _gen(client, headers, ids["profile"], "OR_TOOLS")
+        assert len(slots) == 3, f"expected 3 sessions, got {len(slots)}"
+        # same subject on distinct days, no teacher slot clash
+        days = [sl["day_of_week"] for sl in slots]
+        assert len(set(days)) == 3, days
+        seen = set()
+        for sl in slots:
+            key = (sl["faculty_id"], sl["day_of_week"], sl["slot_number"])
+            assert key not in seen, f"teacher double-booked: {key}"
+            seen.add(key)
+
+    @test("OR-Tools honors a hard registry constraint")
+    def t_ortools_registry(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "SUBJECT_TIME_PREFERENCE",
+            "config_json": {"subject_id": ids["subject"], "max_slot": 1},
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen(client, headers, ids["profile"], "OR_TOOLS")
+        assert slots, "expected slots"
+        assert all(sl["slot_number"] <= 1 for sl in slots), [sl["slot_number"] for sl in slots]
+
+    return [t_ortools_basic, t_ortools_registry]
