@@ -1,0 +1,223 @@
+"""Custom test runner — no pytest required.
+
+Usage:
+    uv run python -m app.tests
+
+Tests register themselves by calling :func:`suite` and :func:`test`:
+
+    @suite("My group")
+    def _(s):
+        @test("does the thing")
+        def _(client):
+            assert client.get("/health").status_code == 200
+"""
+from __future__ import annotations
+
+import os
+import sys
+import time
+import traceback
+from dataclasses import dataclass, field
+from typing import Callable, List
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(HERE, "..", "..")))
+
+# The conftest must run BEFORE any other app code so the in-memory
+# engine is in place and the get_db override is wired.
+import app.tests.conftest as conftest  # noqa: F401, E402
+from app.tests.conftest import (  # noqa: E402
+    reset_db,
+    make_client,
+    create_admin,
+    login_token,
+    auth_headers,
+    ensure_settings,
+    TestingSessionLocal,
+)
+
+
+@dataclass
+class _Suite:
+    name: str
+    tests: List[Callable] = field(default_factory=list)
+
+
+SUITES: list[_Suite] = []
+
+
+def suite(name: str) -> Callable:
+    """Wrap a function that registers tests. All test callables returned
+    by the wrapped function are appended to the suite.
+
+    The trick: we just iterate over the function's return values. Tests
+    should be returned in the order they should run.
+    """
+    s = _Suite(name=name)
+    SUITES.append(s)
+
+    def deco(register: Callable) -> Callable:
+        # Allow either: returns list of tests, OR adds them via .add
+        result = register(s)
+        if result is not None:
+            for fn in result:
+                if callable(fn) and getattr(fn, "__test__", False):
+                    s.tests.append(fn)
+        return register
+
+    return deco
+
+
+def test(name: str) -> Callable:
+    """Mark a function as a test with the given human-readable name.
+
+    The wrapped function must accept a single ``TestClient`` argument.
+    """
+
+    def deco(fn: Callable) -> Callable:
+        fn.__test_name__ = name
+        fn.__test__ = True
+        return fn
+
+    return deco
+
+
+def run() -> int:
+    total = passed = failed = 0
+    print()
+    for s in SUITES:
+        print(f"=== {s.name} ===")
+        for fn in s.tests:
+            total += 1
+            t0 = time.time()
+            try:
+                fn(make_client())
+                dt = (time.time() - t0) * 1000
+                passed += 1
+                print(f"  ✓ {fn.__test_name__} ({dt:.1f} ms)")
+            except AssertionError as e:
+                dt = (time.time() - t0) * 1000
+                failed += 1
+                print(f"  ✗ {fn.__test_name__} ({dt:.1f} ms): {e}")
+            except Exception as e:  # noqa: BLE001
+                dt = (time.time() - t0) * 1000
+                failed += 1
+                tb = traceback.format_exc()
+                print(f"  💥 {fn.__test_name__} ({dt:.1f} ms): {e}\n{tb}")
+
+    print(f"\n=== {passed}/{total} passed, {failed} failed ===")
+    return 0 if failed == 0 else 1
+
+
+# ── helper: build a base scenario with admin + profile + room + group + faculty + subject ──
+def seed_minimal(
+    *,
+    allow_cross_dept: bool = False,
+    enable_lab_batches: bool = False,
+    cross_dept: bool = False,
+    faculty_max_per_week: int | None = None,
+    faculty_max_per_day: int | None = None,
+):
+    """Insert one of each resource and a subject assignment.
+
+    Returns a dict of IDs so the test can build more on top.
+    """
+    reset_db()
+    ensure_settings({
+        "enable_lab_batches": enable_lab_batches,
+        "allow_cross_dept_subjects": allow_cross_dept,
+        "enable_soft_constraint_scoring": True,
+    })
+    create_admin()
+    db = TestingSessionLocal()
+    try:
+        from app.models.faculty import Faculty
+        from app.models.groups import StudentGroup, GroupType
+        from app.models.rooms import Room, RoomType
+        from app.models.subjects import Subject
+        from app.models.profiles import (
+            TimetableProfile, ProfileResource, ProfileParameter, ParamType,
+            ResourceType, ScopeType,
+        )
+        from app.models.subject_assignments import SubjectAssignment
+        from app.models.admin import Admin as AdminModel
+
+        admin = db.query(AdminModel).first()
+
+        fac = Faculty(name="Alice", email="alice@x.com", department="CS")
+        if faculty_max_per_week is not None:
+            fac.max_hours_per_week = faculty_max_per_week
+        if faculty_max_per_day is not None:
+            fac.max_hours_per_day = faculty_max_per_day
+        db.add(fac); db.flush()
+        # For a genuine cross-department scenario the group and the subject must
+        # live in DIFFERENT departments. Keep the group in CS and (below) move
+        # only the subject to MATH when cross_dept is requested.
+        grp = StudentGroup(
+            name="CS-A", group_type=GroupType.DIVISION,
+            department="CS", year=2, semester=3, strength=60,
+        )
+        db.add(grp); db.flush()
+        classroom = Room(
+            name="R1", room_code="R1", room_type=RoomType.CLASSROOM,
+            capacity=80, building="A",
+        )
+        lab = Room(
+            name="L1", room_code="L1", room_type=RoomType.LAB,
+            capacity=40, building="A",
+        )
+        db.add_all([classroom, lab]); db.flush()
+        subj = Subject(
+            name="Maths", subject_code="M101",
+            department="MATH" if cross_dept else "CS",
+            semester=3, hours_per_week=3, requires_lab=False,
+        )
+        db.add(subj); db.flush()
+
+        prof = TimetableProfile(
+            name="Test profile",
+            scope_type=ScopeType.DIVISION,
+            academic_year="2025-26",
+            semester=3, department="CS", created_by=admin.id,
+        )
+        db.add(prof); db.flush()
+
+        for rid in (classroom.id, lab.id):
+            db.add(ProfileResource(
+                profile_id=prof.id, resource_type=ResourceType.ROOM,
+                resource_id=rid,
+            ))
+        db.add(ProfileResource(
+            profile_id=prof.id, resource_type=ResourceType.FACULTY,
+            resource_id=fac.id,
+        ))
+        db.add(ProfileResource(
+            profile_id=prof.id, resource_type=ResourceType.STUDENT_GROUP,
+            resource_id=grp.id,
+        ))
+        db.add(ProfileResource(
+            profile_id=prof.id, resource_type=ResourceType.SUBJECT,
+            resource_id=subj.id,
+        ))
+        db.add(ProfileParameter(
+            profile_id=prof.id, param_key="slots_per_day",
+            param_value="5", param_type=ParamType.INT,
+        ))
+        db.add(ProfileParameter(
+            profile_id=prof.id, param_key="working_days",
+            param_value='["MON","TUE","WED","THU","FRI"]',
+            param_type=ParamType.JSON,
+        ))
+
+        db.add(SubjectAssignment(
+            subject_id=subj.id, faculty_id=fac.id, group_id=grp.id,
+            weekly_hours=3, load_share=1.0,
+        ))
+        db.commit()
+        return {
+            "faculty": fac.id, "group": grp.id, "classroom": classroom.id,
+            "lab": lab.id, "subject": subj.id, "profile": prof.id,
+            "admin": admin.id,
+        }
+    finally:
+        db.close()
