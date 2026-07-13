@@ -370,3 +370,75 @@ def _phase2_registry(s):
         assert v(cand, [], cfg, _Ctx(3)) is None         # year 3 allowed
 
     return [t_time_pref, t_consecutive, t_year]
+
+
+@suite("Phase 3 — Soft-constraint scoring")
+def _phase3_scoring(s):
+    def _generate(client, headers, profile_id):
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": profile_id, "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        return r.json()
+
+    @test("no soft rules leaves soft_score unset")
+    def t_no_rules(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        gen = _generate(client, headers, ids["profile"])
+        assert gen["score_best_instance"] is None, gen
+        r = client.get(f"/instances/{gen['id']}", headers=headers)
+        assert r.json()[0]["soft_score"] is None
+
+    @test("a soft rule populates soft_score and the best score")
+    def t_scored(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/soft", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "TEACHER_PREFERS_MORNING",
+            "config_json": {"boundary_slot": 3},
+            "weight": 2.0,
+        })
+        assert r.status_code == 201, r.text
+        gen = _generate(client, headers, ids["profile"])
+        assert gen["score_best_instance"] is not None, gen
+        assert 0.0 <= gen["score_best_instance"] <= 1.0, gen
+        inst = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]
+        assert inst["soft_score"] is not None
+        assert 0.0 <= inst["soft_score"] <= 1.0
+
+    @test("MINIMIZE_STUDENT_FREE_SLOTS penalises gaps")
+    def t_gaps(client):
+        from app.engine.scorer import SOFT_CONSTRAINT_REGISTRY
+
+        class _S:
+            def __init__(self, gid, day, sn):
+                self.student_group_id, self.day_of_week, self.slot_number = gid, day, sn
+
+        # group 1, day 0, slots 1,2,4 -> span 4, 1 gap -> 1 - 1/4 = 0.75
+        slots = [_S(1, 0, 1), _S(1, 0, 2), _S(1, 0, 4)]
+        score = SOFT_CONSTRAINT_REGISTRY["MINIMIZE_STUDENT_FREE_SLOTS"](slots, None, None)
+        assert abs(score - 0.75) < 1e-9, score
+        # contiguous -> perfect
+        tight = [_S(1, 0, 1), _S(1, 0, 2), _S(1, 0, 3)]
+        assert SOFT_CONSTRAINT_REGISTRY["MINIMIZE_STUDENT_FREE_SLOTS"](tight, None, None) == 1.0
+
+    @test("TEACHER_PREFERS_MORNING scores the morning fraction")
+    def t_morning(client):
+        from app.engine.scorer import SOFT_CONSTRAINT_REGISTRY
+
+        class _F:
+            def __init__(self, fid, sn):
+                self.faculty_id, self.slot_number = fid, sn
+
+        slots = [_F(1, 1), _F(1, 2), _F(1, 5), _F(1, 6)]  # 2 of 4 <= slot 4
+        score = SOFT_CONSTRAINT_REGISTRY["TEACHER_PREFERS_MORNING"](slots, {"boundary_slot": 4}, None)
+        assert abs(score - 0.5) < 1e-9, score
+
+    return [t_no_rules, t_scored, t_gaps, t_morning]
