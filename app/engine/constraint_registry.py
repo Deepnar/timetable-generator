@@ -123,6 +123,29 @@ def _max_consecutive_same_teacher(candidate, committed, config, ctx) -> Optional
     return None
 
 
+def _lab_batch_rotation(candidate, committed, config, ctx) -> Optional[str]:
+    """Pin a group's (lab batch's) sessions to specific weekdays.
+
+    config: ``{"group_days": {"<group_id>": [day_of_week, ...]}}`` — e.g.
+    ``{"group_days": {"11": [0], "12": [1]}}`` puts batch A1 on Monday and A2
+    on Tuesday. Groups not listed are unrestricted.
+    """
+    config = config or {}
+    group_days = config.get("group_days") or {}
+    # JSON object keys are strings; accept int or str group ids.
+    allowed = group_days.get(str(candidate.student_group_id))
+    if allowed is None:
+        allowed = group_days.get(candidate.student_group_id)
+    if not allowed:
+        return None
+    if candidate.day_of_week not in allowed:
+        return (
+            f"group {candidate.student_group_id} may only run on weekdays "
+            f"{allowed} (got {candidate.day_of_week})"
+        )
+    return None
+
+
 def _teacher_year_restriction(candidate, committed, config, ctx) -> Optional[str]:
     """Restrict a teacher to specific student years.
 
@@ -147,3 +170,4 @@ def _teacher_year_restriction(candidate, committed, config, ctx) -> Optional[str
 hard_rule("SUBJECT_TIME_PREFERENCE")(_subject_time_preference)
 hard_rule("MAX_CONSECUTIVE_SAME_TEACHER")(_max_consecutive_same_teacher)
 hard_rule("TEACHER_YEAR_RESTRICTION")(_teacher_year_restriction)
+hard_rule("LAB_BATCH_ROTATION")(_lab_batch_rotation)
