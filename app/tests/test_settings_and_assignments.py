@@ -548,3 +548,34 @@ def _phase3_ortools(s):
         assert all(sl["slot_number"] <= 1 for sl in slots), [sl["slot_number"] for sl in slots]
 
     return [t_ortools_basic, t_ortools_registry]
+
+
+@suite("Phase 3 — Instance diversity")
+def _phase3_diversity(s):
+    @test("requesting several instances yields non-identical timetables")
+    def t_diverse(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 3, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        insts = client.get(f"/instances/{gen['id']}", headers=headers).json()
+        assert len(insts) == 3, insts
+        signatures = set()
+        for inst in insts:
+            slots = client.get(
+                f"/instances/{inst['id']}/slots", headers=headers
+            ).json()
+            signatures.add(frozenset(
+                (sl["student_group_id"], sl["day_of_week"],
+                 sl["slot_number"], sl["subject_id"])
+                for sl in slots
+            ))
+        assert len(signatures) >= 2, f"instances not diverse: {len(signatures)} distinct"
+
+    return [t_diverse]
