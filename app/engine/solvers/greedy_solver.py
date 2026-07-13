@@ -10,7 +10,7 @@ which sessions are generated.
 """
 from datetime import time
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, or_
 
 from app.models.profiles import (
     TimetableProfile,
@@ -18,6 +18,7 @@ from app.models.profiles import (
     ProfileParameter,
     ResourceType,
 )
+from app.models.constraints import HardConstraint
 from app.models.rooms import Room, RoomType
 from app.models.faculty import Faculty
 from app.models.groups import StudentGroup
@@ -138,6 +139,18 @@ class GreedySolver:
         ).all()
         return [r.resource_id for r in rows]
 
+    def _load_hard_constraints(self) -> list[HardConstraint]:
+        """Active hard constraints for this profile plus any global ones."""
+        return self.db.scalars(
+            select(HardConstraint).where(
+                HardConstraint.is_active == True,
+                or_(
+                    HardConstraint.profile_id == self.profile_id,
+                    HardConstraint.profile_id.is_(None),
+                ),
+            )
+        ).all()
+
     # ── session expansion ────────────────────────────────────
     def _build_sessions(self) -> list[SessionToSchedule]:
         """Expand every subject-assignment into N concrete sessions."""
@@ -220,6 +233,7 @@ class GreedySolver:
             self.committed_slots,
             settings=self.settings,
             reserved=self.reserved_conflicts,
+            hard_constraints=self._load_hard_constraints(),
         )
         sessions = self._build_sessions()
         working_days = self._get_working_days()

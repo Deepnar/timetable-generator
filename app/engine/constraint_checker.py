@@ -13,6 +13,10 @@ from app.models.faculty import Faculty, FacultyAvailability, AvailabilityType
 from app.models.subjects import Subject
 from app.models.groups import StudentGroup
 from app.models.settings import CollegeSettings
+from app.engine.constraint_registry import (
+    HARD_CONSTRAINT_REGISTRY,
+    ConstraintContext,
+)
 
 
 class SlotCandidate:
@@ -67,6 +71,7 @@ class ConstraintChecker:
         committed_slots: list[TimetableSlot],
         settings: CollegeSettings | None = None,
         reserved: dict[str, set[tuple]] | None = None,
+        hard_constraints: list | None = None,
     ):
         self.db = db
         self.committed_slots = committed_slots
@@ -78,6 +83,9 @@ class ConstraintChecker:
         # Split per resource so a published booking blocks the faculty, room,
         # or group at that time slot regardless of the other two dimensions.
         self.reserved = reserved or {}
+        # Data-driven profile constraints dispatched through the registry.
+        self.configured = hard_constraints or []
+        self.ctx = ConstraintContext(db, committed_slots)
 
     # ── public api ───────────────────────────────────────────
     def check_all(self, candidate: SlotCandidate) -> list[ConstraintViolation]:
@@ -93,6 +101,7 @@ class ConstraintChecker:
         violations += self._check_room_blackout(candidate)
         violations += self._check_same_subject_same_day(candidate)
         violations += self._check_cross_dept_cap(candidate)
+        violations += self._check_configured(candidate)
         return violations
 
     def is_valid(self, candidate: SlotCandidate) -> bool:
@@ -316,3 +325,26 @@ class ConstraintChecker:
                 f"sessions on day {c.day_of_week} (cap {cap})",
             )]
         return []
+
+    def _check_configured(self, c: SlotCandidate) -> list[ConstraintViolation]:
+        """Run every profile-configured hard constraint through the registry.
+
+        Each active row's ``constraint_type`` selects a registered validator
+        that interprets the row's ``config_json``. Unknown types are ignored
+        so an out-of-date deployment degrades gracefully.
+        """
+        violations: list[ConstraintViolation] = []
+        for rule in self.configured:
+            if not getattr(rule, "is_active", True):
+                continue
+            rule_type = getattr(rule.constraint_type, "value", rule.constraint_type)
+            validator = HARD_CONSTRAINT_REGISTRY.get(rule_type)
+            if validator is None:
+                continue
+            reason = validator(
+                c, self.committed_slots,
+                getattr(rule, "config_json", None), self.ctx,
+            )
+            if reason:
+                violations.append(ConstraintViolation(str(rule_type), reason))
+        return violations
