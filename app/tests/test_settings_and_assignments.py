@@ -442,3 +442,61 @@ def _phase3_scoring(s):
         assert abs(score - 0.5) < 1e-9, score
 
     return [t_no_rules, t_scored, t_gaps, t_morning]
+
+
+@suite("Phase 2 — Recurring blackouts & lab rotation")
+def _phase2_recurring(s):
+    @test("recurring room blackout keeps that room off its weekday")
+    def t_recurring_blackout(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        # The classroom is the only room big enough for the group; black it out
+        # all day every Monday (day 0).
+        r = client.post("/blackouts/", headers=headers, json={
+            "room_id": ids["classroom"], "day_of_week": 0,
+        })
+        assert r.status_code == 201, r.text
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26",
+            "semester": 3, "timetable_type": "CLASS",
+            "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        inst_id = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]["id"]
+        slots = client.get(f"/instances/{inst_id}/slots", headers=headers).json()
+        assert slots, "expected sessions on other days"
+        assert all(sl["day_of_week"] != 0 for sl in slots), (
+            f"classroom blacked out Monday but got {[sl['day_of_week'] for sl in slots]}"
+        )
+
+    @test("blackout requires a date or a weekday")
+    def t_blackout_validation(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/blackouts/", headers=headers, json={"room_id": ids["classroom"]})
+        assert r.status_code == 422, r.text
+
+    @test("LAB_BATCH_ROTATION validator pins a group to its weekdays")
+    def t_lab_rotation(client):
+        from datetime import time
+        from app.engine.constraint_registry import HARD_CONSTRAINT_REGISTRY
+        from app.engine.constraint_checker import SlotCandidate
+
+        def _cand(day):
+            return SlotCandidate(
+                instance_id=1, day_of_week=day, slot_number=1,
+                start_time=time(9), end_time=time(10), faculty_id=1, room_id=1,
+                student_group_id=11, subject_id=1, session_type="LAB",
+            )
+
+        v = HARD_CONSTRAINT_REGISTRY["LAB_BATCH_ROTATION"]
+        cfg = {"group_days": {"11": [0]}}  # group 11 only on Monday
+        assert v(_cand(1), [], cfg, None) is not None   # Tuesday blocked
+        assert v(_cand(0), [], cfg, None) is None         # Monday allowed
+
+    return [t_recurring_blackout, t_blackout_validation, t_lab_rotation]
