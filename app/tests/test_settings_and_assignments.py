@@ -1,5 +1,8 @@
 """Phase 1 tests: /health, /settings, /assignments, scheduler feature flag."""
-from app.tests.test_runner import suite, test, seed_minimal
+import csv
+import io
+
+from app.tests.test_runner import suite, test, seed_minimal, seed_two_divisions
 
 
 @suite("Phase 1 — Health & Settings")
@@ -579,3 +582,111 @@ def _phase3_diversity(s):
         assert len(signatures) >= 2, f"instances not diverse: {len(signatures)} distinct"
 
     return [t_diverse]
+
+
+@suite("Phase 5 — Filtered exports (PDF/CSV/iCal)")
+def _phase5_exports(s):
+    def _headers(client):
+        from app.tests.test_runner import login_token, auth_headers
+        return auth_headers(login_token(client))
+
+    def _generate(client, headers, profile_id):
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": profile_id, "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        return client.get(f"/instances/{gen['id']}", headers=headers).json()[0]["id"]
+
+    def _csv_rows(text):
+        rows = [r for r in csv.reader(io.StringIO(text)) if r]
+        return rows[0], rows[1:]
+
+    @test("full CSV export lists every session")
+    def t_csv_full(client):
+        ids = seed_two_divisions()
+        headers = _headers(client)
+        inst = _generate(client, headers, ids["profile"])
+        r = client.get(f"/export/instances/{inst}/csv", headers=headers)
+        assert r.status_code == 200, r.text
+        assert "text/csv" in r.headers["content-type"]
+        _, rows = _csv_rows(r.text)
+        assert len(rows) == 4, rows
+
+    @test("CSV filtered by group returns only that group")
+    def t_csv_group(client):
+        ids = seed_two_divisions()
+        headers = _headers(client)
+        inst = _generate(client, headers, ids["profile"])
+        r = client.get(
+            f"/export/instances/{inst}/csv?group_id={ids['group_a']}", headers=headers
+        )
+        assert r.status_code == 200, r.text
+        _, rows = _csv_rows(r.text)
+        assert len(rows) == 2, rows
+        assert all(row[8] == "CS-A" for row in rows), rows
+
+    @test("CSV filtered by year narrows to that year")
+    def t_csv_year(client):
+        ids = seed_two_divisions()
+        headers = _headers(client)
+        inst = _generate(client, headers, ids["profile"])
+        r = client.get(f"/export/instances/{inst}/csv?year=3", headers=headers)
+        assert r.status_code == 200, r.text
+        _, rows = _csv_rows(r.text)
+        assert len(rows) == 2, rows
+        assert all(row[8] == "CS-B" for row in rows), rows
+
+    @test("CSV filtered by faculty narrows to that teacher")
+    def t_csv_faculty(client):
+        ids = seed_two_divisions()
+        headers = _headers(client)
+        inst = _generate(client, headers, ids["profile"])
+        r = client.get(
+            f"/export/instances/{inst}/csv?faculty_id={ids['faculty_b']}", headers=headers
+        )
+        assert r.status_code == 200, r.text
+        _, rows = _csv_rows(r.text)
+        assert len(rows) == 2, rows
+        assert all(row[6] == "Prof B" for row in rows), rows
+
+    @test("a filter matching nothing is a 404")
+    def t_empty(client):
+        ids = seed_two_divisions()
+        headers = _headers(client)
+        inst = _generate(client, headers, ids["profile"])
+        r = client.get(f"/export/instances/{inst}/csv?group_id=999999", headers=headers)
+        assert r.status_code == 404
+
+    @test("iCal export is a valid recurring calendar, filterable")
+    def t_ical(client):
+        ids = seed_two_divisions()
+        headers = _headers(client)
+        inst = _generate(client, headers, ids["profile"])
+        r = client.get(f"/export/instances/{inst}/ical", headers=headers)
+        assert r.status_code == 200, r.text
+        assert "text/calendar" in r.headers["content-type"]
+        body = r.text
+        assert body.startswith("BEGIN:VCALENDAR")
+        assert body.rstrip().endswith("END:VCALENDAR")
+        assert body.count("BEGIN:VEVENT") == 4, body
+        assert "RRULE:FREQ=WEEKLY" in body
+        r2 = client.get(
+            f"/export/instances/{inst}/ical?faculty_id={ids['faculty_a']}", headers=headers
+        )
+        assert r2.text.count("BEGIN:VEVENT") == 2
+
+    @test("PDF export returns a real pdf")
+    def t_pdf(client):
+        ids = seed_two_divisions()
+        headers = _headers(client)
+        inst = _generate(client, headers, ids["profile"])
+        r = client.get(
+            f"/export/instances/{inst}/pdf?group_id={ids['group_a']}", headers=headers
+        )
+        assert r.status_code == 200
+        assert "application/pdf" in r.headers["content-type"]
+        assert r.content[:4] == b"%PDF"
+
+    return [t_csv_full, t_csv_group, t_csv_year, t_csv_faculty, t_empty, t_ical, t_pdf]

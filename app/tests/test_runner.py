@@ -221,3 +221,86 @@ def seed_minimal(
         }
     finally:
         db.close()
+
+
+def seed_two_divisions():
+    """Two divisions (different years), two teachers, two subjects.
+
+    Used by the export-filter tests so filters actually narrow the result.
+    Returns a dict of ids; generation yields 2 sessions per division.
+    """
+    reset_db()
+    ensure_settings({"enable_soft_constraint_scoring": False})
+    create_admin()
+    db = TestingSessionLocal()
+    try:
+        from app.models.faculty import Faculty
+        from app.models.groups import StudentGroup, GroupType
+        from app.models.rooms import Room, RoomType
+        from app.models.subjects import Subject
+        from app.models.profiles import (
+            TimetableProfile, ProfileResource, ProfileParameter, ParamType,
+            ResourceType, ScopeType,
+        )
+        from app.models.subject_assignments import SubjectAssignment
+        from app.models.admin import Admin as AdminModel
+
+        admin = db.query(AdminModel).first()
+
+        fac_a = Faculty(name="Prof A", email="a@x.com", department="CS")
+        fac_b = Faculty(name="Prof B", email="b@x.com", department="CS")
+        db.add_all([fac_a, fac_b]); db.flush()
+
+        grp_a = StudentGroup(name="CS-A", group_type=GroupType.DIVISION,
+                             department="CS", year=2, semester=3, strength=60)
+        grp_b = StudentGroup(name="CS-B", group_type=GroupType.DIVISION,
+                             department="CS", year=3, semester=5, strength=60)
+        db.add_all([grp_a, grp_b]); db.flush()
+
+        room1 = Room(name="R1", room_code="R1", room_type=RoomType.CLASSROOM,
+                     capacity=80, building="A")
+        room2 = Room(name="R2", room_code="R2", room_type=RoomType.CLASSROOM,
+                     capacity=80, building="A")
+        db.add_all([room1, room2]); db.flush()
+
+        subj_a = Subject(name="Algorithms", subject_code="CS-A1", department="CS",
+                         semester=3, hours_per_week=2, requires_lab=False)
+        subj_b = Subject(name="Networks", subject_code="CS-B1", department="CS",
+                         semester=5, hours_per_week=2, requires_lab=False)
+        db.add_all([subj_a, subj_b]); db.flush()
+
+        prof = TimetableProfile(name="Dept", scope_type=ScopeType.DEPARTMENT,
+                                academic_year="2025-26", semester=3,
+                                department="CS", created_by=admin.id)
+        db.add(prof); db.flush()
+
+        for rid in (room1.id, room2.id):
+            db.add(ProfileResource(profile_id=prof.id,
+                                   resource_type=ResourceType.ROOM, resource_id=rid))
+        for fid in (fac_a.id, fac_b.id):
+            db.add(ProfileResource(profile_id=prof.id,
+                                   resource_type=ResourceType.FACULTY, resource_id=fid))
+        for gid in (grp_a.id, grp_b.id):
+            db.add(ProfileResource(profile_id=prof.id,
+                                   resource_type=ResourceType.STUDENT_GROUP, resource_id=gid))
+        for sid in (subj_a.id, subj_b.id):
+            db.add(ProfileResource(profile_id=prof.id,
+                                   resource_type=ResourceType.SUBJECT, resource_id=sid))
+        db.add(ProfileParameter(profile_id=prof.id, param_key="slots_per_day",
+                                param_value="6", param_type=ParamType.INT))
+        db.add(ProfileParameter(profile_id=prof.id, param_key="working_days",
+                                param_value='["MON","TUE","WED","THU","FRI"]',
+                                param_type=ParamType.JSON))
+
+        db.add(SubjectAssignment(subject_id=subj_a.id, faculty_id=fac_a.id,
+                                 group_id=grp_a.id, weekly_hours=2, load_share=1.0))
+        db.add(SubjectAssignment(subject_id=subj_b.id, faculty_id=fac_b.id,
+                                 group_id=grp_b.id, weekly_hours=2, load_share=1.0))
+        db.commit()
+        return {
+            "profile": prof.id, "group_a": grp_a.id, "group_b": grp_b.id,
+            "faculty_a": fac_a.id, "faculty_b": fac_b.id,
+            "subject_a": subj_a.id, "subject_b": subj_b.id, "admin": admin.id,
+        }
+    finally:
+        db.close()
