@@ -55,7 +55,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **OR-Tools CP-SAT Solver** *(integrated)*
   - `app/engine/solvers/or_tools_solver.py` — select via `algorithm="OR_TOOLS"`. Static rules prune the CP-SAT domain (shared `ConstraintChecker`), relational rules are CP-SAT constraints, objective maximises placements. Greedy stays the default/preview solver.
   - *Remaining:* fold the soft scorer in as a weighted CP-SAT objective (currently maximises placements; soft scoring is applied post-hoc to rank instances).
-- [ ] **Diversity Filter**: After generating N instances, calculate Hamming distance between them. If two are too similar, discard and regenerate one.
+- [x] **Diversity Filter**: Instance #1 is a deterministic baseline; later instances are re-seeded (greedy randomises search order, OR-Tools varies `random_seed`) and kept only if their Hamming distance from accepted instances clears a threshold, retrying otherwise. *(Future: objective-based variation — minimise teacher vs. student gaps per instance.)*
 - [ ] **Async Generation Pipeline**
   - Move `POST /generate` to fire a Celery task and immediately return `{status: "PENDING", run_id: X}`.
   - Implement `GET /generate/{run_id}/status` for polling (future: WebSocket upgrades).

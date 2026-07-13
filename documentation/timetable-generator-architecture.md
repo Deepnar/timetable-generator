@@ -679,6 +679,8 @@ To generate meaningfully different options (not just random noise):
 | #1       | Maximize soft constraint score (best quality)    |
 | #2       | Alternate objective: minimize teacher free slots |
 | #3       | Alternate objective: minimize student free slots |
+
+**Implemented (diversity filter).** Solvers are deterministic, so re-running produces the same timetable. The scheduler therefore treats **instance #1 as a deterministic baseline** and generates each later instance with a different seed — greedy randomises its day/slot/room search order, OR-Tools varies `random_seed`. Each candidate's placements are fingerprinted (`{(group, day, slot, subject)}`) and kept only if its **Hamming distance** from every already-accepted instance is at least `_DIVERSITY_MIN_DISTANCE`; otherwise the next seed is tried (up to `_DIVERSITY_ATTEMPTS`), falling back to the last attempt when the problem is too small to vary. Objective-based variation (the table above) is a future refinement.
 | #4+      | Random restarts with different seeds             |
 
 After generation, a **diversity filter** ensures instances are sufficiently different (Hamming distance on slot assignments > threshold). If two instances are too similar, one is regenerated.
