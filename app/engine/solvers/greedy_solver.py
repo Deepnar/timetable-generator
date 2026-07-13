@@ -8,6 +8,7 @@ The solver reads the *college settings* singleton at construction time so
 that any feature flag (e.g. ``allow_cross_dept_subjects``) actually affects
 which sessions are generated.
 """
+import random
 from datetime import time
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_
@@ -53,10 +54,16 @@ class SessionToSchedule:
 class GreedySolver:
     """Most-constrained-first greedy placement."""
 
-    def __init__(self, db: Session, profile_id: int, instance_id: int):
+    def __init__(
+        self, db: Session, profile_id: int, instance_id: int, seed: int | None = None
+    ):
         self.db = db
         self.profile_id = profile_id
         self.instance_id = instance_id
+        # A seed randomises the search order so the scheduler can generate
+        # genuinely different candidate instances (see the diversity filter).
+        self.seed = seed
+        self.rng = random.Random(seed) if seed is not None else None
         self.committed_slots: list[TimetableSlot] = []
         # Populated by the scheduler with PUBLISHED reservations, keyed by
         # resource ("faculty" / "room" / "group") -> {(id, day, slot)}.
@@ -238,11 +245,21 @@ class GreedySolver:
         sessions = self._build_sessions()
         working_days = self._get_working_days()
         slot_times = self._build_slot_times()
+        # When seeded, randomise the search order so different seeds yield
+        # different (still valid) timetables for the diversity filter.
+        if self.rng is not None:
+            working_days = list(working_days)
+            slot_times = list(slot_times)
+            self.rng.shuffle(working_days)
+            self.rng.shuffle(slot_times)
         unscheduled: list[SessionToSchedule] = []
 
         for session in sessions:
             placed = False
             rooms = self._get_rooms(session.requires_lab)
+            if self.rng is not None:
+                rooms = list(rooms)
+                self.rng.shuffle(rooms)
 
             for day in working_days:
                 if placed:

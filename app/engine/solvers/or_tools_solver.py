@@ -122,6 +122,10 @@ class ORToolsSolver(GreedySolver):
 
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = self.max_time_seconds
+        # A seed varies which optimal assignment is returned (diversity filter).
+        if self.seed is not None:
+            solver.parameters.random_seed = self.seed
+            solver.parameters.randomize_search = True
         status = solver.Solve(model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             return self.committed_slots

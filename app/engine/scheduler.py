@@ -29,6 +29,11 @@ from app.engine.scorer import score_instance, ScoringContext
 class Scheduler:
     """Coordinator between the API and the solver."""
 
+    # Diversity filter: how many seeds to try per instance, and the minimum
+    # number of differing slot placements for two instances to count as distinct.
+    _DIVERSITY_ATTEMPTS = 6
+    _DIVERSITY_MIN_DISTANCE = 1
+
     def __init__(self, db: Session):
         self.db = db
 
@@ -85,6 +90,7 @@ class Scheduler:
 
         instances_created = 0
         best_score: float | None = None
+        accepted_signatures: list[frozenset] = []
         for i in range(instances_requested):
             instance = TimetableInstance(
                 generation_id=generation.id,
@@ -94,10 +100,29 @@ class Scheduler:
             self.db.add(instance)
             self.db.flush()
 
-            solver = self._make_solver(algorithm, profile_id, instance.id)
-            solver.reserved_conflicts = reserved_conflicts
-
-            slots = solver.solve()
+            # Diversity: solvers are deterministic, so re-running produces the
+            # same timetable. Seed each attempt differently and keep the first
+            # one that differs from every already-accepted instance (falling
+            # back to the last attempt if the problem is too small to vary).
+            slots: list[TimetableSlot] = []
+            signature: frozenset = frozenset()
+            for attempt in range(self._DIVERSITY_ATTEMPTS):
+                # Instance 0 is the deterministic baseline (no seed); later
+                # instances are seeded to diverge from it.
+                seed = None if i == 0 else i * 100 + attempt
+                solver = self._make_solver(
+                    algorithm, profile_id, instance.id, seed=seed
+                )
+                solver.reserved_conflicts = reserved_conflicts
+                slots = solver.solve()
+                signature = self._signature(slots)
+                is_distinct = all(
+                    self._hamming(signature, prev) >= self._DIVERSITY_MIN_DISTANCE
+                    for prev in accepted_signatures
+                )
+                if is_distinct:
+                    break
+            accepted_signatures.append(signature)
             for slot in slots:
                 self.db.add(slot)
 
@@ -116,17 +141,36 @@ class Scheduler:
 
         return generation
 
-    def _make_solver(self, algorithm: AlgorithmType, profile_id: int, instance_id: int):
+    def _make_solver(
+        self,
+        algorithm: AlgorithmType,
+        profile_id: int,
+        instance_id: int,
+        seed: int | None = None,
+    ):
         """Pick the solver for the requested algorithm (defaults to greedy)."""
         if algorithm == AlgorithmType.OR_TOOLS:
             # Lazy import so the heavy ortools dependency is only loaded when used.
             from app.engine.solvers.or_tools_solver import ORToolsSolver
             return ORToolsSolver(
-                db=self.db, profile_id=profile_id, instance_id=instance_id
+                db=self.db, profile_id=profile_id, instance_id=instance_id, seed=seed
             )
         return GreedySolver(
-            db=self.db, profile_id=profile_id, instance_id=instance_id
+            db=self.db, profile_id=profile_id, instance_id=instance_id, seed=seed
         )
+
+    @staticmethod
+    def _signature(slots) -> frozenset:
+        """A comparable fingerprint of an instance's placements."""
+        return frozenset(
+            (s.student_group_id, s.day_of_week, s.slot_number, s.subject_id)
+            for s in slots
+        )
+
+    @staticmethod
+    def _hamming(a: frozenset, b: frozenset) -> int:
+        """Number of placements that differ between two instances."""
+        return len(a ^ b)
 
     def _load_soft_constraints(self, profile_id: int) -> list[SoftConstraint]:
         """Active soft constraints for this profile plus any global ones."""
