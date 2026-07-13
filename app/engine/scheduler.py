@@ -94,11 +94,7 @@ class Scheduler:
             self.db.add(instance)
             self.db.flush()
 
-            solver = GreedySolver(
-                db=self.db,
-                profile_id=profile_id,
-                instance_id=instance.id,
-            )
+            solver = self._make_solver(algorithm, profile_id, instance.id)
             solver.reserved_conflicts = reserved_conflicts
 
             slots = solver.solve()
@@ -119,6 +115,18 @@ class Scheduler:
         self.db.commit()
 
         return generation
+
+    def _make_solver(self, algorithm: AlgorithmType, profile_id: int, instance_id: int):
+        """Pick the solver for the requested algorithm (defaults to greedy)."""
+        if algorithm == AlgorithmType.OR_TOOLS:
+            # Lazy import so the heavy ortools dependency is only loaded when used.
+            from app.engine.solvers.or_tools_solver import ORToolsSolver
+            return ORToolsSolver(
+                db=self.db, profile_id=profile_id, instance_id=instance_id
+            )
+        return GreedySolver(
+            db=self.db, profile_id=profile_id, instance_id=instance_id
+        )
 
     def _load_soft_constraints(self, profile_id: int) -> list[SoftConstraint]:
         """Active soft constraints for this profile plus any global ones."""

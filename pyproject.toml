@@ -26,6 +26,7 @@ dependencies = [
     "fastapi-cli>=0.0.28",
     "psycopg2-binary>=2.9.12",
     "httpx>=0.28.1",
+    "ortools>=9.15.6755",
 ]
 
 [tool.uv]
