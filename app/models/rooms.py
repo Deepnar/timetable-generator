@@ -31,7 +31,11 @@ class RoomBlackout(Base):
 
     id : Mapped[int] = mapped_column(primary_key=True, nullable=False)
     room_id : Mapped[int] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False)
-    date : Mapped[date] = mapped_column(Date, nullable=False)  
+    # A blackout is either date-specific (``date`` set — used once the engine
+    # materialises calendar dates) or recurring (``day_of_week`` set — applies
+    # every week, which is what the current recurring templates check against).
+    date : Mapped[date | None] = mapped_column(Date, nullable=True)
+    day_of_week: Mapped[int | None] = mapped_column(nullable=True)  # 0=Mon .. 6=Sun
     slot_start: Mapped[time | None] = mapped_column(nullable=True)
     slot_end: Mapped[time | None] = mapped_column(nullable=True)
     reason : Mapped[str | None] = mapped_column(String(255), nullable=True)

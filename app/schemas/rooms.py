@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional
 from datetime import date, time
 
@@ -31,17 +31,27 @@ class RoomResponse(BaseModel):
 
 class RoomBlackoutCreate(BaseModel):
     room_id: int
-    date: date
-    slot_start: time
-    slot_end: time
+    # Provide EITHER a specific date OR a recurring weekday (0=Mon .. 6=Sun).
+    date: Optional[date] = None
+    day_of_week: Optional[int] = Field(default=None, ge=0, le=6)
+    # Omit both times for an all-day blackout.
+    slot_start: Optional[time] = None
+    slot_end: Optional[time] = None
     reason: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _require_date_or_weekday(self):
+        if self.date is None and self.day_of_week is None:
+            raise ValueError("either 'date' or 'day_of_week' is required")
+        return self
 
 class RoomBlackoutResponse(BaseModel):
     id: int
     room_id: int
-    date: date
-    slot_start: time
-    slot_end: time
+    date: Optional[date] = None
+    day_of_week: Optional[int] = None
+    slot_start: Optional[time] = None
+    slot_end: Optional[time] = None
     reason: Optional[str] = None
 
     class Config:

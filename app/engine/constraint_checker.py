@@ -263,26 +263,35 @@ class ConstraintChecker:
         return []
 
     def _check_room_blackout(self, c: SlotCandidate) -> list[ConstraintViolation]:
-        if not c.slot_date:
-            return []
         blackouts = self.db.scalars(
-            select(RoomBlackout).where(
-                RoomBlackout.room_id == c.room_id,
-                RoomBlackout.date == c.slot_date,
-            )
+            select(RoomBlackout).where(RoomBlackout.room_id == c.room_id)
         ).all()
         for b in blackouts:
+            # A recurring blackout matches by weekday; a date-specific one only
+            # matches when the candidate carries an actual calendar date.
+            if b.day_of_week is not None:
+                applies = b.day_of_week == c.day_of_week
+                when = f"every weekday {b.day_of_week}"
+            elif b.date is not None:
+                applies = c.slot_date is not None and b.date == c.slot_date
+                when = f"on {b.date}"
+            else:
+                applies = False
+                when = ""
+            if not applies:
+                continue
+
             if b.slot_start and b.slot_end:
                 if c.start_time < b.slot_end and c.end_time > b.slot_start:
                     return [ConstraintViolation(
                         "RESPECT_ROOM_BLACKOUT",
                         f"Room {c.room_id} blacked out "
-                        f"{b.slot_start}-{b.slot_end} on {c.slot_date}",
+                        f"{b.slot_start}-{b.slot_end} {when}",
                     )]
             else:
                 return [ConstraintViolation(
                     "RESPECT_ROOM_BLACKOUT",
-                    f"Room {c.room_id} blacked out all day on {c.slot_date}",
+                    f"Room {c.room_id} blacked out all day {when}",
                 )]
         return []
 
