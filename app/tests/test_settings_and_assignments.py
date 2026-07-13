@@ -295,3 +295,78 @@ def _phase1_flexibility(s):
         assert len(slots) == 2, f"expected 2 (weekly cap), got {len(slots)}"
 
     return [t_day_start, t_faculty_cap]
+
+
+@suite("Phase 2 — Dynamic constraint registry")
+def _phase2_registry(s):
+    def _gen_slots(client, headers, profile_id):
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": profile_id, "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        r = client.get(f"/instances/{gen['id']}", headers=headers)
+        inst_id = r.json()[0]["id"]
+        return client.get(f"/instances/{inst_id}/slots", headers=headers).json()
+
+    @test("SUBJECT_TIME_PREFERENCE forces the subject into early slots (end to end)")
+    def t_time_pref(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "SUBJECT_TIME_PREFERENCE",
+            "config_json": {"subject_id": ids["subject"], "max_slot": 1},
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert slots, "expected slots"
+        assert all(s["slot_number"] <= 1 for s in slots), [s["slot_number"] for s in slots]
+
+    @test("MAX_CONSECUTIVE_SAME_TEACHER validator caps a back-to-back run")
+    def t_consecutive(client):
+        from datetime import time
+        from app.engine.constraint_registry import HARD_CONSTRAINT_REGISTRY
+        from app.engine.constraint_checker import SlotCandidate
+
+        class _Slot:
+            def __init__(self, fid, day, sn):
+                self.faculty_id, self.day_of_week, self.slot_number = fid, day, sn
+
+        committed = [_Slot(1, 0, 1), _Slot(1, 0, 2)]
+        cand = SlotCandidate(
+            instance_id=1, day_of_week=0, slot_number=3,
+            start_time=time(9), end_time=time(10), faculty_id=1, room_id=1,
+            student_group_id=1, subject_id=1, session_type="LECTURE",
+        )
+        v = HARD_CONSTRAINT_REGISTRY["MAX_CONSECUTIVE_SAME_TEACHER"]
+        assert v(cand, committed, {"max": 2}, None) is not None   # run of 3 > 2
+        assert v(cand, committed, {"max": 3}, None) is None        # exactly 3 ok
+
+    @test("TEACHER_YEAR_RESTRICTION validator blocks disallowed years")
+    def t_year(client):
+        from datetime import time
+        from app.engine.constraint_registry import HARD_CONSTRAINT_REGISTRY
+        from app.engine.constraint_checker import SlotCandidate
+
+        class _Group:
+            def __init__(self, year): self.year = year
+
+        class _Ctx:
+            def __init__(self, year): self._year = year
+            def group(self, gid): return _Group(self._year)
+
+        cand = SlotCandidate(
+            instance_id=1, day_of_week=0, slot_number=1,
+            start_time=time(9), end_time=time(10), faculty_id=7, room_id=1,
+            student_group_id=1, subject_id=1, session_type="LECTURE",
+        )
+        v = HARD_CONSTRAINT_REGISTRY["TEACHER_YEAR_RESTRICTION"]
+        cfg = {"faculty_id": 7, "allowed_years": [3, 4]}
+        assert v(cand, [], cfg, _Ctx(2)) is not None   # year 2 disallowed
+        assert v(cand, [], cfg, _Ctx(3)) is None         # year 3 allowed
+
+    return [t_time_pref, t_consecutive, t_year]
