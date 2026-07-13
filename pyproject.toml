@@ -2,16 +2,13 @@
 name = "timetable-api"
 version = "0.1.0"
 description = "Multi-domain scheduling engine for institutional ERP"
-readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "alembic",
     "bcrypt",
     "email-validator",
     "fastapi",
-    "passlib",
     "pillow",
-    "pymysql",
     "pydantic",
     "pydantic-settings",
     "python-dotenv",
@@ -28,6 +25,7 @@ dependencies = [
     "annotated-doc>=0.0.4",
     "fastapi-cli>=0.0.28",
     "psycopg2-binary>=2.9.12",
+    "httpx>=0.28.1",
 ]
 
 [tool.uv]

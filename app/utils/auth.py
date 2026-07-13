@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
@@ -10,14 +10,25 @@ from ..database import get_db
 from ..models import Admin
 from ..schemas import TokenData
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
+# bcrypt operates on the first 72 bytes of a password. Older passlib used to
+# truncate silently; bcrypt>=4.1 raises instead, so we truncate explicitly.
+_BCRYPT_MAX_BYTES = 72
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    pwd = password.encode("utf-8")[:_BCRYPT_MAX_BYTES]
+    return bcrypt.hashpw(pwd, bcrypt.gensalt()).decode("utf-8")
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(
+            plain.encode("utf-8")[:_BCRYPT_MAX_BYTES],
+            hashed.encode("utf-8"),
+        )
+    except (ValueError, TypeError):
+        return False
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
