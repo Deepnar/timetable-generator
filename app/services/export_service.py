@@ -7,6 +7,9 @@ from reportlab.lib.enums import TA_CENTER
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from io import BytesIO
+import csv
+import io
+from datetime import date, datetime, timedelta
 from app.models.generation import TimetableSlot, TimetableInstance
 from app.models.rooms import Room
 from app.models.faculty import Faculty
@@ -189,25 +192,170 @@ def generate_timetable_pdf(
     return buffer
 
 
-def generate_faculty_pdf(
-    faculty_id: int,
+# ── filtering ────────────────────────────────────────────────
+
+def get_filtered_slots(
+    db: Session,
     instance_id: int,
-    db: Session
-) -> BytesIO:
-    """Individual faculty timetable PDF."""
-    faculty = db.scalars(
-        select(Faculty).where(Faculty.id == faculty_id)
-    ).first()
+    *,
+    group_id: int | None = None,
+    faculty_id: int | None = None,
+    year: int | None = None,
+    department: str | None = None,
+) -> list[TimetableSlot]:
+    """Return an instance's slots narrowed by any combination of filters.
 
-    slots = db.scalars(
-        select(TimetableSlot).where(
-            TimetableSlot.instance_id == instance_id,
-            TimetableSlot.faculty_id == faculty_id
-        ).order_by(
-            TimetableSlot.day_of_week,
-            TimetableSlot.slot_number
+    ``group_id``/``faculty_id`` filter directly on the slot; ``year`` and
+    ``department`` filter on the slot's student group.
+    """
+    query = select(TimetableSlot).where(TimetableSlot.instance_id == instance_id)
+    if group_id is not None:
+        query = query.where(TimetableSlot.student_group_id == group_id)
+    if faculty_id is not None:
+        query = query.where(TimetableSlot.faculty_id == faculty_id)
+    if year is not None or department is not None:
+        query = query.join(
+            StudentGroup, TimetableSlot.student_group_id == StudentGroup.id
         )
-    ).all()
+        if year is not None:
+            query = query.where(StudentGroup.year == year)
+        if department is not None:
+            query = query.where(StudentGroup.department == department)
+    query = query.order_by(TimetableSlot.day_of_week, TimetableSlot.slot_number)
+    return db.scalars(query).all()
 
-    title = f"Timetable — {faculty.name if faculty else 'Faculty'}"
-    return generate_timetable_pdf(instance_id, db, title, slots=slots)
+
+def describe_filters(
+    group_id: int | None = None,
+    faculty_id: int | None = None,
+    year: int | None = None,
+    department: str | None = None,
+) -> str:
+    """Human-readable filter suffix for titles/filenames (empty if none)."""
+    parts = []
+    if group_id is not None:
+        parts.append(f"group {group_id}")
+    if faculty_id is not None:
+        parts.append(f"faculty {faculty_id}")
+    if year is not None:
+        parts.append(f"year {year}")
+    if department is not None:
+        parts.append(department)
+    return ", ".join(parts)
+
+
+# ── CSV ──────────────────────────────────────────────────────
+
+def generate_timetable_csv(slots: list[TimetableSlot], db: Session) -> BytesIO:
+    """Render the given slots as a CSV buffer."""
+    maps = _get_lookup_maps(db, slots)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Day", "Slot Number", "Start Time", "End Time",
+        "Subject", "Subject Code", "Faculty", "Room",
+        "Group", "Session Type", "Manual Override",
+    ])
+    for slot in slots:
+        subject = maps["subjects"].get(slot.subject_id)
+        faculty = maps["faculty"].get(slot.faculty_id)
+        room = maps["rooms"].get(slot.room_id)
+        group = maps["groups"].get(slot.student_group_id)
+        writer.writerow([
+            DAYS.get(slot.day_of_week, slot.day_of_week),
+            slot.slot_number,
+            slot.start_time.strftime("%H:%M") if slot.start_time else "",
+            slot.end_time.strftime("%H:%M") if slot.end_time else "",
+            subject.name if subject else "",
+            subject.subject_code if subject else "",
+            faculty.name if faculty else "",
+            room.name if room else "",
+            group.name if group else "",
+            slot.session_type.value if hasattr(slot.session_type, "value") else slot.session_type,
+            "Yes" if slot.is_manual_override else "No",
+        ])
+    return BytesIO(output.getvalue().encode("utf-8"))
+
+
+# ── iCal (.ics) ──────────────────────────────────────────────
+
+_BYDAY = {0: "MO", 1: "TU", 2: "WE", 3: "TH", 4: "FR", 5: "SA", 6: "SU"}
+
+
+def _ical_escape(text) -> str:
+    return (
+        str(text)
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
+
+
+def _first_weekday_on_or_after(start: date, weekday: int) -> date:
+    return start + timedelta(days=(weekday - start.weekday()) % 7)
+
+
+def generate_timetable_ical(
+    slots: list[TimetableSlot],
+    db: Session,
+    *,
+    term_start: date | None = None,
+    term_end: date | None = None,
+    calendar_name: str = "Timetable",
+) -> BytesIO:
+    """Render slots as an RFC 5545 .ics file of weekly-recurring events.
+
+    Each recurring ``day_of_week`` slot becomes a weekly ``VEVENT`` anchored to
+    the first matching weekday on/after ``term_start`` (default today), with an
+    optional ``UNTIL`` from ``term_end``.
+    """
+    maps = _get_lookup_maps(db, slots)
+    term_start = term_start or date.today()
+    dtstamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Timetable Generator//EN",
+        "CALSCALE:GREGORIAN",
+        f"X-WR-CALNAME:{_ical_escape(calendar_name)}",
+    ]
+    for slot in slots:
+        if slot.day_of_week is None or slot.start_time is None or slot.end_time is None:
+            continue
+        anchor = _first_weekday_on_or_after(term_start, slot.day_of_week)
+        dtstart = datetime.combine(anchor, slot.start_time).strftime("%Y%m%dT%H%M%S")
+        dtend = datetime.combine(anchor, slot.end_time).strftime("%Y%m%dT%H%M%S")
+        rrule = f"FREQ=WEEKLY;BYDAY={_BYDAY[slot.day_of_week]}"
+        if term_end is not None:
+            rrule += ";UNTIL=" + datetime.combine(
+                term_end, slot.end_time
+            ).strftime("%Y%m%dT%H%M%S")
+
+        subject = maps["subjects"].get(slot.subject_id)
+        faculty = maps["faculty"].get(slot.faculty_id)
+        room = maps["rooms"].get(slot.room_id)
+        group = maps["groups"].get(slot.student_group_id)
+
+        desc = [f"Faculty: {faculty.name}"] if faculty else []
+        if group:
+            desc.append(f"Group: {group.name}")
+
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:{slot.instance_id}-{slot.id}@timetable-generator",
+            f"DTSTAMP:{dtstamp}",
+            f"DTSTART:{dtstart}",
+            f"DTEND:{dtend}",
+            f"RRULE:{rrule}",
+            f"SUMMARY:{_ical_escape(subject.name if subject else 'Session')}",
+        ]
+        if room:
+            lines.append(f"LOCATION:{_ical_escape(room.name)}")
+        if desc:
+            lines.append("DESCRIPTION:" + "\\n".join(_ical_escape(d) for d in desc))
+        lines.append("END:VEVENT")
+
+    lines.append("END:VCALENDAR")
+    return BytesIO(("\r\n".join(lines) + "\r\n").encode("utf-8"))
