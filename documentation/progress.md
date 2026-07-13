@@ -93,10 +93,9 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [ ] **New Constraint Types** *(3 of 5 registry rules done)*
   - Done: `SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`.
   - Pending: `LAB_BATCH_ROTATION` (needs lab-batch model), `HOLIDAY_CALENDAR` (weekday-vs-date gap), `DIVISION_START_TIME` (per-division start; global `day_start_time` already works).
+- [x] **Soft Constraint Scoring** — `app/engine/scorer.py` registry weights each instance's soft constraints into `instance.soft_score` / `generation.score_best_instance` (gated by `enable_soft_constraint_scoring`). Ships `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`.
 - [ ] **OR-Tools CP-SAT Solver**
-  - High-quality primary solver to replace/augment greedy for large departments.
-- [ ] **Soft Constraint Scoring**
-  - Proper weighted objective function instead of simple slot counting.
+  - High-quality primary solver to replace/augment greedy for large departments (reuses the soft scorer as its objective).
 - [ ] **Diversity Filter**
   - Ensure generated instances are meaningfully different (Hamming distance check).
 

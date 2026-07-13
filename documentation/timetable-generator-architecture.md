@@ -279,7 +279,20 @@ Implemented data-driven types and their `config_json`:
 | `MAX_CONSECUTIVE_SAME_TEACHER` | `{"max": int, "faculty_id"?}` | Cap a teacher's back-to-back slots per day. |
 | `TEACHER_YEAR_RESTRICTION` | `{"faculty_id": int, "allowed_years": [int,...]}` | Restrict a teacher to specific student years. |
 
-> Still hardcoded (structural) rather than registry-driven: the core double-booking/capacity/availability checks. They could be moved into the registry as always-on entries later so *every* rule is uniform, but they are kept inline for now since they are non-negotiable and never per-profile. Soft-constraint scoring remains unbuilt (Phase 3).
+> Still hardcoded (structural) rather than registry-driven: the core double-booking/capacity/availability checks. They could be moved into the registry as always-on entries later so *every* rule is uniform, but they are kept inline for now since they are non-negotiable and never per-profile.
+
+#### Soft-Constraint Scoring (implemented — Phase 3)
+
+Soft constraints don't fail a timetable — they *rank* it. `app/engine/scorer.py` mirrors the hard registry: `SOFT_CONSTRAINT_REGISTRY[type] = scorer`, where `scorer(slots, config, ctx) -> float` returns a satisfaction value in `[0, 1]` (1 = fully satisfied). After the solver finishes an instance, the scheduler computes a weighted mean of the active `soft_constraints` (using each row's `weight`) into one score in `[0, 1]` (**higher is better**), stores it on `instance.soft_score`, and records the best across instances on `generation.score_best_instance`. Gated by the `enable_soft_constraint_scoring` college flag; with no soft rules the score is left unset.
+
+Implemented scorers:
+
+| Type | config_json | Rewards |
+|---|---|---|
+| `TEACHER_PREFERS_MORNING` | `{"faculty_id"?, "boundary_slot"?: int}` | Sessions in the morning window. |
+| `MINIMIZE_STUDENT_FREE_SLOTS` | `{}` | Compact student days (few gaps between first and last slot). |
+
+> Not yet built (rest of Phase 3): the OR-Tools CP-SAT solver (this score becomes its objective function), the instance **diversity filter** (Hamming distance between instances), and async generation (Celery/Redis).
 
 ### 3.4 Generation & Output Tables
 
