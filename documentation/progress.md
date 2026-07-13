@@ -26,7 +26,7 @@ New engine capabilities added in the same pass (with tests):
 
 Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
-- **Room blackout check is effectively dead** — the greedy solver builds `day_of_week`-based recurring slots and never sets `slot_date`, so `_check_room_blackout` always early-returns. Needs a recurring blackout concept (per-weekday) or date materialization.
+- ~~**Room blackout check is effectively dead**~~ — ✅ FIXED: `room_blackouts` now supports recurring **weekday** blackouts (`day_of_week`), which the checker enforces against the recurring templates. Date-specific blackouts still await calendar-date materialization.
 - **Faculty availability date-range ignored** — `effective_from`/`effective_to` are never consulted, and they are typed `date | None` yet marked `nullable=False` (contradiction that also breaks CRUD/CSV that omit them).
 - **CSV import is not atomic** — each row is `add()`ed and everything is `commit()`ed once at the end; a single integrity error at commit rolls back rows already reported as "inserted". Also `import_rooms` lets `room_code` be `None` against a `NOT NULL UNIQUE` column.
 - **Profile combinations are never resolved** — `/profiles/combine` stores members, but `Scheduler`/`GreedySolver` only read a single `profile_id`; generating from a `combination_id` fails. (Loosely Phase 4, but the endpoint currently misleads.)

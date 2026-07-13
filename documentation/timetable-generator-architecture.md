@@ -67,10 +67,13 @@ CREATE TABLE rooms (
 );
 
 -- ROOM BLACKOUT WINDOWS (maintenance, reserved dates)
+-- Either date-specific (`date`) or recurring by weekday (`day_of_week`); the
+-- recurring form is what the weekly templates actually check against today.
 CREATE TABLE room_blackouts (
     id          INT PRIMARY KEY AUTO_INCREMENT,
     room_id     INT NOT NULL,
-    date        DATE NOT NULL,
+    date        DATE,                               -- set for a one-off date
+    day_of_week TINYINT,                            -- 0=Mon..6=Sun for a recurring blackout
     slot_start  TIME,                               -- NULL = full day
     slot_end    TIME,
     reason      VARCHAR(200),
@@ -278,6 +281,7 @@ Implemented data-driven types and their `config_json`:
 | `SUBJECT_TIME_PREFERENCE` | `{"subject_id"?, "max_slot"?, "min_slot"?, "period"?: "MORNING"\|"AFTERNOON", "boundary_slot"?}` | Confine a subject to a slot window (e.g. Maths always mornings). |
 | `MAX_CONSECUTIVE_SAME_TEACHER` | `{"max": int, "faculty_id"?}` | Cap a teacher's back-to-back slots per day. |
 | `TEACHER_YEAR_RESTRICTION` | `{"faculty_id": int, "allowed_years": [int,...]}` | Restrict a teacher to specific student years. |
+| `LAB_BATCH_ROTATION` | `{"group_days": {"<group_id>": [day,...]}}` | Pin a group/lab-batch to specific weekdays (A1 Mon, A2 Tue). |
 
 > Still hardcoded (structural) rather than registry-driven: the core double-booking/capacity/availability checks. They could be moved into the registry as always-on entries later so *every* rule is uniform, but they are kept inline for now since they are non-negotiable and never per-profile.
 

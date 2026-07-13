@@ -41,8 +41,8 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - [x] `TEACHER_YEAR_RESTRICTION`: Prevent assigning teachers outside their allowed years.
   - [x] `SUBJECT_TIME_PREFERENCE`: Confine a subject to a slot window (e.g., Maths always AM).
   - [x] `MAX_CONSECUTIVE_SAME_TEACHER`: Limit back-to-back slots for a single faculty member.
-  - [ ] `LAB_BATCH_ROTATION`: Enforce A1 on Monday, A2 on Tuesday patterns. *(needs lab-batch model first)*
-  - [ ] `HOLIDAY_CALENDAR`: Global blackout dates. *(blocked on the same weekday-vs-date gap as room blackouts — slots are recurring `day_of_week`, holidays are calendar dates)*
+  - [x] `LAB_BATCH_ROTATION`: Pin a group/lab-batch to specific weekdays (A1 Mon, A2 Tue) — `config_json.group_days`.
+  - [ ] `HOLIDAY_CALENDAR`: *Date-based* global blackout dates still need calendar-date materialization (see below); recurring **weekday** blackouts now work via `room_blackouts.day_of_week`.
 
 ## Phase 3: Advanced Solvers & Async Infrastructure
 *Goal: Handle large departments without blocking HTTP requests.*
