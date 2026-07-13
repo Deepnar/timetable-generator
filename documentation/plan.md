@@ -33,16 +33,16 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 ## Phase 2: Constraint Engine Overhaul & New Rules
 *Goal: Move from hardcoded checks to a dynamic, data-driven constraint system.*
 
-- [ ] **Dynamic Constraint Checker**
-  - Refactor `app/engine/constraint_checker.py` to read `config_json` from the constraint model dynamically.
-  - Create a registry pattern: `CONSTRAINT_REGISTRY[constraint_type] = validator_function`.
-  - Allow new constraint types to be added without modifying core solver code.
-- [ ] **Implement New Constraint Types**
-  - `TEACHER_YEAR_RESTRICTION`: Prevent assigning teachers outside their allowed years.
-  - `SUBJECT_TIME_PREFERENCE`: Hard/soft rules for morning/afternoon slots (e.g., Maths always AM).
-  - `LAB_BATCH_ROTATION`: Enforce A1 on Monday, A2 on Tuesday patterns.
-  - `MAX_CONSECUTIVE_SAME_TEACHER`: Limit back-to-back slots for a single faculty member.
-  - `HOLIDAY_CALENDAR`: Global blackout dates that override all availability.
+- [x] **Dynamic Constraint Checker** *(foundation done)*
+  - `app/engine/constraint_registry.py` maps `constraint_type` → validator; the checker loads a profile's active `hard_constraints` rows (plus global ones) and dispatches each with its `config_json`.
+  - `constraint_type` is now a plain string column (migration `b7d9f2a1c3e4`), so new rule types need **no** schema migration.
+  - *Remaining:* the core structural checks (double-booking/capacity/availability) are still inline; optionally fold them into the registry as always-on entries so every rule is uniform.
+- [ ] **Implement New Constraint Types** *(3 of 5 done)*
+  - [x] `TEACHER_YEAR_RESTRICTION`: Prevent assigning teachers outside their allowed years.
+  - [x] `SUBJECT_TIME_PREFERENCE`: Confine a subject to a slot window (e.g., Maths always AM).
+  - [x] `MAX_CONSECUTIVE_SAME_TEACHER`: Limit back-to-back slots for a single faculty member.
+  - [ ] `LAB_BATCH_ROTATION`: Enforce A1 on Monday, A2 on Tuesday patterns. *(needs lab-batch model first)*
+  - [ ] `HOLIDAY_CALENDAR`: Global blackout dates. *(blocked on the same weekday-vs-date gap as room blackouts — slots are recurring `day_of_week`, holidays are calendar dates)*
 
 ## Phase 3: Advanced Solvers & Async Infrastructure
 *Goal: Handle large departments without blocking HTTP requests.*

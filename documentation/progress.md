@@ -89,10 +89,10 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
   - *Remaining:* wire the remaining flags (`enable_lab_batches`, `enable_soft_constraint_scoring`) into their respective features as those land.
 
 ### 🟠 Engine & Solver Improvements
-- [ ] **Dynamic Constraint Checker**
-  - Refactor hardcoded `if/else` checks into a registry that reads `config_json` dynamically.
-- [ ] **New Constraint Types**
-  - `TEACHER_YEAR_RESTRICTION`, `SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `MAX_CONSECUTIVE_SAME_TEACHER`, `CROSS_DEPARTMENT_SUBJECT`, `TEACHING_SHARE`, `HOLIDAY_CALENDAR`, `DIVISION_START_TIME`.
+- [x] **Dynamic Constraint Checker** *(foundation)* — `app/engine/constraint_registry.py` dispatches profile `hard_constraints` (by `config_json`) to registered validators; `constraint_type` is now a plain string so new rules skip schema migrations. Core structural checks stay inline (see plan.md Phase 2).
+- [ ] **New Constraint Types** *(3 of 5 registry rules done)*
+  - Done: `SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`.
+  - Pending: `LAB_BATCH_ROTATION` (needs lab-batch model), `HOLIDAY_CALENDAR` (weekday-vs-date gap), `DIVISION_START_TIME` (per-division start; global `day_start_time` already works).
 - [ ] **OR-Tools CP-SAT Solver**
   - High-quality primary solver to replace/augment greedy for large departments.
 - [ ] **Soft Constraint Scoring**

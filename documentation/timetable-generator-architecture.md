@@ -232,6 +232,30 @@ CREATE TABLE soft_constraints (
 - `BALANCE_TEACHER_LOAD` — equalize teaching hours across faculty
 - `EVENT_QUIET_PERIOD` — reduce scheduling load near exam dates
 
+#### Dynamic Constraint Registry (implemented — Phase 2)
+
+Constraints are no longer hardcoded `if/else` branches. The engine splits them into two tiers:
+
+1. **Structural checks** — physics that always holds (no teacher/room/group double-book, cross-timetable reservations, room capacity/type, teacher availability, faculty load). These live in `app/engine/constraint_checker.py` and run on every candidate.
+2. **Data-driven rules** — opt-in per profile. Rows in `hard_constraints` carry a `constraint_type` (a plain **string**, not a DB enum) plus a `config_json` blob. At solve time the checker loads the active rows for the profile (and any global `profile_id IS NULL` rows) and dispatches each to a validator in `app/engine/constraint_registry.py`:
+
+   ```python
+   HARD_CONSTRAINT_REGISTRY[constraint_type] = validator
+   # validator(candidate, committed_slots, config, ctx) -> reason:str | None
+   ```
+
+**Adding a new rule needs no schema migration and no solver/checker edits** — write a validator, register it with `@hard_rule("MY_TYPE")`, and add the name to the `ConstraintType` catalog (used only for API input validation and discovery). Because `constraint_type` is a string column, the catalog can grow freely.
+
+Implemented data-driven types and their `config_json`:
+
+| Type | config_json | Effect |
+|---|---|---|
+| `SUBJECT_TIME_PREFERENCE` | `{"subject_id"?, "max_slot"?, "min_slot"?, "period"?: "MORNING"\|"AFTERNOON", "boundary_slot"?}` | Confine a subject to a slot window (e.g. Maths always mornings). |
+| `MAX_CONSECUTIVE_SAME_TEACHER` | `{"max": int, "faculty_id"?}` | Cap a teacher's back-to-back slots per day. |
+| `TEACHER_YEAR_RESTRICTION` | `{"faculty_id": int, "allowed_years": [int,...]}` | Restrict a teacher to specific student years. |
+
+> Still hardcoded (structural) rather than registry-driven: the core double-booking/capacity/availability checks. They could be moved into the registry as always-on entries later so *every* rule is uniform, but they are kept inline for now since they are non-negotiable and never per-profile. Soft-constraint scoring remains unbuilt (Phase 3).
+
 ### 3.4 Generation & Output Tables
 
 ```sql
