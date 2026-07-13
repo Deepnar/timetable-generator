@@ -614,11 +614,10 @@ Admin triggers POST /generate
 
 ### 5.2 Solver Strategy
 
-**Primary: Google OR-Tools CP-SAT**
-- Industry-grade constraint satisfaction solver
-- Handles hundreds of variables efficiently
-- Native support for time-window constraints
-- Install: `pip install ortools`
+**Primary: Google OR-Tools CP-SAT** — *implemented* in `app/engine/solvers/or_tools_solver.py`
+- Industry-grade constraint satisfaction solver; select it with `algorithm="OR_TOOLS"` on `POST /generate` (greedy remains the default).
+- Reuses `GreedySolver`'s problem building. **Per-candidate** rules (capacity, room type, availability, recurring blackouts, cross-timetable reservations, and static registry rules like `SUBJECT_TIME_PREFERENCE`) prune the variable domain via the shared `ConstraintChecker`; **relational** rules (double-booking, one-subject-per-day, faculty load) are CP-SAT constraints. Objective: maximise placed sessions. A final checker pass guarantees validity for committed-dependent rules CP-SAT doesn't model.
+- Installed via `uv add ortools`.
 
 ```python
 # Simplified example of how OR-Tools is used in the engine

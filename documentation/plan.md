@@ -52,9 +52,10 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - Set up **Celery + Redis** task queue for background processing.
 - [x] **Soft Constraint Scoring** *(done, solver-independent)*
   - `app/engine/scorer.py` registry scores each instance's soft constraints (weighted mean → `instance.soft_score`, best → `generation.score_best_instance`), gated by `enable_soft_constraint_scoring`. Ships `TEACHER_PREFERS_MORNING` and `MINIMIZE_STUDENT_FREE_SLOTS`. This is the objective function OR-Tools will reuse.
-- [ ] **OR-Tools CP-SAT Solver**
-  - Integrate `ortools` into `app/engine/solvers/` as an alternative to greedy, using the soft scorer above as the weighted objective.
-  - Add a **Diversity Filter**: After generating N instances, calculate Hamming distance between them. If two are too similar, discard and regenerate one.
+- [x] **OR-Tools CP-SAT Solver** *(integrated)*
+  - `app/engine/solvers/or_tools_solver.py` — select via `algorithm="OR_TOOLS"`. Static rules prune the CP-SAT domain (shared `ConstraintChecker`), relational rules are CP-SAT constraints, objective maximises placements. Greedy stays the default/preview solver.
+  - *Remaining:* fold the soft scorer in as a weighted CP-SAT objective (currently maximises placements; soft scoring is applied post-hoc to rank instances).
+- [ ] **Diversity Filter**: After generating N instances, calculate Hamming distance between them. If two are too similar, discard and regenerate one.
 - [ ] **Async Generation Pipeline**
   - Move `POST /generate` to fire a Celery task and immediately return `{status: "PENDING", run_id: X}`.
   - Implement `GET /generate/{run_id}/status` for polling (future: WebSocket upgrades).

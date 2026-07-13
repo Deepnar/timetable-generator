@@ -7,8 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A standalone timetable-generation backend (FastAPI + SQLAlchemy 2.0 + PostgreSQL) for
 institutions. It manages schedulable resources, runs a constraint-driven solver to produce
 candidate timetables, and lets an admin select and publish one. It is the product itself, not a
-microservice for another ERP. Current checkpoint: greedy solver working; OR-Tools solver, async
-generation, and a frontend are planned (see `documentation/`).
+microservice for another ERP. Current checkpoint: greedy and OR-Tools (CP-SAT) solvers working,
+data-driven constraint registry, soft-constraint scoring; async generation and a frontend are
+planned (see `documentation/`).
 
 ## Environment & commands
 
