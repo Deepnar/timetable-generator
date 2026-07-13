@@ -44,20 +44,25 @@ def _get_lookup_maps(db: Session, slots: list[TimetableSlot]) -> dict:
 def generate_timetable_pdf(
     instance_id: int,
     db: Session,
-    title: str = "Timetable"
+    title: str = "Timetable",
+    slots: list[TimetableSlot] | None = None,
 ) -> BytesIO:
     """
     Generates a PDF timetable grid for a given instance.
     Returns a BytesIO buffer ready to be sent as a file response.
+
+    Pass ``slots`` to render a pre-filtered subset (e.g. one faculty's
+    schedule); otherwise every slot in the instance is loaded.
     """
-    slots = db.scalars(
-        select(TimetableSlot).where(
-            TimetableSlot.instance_id == instance_id
-        ).order_by(
-            TimetableSlot.day_of_week,
-            TimetableSlot.slot_number
-        )
-    ).all()
+    if slots is None:
+        slots = db.scalars(
+            select(TimetableSlot).where(
+                TimetableSlot.instance_id == instance_id
+            ).order_by(
+                TimetableSlot.day_of_week,
+                TimetableSlot.slot_number
+            )
+        ).all()
 
     if not slots:
         # return empty PDF with message
@@ -205,4 +210,4 @@ def generate_faculty_pdf(
     ).all()
 
     title = f"Timetable — {faculty.name if faculty else 'Faculty'}"
-    return generate_timetable_pdf(instance_id, db, title)
+    return generate_timetable_pdf(instance_id, db, title, slots=slots)
