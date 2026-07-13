@@ -11,3 +11,9 @@ from .constraints import (HardConstraintCreate, HardConstraintResponse,
                                       SoftConstraintCreate, SoftConstraintResponse)
 from .generation import (GenerationRequest, GenerationResponse,
                                      InstanceResponse, SlotResponse, SlotOverride)
+from .assignments import (
+    SubjectAssignmentCreate,
+    SubjectAssignmentUpdate,
+    SubjectAssignmentResponse,
+)
+from .settings import CollegeSettingsResponse, CollegeSettingsUpdate
