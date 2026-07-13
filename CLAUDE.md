@@ -98,3 +98,12 @@ on `get_current_admin`.
 endpoint + solver blueprint), `plan.md` (phased roadmap), `progress.md` (feature checklist), and
 `AGENTS.md` (contributor guide). `rough_plan.md` is raw brainstorming. Treat the code as ground truth
 where these disagree.
+
+## ⚠️ Keep the architecture doc in sync with the code (mandatory)
+
+When you add or change a feature (a table, endpoint, engine rule, parameter, or flag), update
+`documentation/timetable-generator-architecture.md` **in the same change** — schema in §3, endpoints
+in §4, engine in §5, parameters in §8. The blueprint must not drift from the code. Also update
+`plan.md`/`progress.md` checkboxes. (The architecture doc still carries pre-pivot framing — it says
+"MySQL" and "module for an ERP"; the project is now standalone on PostgreSQL, so correct stale bits
+you touch.)

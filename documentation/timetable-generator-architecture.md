@@ -102,6 +102,29 @@ CREATE TABLE student_groups (
     parent_group_id INT,                            -- for hierarchical grouping
     FOREIGN KEY (parent_group_id) REFERENCES student_groups(id)
 );
+
+-- SUBJECT ↔ FACULTY ↔ GROUP MAPPING (Phase 1 — implemented)
+-- The single source of truth for "who teaches what to which division";
+-- the greedy solver expands each row into `weekly_hours` sessions.
+CREATE TABLE subject_assignments (
+    id           INT PRIMARY KEY AUTO_INCREMENT,
+    subject_id   INT NOT NULL,                       -- FK subjects (ON DELETE CASCADE)
+    faculty_id   INT,                                -- FK faculty (ON DELETE SET NULL)
+    group_id     INT NOT NULL,                       -- FK student_groups (ON DELETE CASCADE)
+    weekly_hours INT NOT NULL DEFAULT 1,
+    load_share   FLOAT NOT NULL DEFAULT 1.0          -- e.g. 0.8/0.2 shared teaching
+);
+
+-- COLLEGE SETTINGS SINGLETON (Phase 1 — implemented)
+-- One row (id=1), auto-created on startup; per-college feature flags the
+-- engine reads at generation time. config_json holds free-form tunables.
+CREATE TABLE college_settings (
+    id                            INT PRIMARY KEY,   -- always 1
+    enable_lab_batches            BOOLEAN DEFAULT FALSE,
+    allow_cross_dept_subjects     BOOLEAN DEFAULT FALSE,
+    enable_soft_constraint_scoring BOOLEAN DEFAULT TRUE,
+    config_json                   JSON               -- e.g. {"max_cross_dept_per_day": 2}
+);
 ```
 
 ### 3.2 Profile & Parameter Tables
@@ -169,8 +192,10 @@ CREATE TABLE profile_parameters (
 |----------------------------|---------|-------------------------|
 | `slot_duration_minutes`    | INT     | 60                      |
 | `slots_per_day`            | INT     | 7                       |
+| `day_start_time`           | STRING  | `"09:00"` (implemented; "HH:MM" — first slot start) |
 | `working_days`             | JSON    | `["MON","TUE","WED","THU","FRI"]` |
 | `lunch_break_after_slot`   | INT     | 3                       |
+| `lunch_break_duration_minutes` | INT | 60                      |
 | `max_consecutive_lectures` | INT     | 3                       |
 | `max_daily_load_teacher`   | INT     | 5                       |
 | `min_gap_between_exams`    | INT     | 1 (days)                |
@@ -421,6 +446,21 @@ GET    /faculty-availability/{faculty_id}  Get teacher's full availability
 
 GET    /student-groups                 List groups (filter by dept, year, type)
 POST   /student-groups                 Create custom group
+```
+
+#### Subject Assignments & College Settings (Phase 1 — implemented)
+
+```
+GET    /assignments                    List mappings (filter: subject_id, faculty_id, group_id)
+POST   /assignments                    Create a subject→faculty→group mapping
+GET    /assignments/{id}               Get one mapping
+PUT    /assignments/{id}               Update faculty / weekly_hours / load_share
+DELETE /assignments/{id}               Remove mapping
+
+GET    /settings/                      Read the college feature-flag singleton
+PUT    /settings/                      Update one or more flags / config_json
+
+GET    /health                         Liveness + DB reachability (for deploy monitors)
 ```
 
 #### Profile Management
