@@ -7,10 +7,38 @@ This document provides a living status of every feature, table, and improvement 
 
 ---
 
+## 🛠️ Recently Fixed (cross-check pass)
+
+These were marked "complete" in earlier docs but were actually broken; now fixed and covered by the `python -m app.tests` suite (13/13 passing):
+
+- **Auth was fully broken at runtime** — `passlib 1.7.4` is incompatible with `bcrypt ≥ 5`, so every `hash_password`/`verify_password` raised `ValueError`. `app/utils/auth.py` now calls `bcrypt` directly; `passlib` removed from deps.
+- **Cross-timetable contamination fix didn't work** — reservations were bundled into one `(faculty, room, group, day, slot)` tuple, so only an identical 5-way match was blocked. Now split into per-resource sets (`faculty`/`room`/`group` → `{(id, day, slot)}`) and enforced in the constraint checker.
+- **`POST /generate` 500'd** — the scheduler never set the `NOT NULL` `instance_number`; now populated per instance.
+- **Individual faculty PDF was the full timetable** — `generate_faculty_pdf` filtered the slots then discarded them and re-rendered everything; now renders only that faculty's slots.
+
+New engine capabilities added in the same pass (with tests):
+- **Configurable `day_start_time`** profile param (`"HH:MM"`, default `09:00`) — the day no longer starts at a hardcoded 9 AM, so schools/evening programs work too.
+- **Faculty load limits enforced** — `max_hours_per_day` / `max_hours_per_week` were stored but ignored by the solver; now hard-checked.
+
+---
+
+## 🔎 Newly Identified (cross-check pass — not yet on the roadmap)
+
+Bugs/gaps found while auditing that `plan.md` does **not** already cover:
+
+- **Room blackout check is effectively dead** — the greedy solver builds `day_of_week`-based recurring slots and never sets `slot_date`, so `_check_room_blackout` always early-returns. Needs a recurring blackout concept (per-weekday) or date materialization.
+- **Faculty availability date-range ignored** — `effective_from`/`effective_to` are never consulted, and they are typed `date | None` yet marked `nullable=False` (contradiction that also breaks CRUD/CSV that omit them).
+- **CSV import is not atomic** — each row is `add()`ed and everything is `commit()`ed once at the end; a single integrity error at commit rolls back rows already reported as "inserted". Also `import_rooms` lets `room_code` be `None` against a `NOT NULL UNIQUE` column.
+- **Profile combinations are never resolved** — `/profiles/combine` stores members, but `Scheduler`/`GreedySolver` only read a single `profile_id`; generating from a `combination_id` fails. (Loosely Phase 4, but the endpoint currently misleads.)
+- **`GET /constraints/types` is a hardcoded string list** that can drift from the `ConstraintType` enum.
+- **Read-route auth is inconsistent** — `/settings` GET requires a token, most other GETs don't.
+
+---
+
 ## ✅ Completed Features
 
 ### Database & Models
-- [x] **18 Database Tables**: Migrated via Alembic (rooms, blackouts, faculty, availability, groups, subjects, profiles, parameters, constraints, generation runs, instances, slots, history, admin, etc.)
+- [x] **21 Database Tables**: Migrated via Alembic (rooms, blackouts, faculty, availability, groups, subjects, subject_assignments, college_settings, profiles, parameters, combinations, constraints, generation runs, instances, slots, history, reset log, admin, etc.)
 - [x] **SQLAlchemy 2.0 ORM**: Declarative models with `mapped_column` and relationship mappings.
 - [x] **Database Migration to PostgreSQL**: Switched from local MySQL to Docker-managed Postgres 15 container.
 
@@ -40,7 +68,7 @@ This document provides a living status of every feature, table, and improvement 
 ### Generation Workflow & Instances
 - [x] **Generation Trigger**: `POST /generate` accepts profile/combination, runs solver synchronously.
 - [x] **Instance Management**: View generated instances, select a candidate, publish to live system.
-- [x] **Manual Slot Override**: Edit individual slots post-generation with backend re-validation.
+- [x] **Manual Slot Override**: Edit individual slots post-generation (`PATCH /instances/{id}/slots/{slot_id}`). ⚠️ *Note: the override is currently saved without re-running the constraint checker — live re-validation is still TODO (see Engine improvements below).*
 
 ### Exports & History
 - [x] **PDF Export**: Full timetable grid generation using ReportLab.
@@ -56,8 +84,9 @@ This document provides a living status of every feature, table, and improvement 
 ## ⏳ Planned / Pending Features
 
 ### 🔴 Critical Missing (Blockers for Real Usage)
-- [ ] **College Settings / Feature Flags Table**
-  - *Implemented:* `college_settings` model is in place. Next: Wrap specific endpoints and solver logic with these flags so colleges can toggle optional features.
+- [x] **College Settings / Feature Flags Table** *(largely done)*
+  - `college_settings` model, migration, `GET/PUT /settings/` endpoints, and the `get_settings()` singleton service are all in place; the solver honors `allow_cross_dept_subjects` and the checker reads `config_json.max_cross_dept_per_day`.
+  - *Remaining:* wire the remaining flags (`enable_lab_batches`, `enable_soft_constraint_scoring`) into their respective features as those land.
 
 ### 🟠 Engine & Solver Improvements
 - [ ] **Dynamic Constraint Checker**
@@ -96,7 +125,7 @@ This document provides a living status of every feature, table, and improvement 
 - [ ] **Instance Editor**: Click-to-edit slots with live conflict re-checking.
 
 ### 🔵 Deployment & Final Polish
-- [ ] **Full Stack Dockerization**: `Dockerfile` + `docker-compose.yml` (App, Frontend, MySQL, Redis).
+- [ ] **Full Stack Dockerization**: `Dockerfile` + top-level `docker-compose.yml` (App, Frontend, PostgreSQL, Redis). *(Today `docker/docker-compose.yml` runs only Postgres.)*
 - [ ] **README & Docs**: Setup guide, architecture diagram link, API examples.
 - [ ] **Historical Data Import**: Upload past semesters' timetables for pattern reference.
 - [ ] **ML Preference Learning (Phase 2)**: Learn from manual overrides to suggest constraints automatically.

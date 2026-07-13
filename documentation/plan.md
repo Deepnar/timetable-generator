@@ -2,6 +2,9 @@
 
 This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.greedy-complete`) and a **complete, standalone full-stack enterprise application**. It prioritizes the most critical missing pieces (like subject-faculty mapping and cross-timetable safety) before moving to advanced solvers and frontend development.
 
+> **Plan review (cross-check pass):** The phase ordering is sound. Two adjustments worth making:
+> (1) **Phase 2 (dynamic constraint registry) is the real flexibility unlock and should land before Phase 3 (OR-Tools)** — a better solver that can only express 9 hardcoded rules is still rigid. (2) The greedy engine and OR-Tools should share **one constraint interface** so rules are written once and both solvers consume them; otherwise every new rule is implemented twice. See the reworked "extreme flexibility" section under Phase 1 for what that goal concretely requires, and `progress.md` → "Newly Identified" for bugs this plan doesn't yet track.
+
 ---
 
 ## Phase 1: Core Engine & Data Mapping Completion
@@ -14,11 +17,17 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Cross-Timetable Contamination Fix**
   - Add `load_published_conflicts()` to the scheduler. Before a new generation run, fetch all slots from instances with status `PUBLISHED`.
   - Mark those time-room-teacher-group combinations as pre-blocked for the current solver instance.
-- [ ] **College Settings / Feature Flags Table**
-  - Create `college_settings` table with boolean toggles per feature (e.g., `enable_lab_batches`, `allow_cross_dept_subjects`).
-  - Wrap new optional logic behind these flags so colleges can upgrade incrementally.
-  - [ ] **Making the system extremely flexible**
-  - Adding or doing something in a way that like does restrict the type of timetable any one wants to create or any restriction or special type of particularity that an organisations timetable may have, as we might not know about that, so adding or making a feature that helps for this and check if we are already implementing it in the following phases if yes then ignore this. if not completely then do it.
+- [x] **College Settings / Feature Flags Table**
+  - `college_settings` singleton table created (`enable_lab_batches`, `allow_cross_dept_subjects`, `enable_soft_constraint_scoring`, plus a free-form `config_json`). Auto-created on startup and via `get_settings()`.
+  - Exposed at `GET/PUT /settings/`; solver already honors `allow_cross_dept_subjects` and the checker reads `config_json.max_cross_dept_per_day`.
+  - *Remaining:* wrap the rest of the optional logic (e.g. `enable_lab_batches`, `enable_soft_constraint_scoring`) behind these flags as those features land.
+  - [ ] **Making the system extremely flexible** *(the "any timetable of anything" goal)*
+  - The engine is currently hardwired to an Indian-college class timetable (departments, semesters, years, lab-vs-classroom, one-subject-per-day, fixed 9 AM start). "Extreme flexibility" concretely means removing those hardcoded assumptions so the *data* — not the code — decides the shape of a timetable. Four independent levers, in priority order:
+    1. **Configurable time grid** *(started)* — day start (`day_start_time` ✅), slot count/duration, breaks are already profile params. Still needed: variable-length slots and **multi-slot sessions** (a 3-hour lab occupying consecutive slots; today every session is exactly one slot and `SAME_SUBJECT_SAME_DAY` even forbids two-per-day). Overlaps Phase 2 `CONTIGUOUS_LAB_SLOTS`.
+    2. **Data-driven constraints** — the single biggest lever. The `hard_constraints`/`soft_constraints` tables + `config_json` already exist but the checker ignores them and hardcodes 9 rules. Phase 2's registry is what actually delivers "new rules without code changes." **Do Phase 2 before OR-Tools.**
+    3. **Generic resource requirements** — replace `Subject.requires_lab` (a single bool) with declared requirements (capacity, room features like projector/AC, equipment tags) matched against room attributes. Removes the binary lab/not-lab assumption.
+    4. **Loosen the closed vocabularies** — `RoomType`/`SessionType`/`GroupType`/`TimetableType` are fixed enums. For non-college use (exam halls, events, shift rosters) these need a `CUSTOM` escape hatch with free-form attributes, or a tag system.
+  - **Guiding principle:** every new capability ships behind a `college_settings` flag and defaults OFF, so the "standard college" preset stays simple (ease of use) while power users opt into complexity (flexibility).
 
 
 ## Phase 2: Constraint Engine Overhaul & New Rules
@@ -85,7 +94,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 *Goal: Ship a stable, self-contained full-stack application.*
 
 - [ ] **Full Stack Dockerization**
-  - Create `docker-compose.yml` that spins up the entire application: **FastAPI Backend**, **Next.js Frontend**, **MySQL Database**, and **Redis** in one command.
+  - Create a top-level `docker-compose.yml` that spins up the entire application: **FastAPI Backend**, **Next.js Frontend**, **PostgreSQL Database**, and **Redis** in one command. (The current `docker/docker-compose.yml` only runs Postgres.)
 - [ ] **README & Documentation**
   - Update `README.md` with setup instructions, architecture diagram link, and API examples.
   - Final code cleanup, type hinting pass, and docstrings.

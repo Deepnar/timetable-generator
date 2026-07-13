@@ -21,7 +21,7 @@ This project is a **complete full-stack application** (Backend + Database + Fron
 
 **Current Development State:**
 The backend system is at the **`v0.greedy-complete`** checkpoint. 
-- **Completed:** The foundational backend is fully built. This includes 18 database tables, full CRUD for all resources (rooms, faculty, groups, subjects), JWT authentication, CSV bulk imports, a dynamic profile/constraint system, a greedy constraint-based solver, synchronous timetable generation, manual slot overrides, PDF/CSV exports, and history/reset workflows.
+- **Completed:** The foundational backend is fully built. This includes 21 database tables, full CRUD for all resources (rooms, faculty, groups, subjects), JWT authentication, CSV bulk imports, a dynamic profile/constraint system, a greedy constraint-based solver, synchronous timetable generation, manual slot overrides, PDF/CSV exports, and history/reset workflows.
 - **Dependency Management:** Fully migrated to `uv` (`pyproject.toml`). The old `pip` and `requirements.txt` workflow has been retired.
 
 **Next Major Goal:**
@@ -46,11 +46,11 @@ To fully understand the architecture, current progress, and future plans, please
 
 1.  **`documentation/timetable-generator-architecture.md`** 
     The master architectural blueprint. It contains the complete database schema designs, endpoint contracts, solver strategies (Greedy vs OR-Tools), and the overall system vision.
-2.  **`plan.md`** 
+2.  **`documentation/plan.md`** 
     The phased implementation roadmap. It outlines exactly how to bridge the gap from the current greedy engine to the final enterprise-grade full-stack application.
-3.  **`progress.md`** 
+3.  **`documentation/progress.md`** 
     A living feature checklist. Use this to track completed work and identify what is currently blocked or planned.
-4.  **`rough_plan.md`** 
+4.  **`rough_plan.md`** (repo root)
     Raw session notes containing brainstormed ideas, late-night discoveries (like college settings tables), and frontend/API polish requirements.
 
 ---
@@ -144,16 +144,23 @@ uv run alembic upgrade head
 
 ## Testing Guidelines
 
-No test suite exists yet. When adding tests:
-
-- Use **pytest** (`uv add --dev pytest`).
-- Place files under `app/tests/test_<module>.py`.
-- Name functions `test_<action>_<expected_outcome>` (e.g., `test_create_room_success`, `test_constraint_violation_detected`).
-- Prioritize coverage for: router endpoints, engine/solver logic, constraint checker, and profile management.
+The project ships a **custom in-process test runner** (pytest is intentionally *not* used and not
+installed). `app/tests/conftest.py` runs the FastAPI app against an in-memory SQLite DB, so no
+Postgres is needed.
 
 ```bash
-uv run pytest app/tests/ -v
+uv run python -m app.tests     # full integration suite (currently 13/13 passing)
+python run_tests.py            # optional smoke test against a LIVE server on :8000
 ```
+
+When adding tests:
+
+- Register a suite with `@suite("name")` and individual cases with `@test("...")` in
+  `app/tests/test_<module>.py` (see `test_settings_and_assignments.py`). Use the `seed_minimal()`
+  helper to build a base scenario.
+- If a new router must run under the SQLite tests, add its module to the `get_db` patch loop in
+  `app/tests/conftest.py`.
+- Prioritize coverage for: router endpoints, engine/solver logic, constraint checker, and profiles.
 
 ---
 
@@ -184,11 +191,11 @@ The architecture blueprint defines five phases. Current state:
 
 | Phase | Scope | Status |
 |---|---|---|
-| **1 — Foundation** | Project structure, DB tables (18), CRUD APIs, auth, CSV import | ✅ Largely complete |
-| **2 — Greedy Engine** | Greedy scheduler, hard constraint checker, sync `/generate` | ✅ Complete |
+| **1 — Foundation** | Project structure, DB tables (21), CRUD APIs, auth, CSV import, subject assignments, college settings | ✅ Largely complete |
+| **2 — Greedy Engine** | Greedy scheduler, hard constraint checker, sync `/generate`, cross-timetable conflict prevention | ✅ Complete |
 | **3 — Real Solver** | OR-Tools CP-SAT, soft constraint scorer, multi-instance diversity, Celery async | ⏳ Planned |
 | **4 — Profile System** | Profile combine/resolve, profile shift, annual reset workflow | ⏳ Planned |
-| **5 — Enterprise** | Manual override + re-check, cross-timetable conflicts, iCal export, notifications, versioning | ⏳ Planned |
+| **5 — Enterprise** | Manual override **re-check** (override endpoint exists; re-validation TODO), iCal export, notifications, versioning | ⏳ Planned |
 
 When contributing to future phases, always reference the architecture doc for the endpoint contract, data model expectations, and algorithm details.
 
