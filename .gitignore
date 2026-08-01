@@ -38,3 +38,7 @@ Thumbs.db
 # Export outputs
 *.pdf
 *.csv
+
+# Private brainstorming notes — kept locally, never tracked.
+# See README "Repository layout" for why.
+rough_plan.md
