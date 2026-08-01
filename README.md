@@ -351,7 +351,15 @@ app/
 alembic/versions/                # single linear chain
 docker/                          # docker-compose.yml (Postgres 15)
 documentation/                   # architecture blueprint, plan, progress, contributor guide
+rough_plan.md                    # local-only brainstorming notes — gitignored, never tracked
 ```
+
+> `rough_plan.md` exists in your working copy as a private scratchpad for
+> half-formed ideas, scratch timelines, and notes that may contain personal
+> context. It is intentionally **not** in the repository — see the
+> `.gitignore` entry. The architecture blueprint (`documentation/`) is the
+> canonical record of design decisions.
+
 
 One file per domain entity, across `models/`, `schemas/`, and `router/`.
 Routers expose a module-level `router: APIRouter` and are mounted in
@@ -451,6 +459,7 @@ combination resolution and override re-validation are tracked TODOs.
 | [`documentation/progress.md`](documentation/progress.md) | Living feature checklist. |
 | [`documentation/AGENTS.md`](documentation/AGENTS.md) | Contributor guide. |
 | [`CLAUDE.md`](CLAUDE.md) | Claude Code working notes for this repo. |
+| `rough_plan.md` | **Local-only scratchpad** for brainstorming — gitignored by design, never committed. |
 
 > Where documentation disagrees with the code, **the code is the source of
 > truth.**

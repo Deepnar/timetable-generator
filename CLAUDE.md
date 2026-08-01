@@ -97,7 +97,8 @@ on `get_current_admin`.
 
 `documentation/` holds the deeper design material: `timetable-generator-architecture.md` (schema +
 endpoint + solver blueprint), `plan.md` (phased roadmap), `progress.md` (feature checklist), and
-`AGENTS.md` (contributor guide). `rough_plan.md` is raw brainstorming. Treat the code as ground truth
+`AGENTS.md` (contributor guide). `rough_plan.md` is a private, gitignored scratchpad
+kept locally only; it is not part of the repository. Treat the code as ground truth
 where these disagree.
 
 ## ⚠️ Keep the architecture doc in sync with the code (mandatory)

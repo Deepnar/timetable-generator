@@ -50,8 +50,11 @@ To fully understand the architecture, current progress, and future plans, please
     The phased implementation roadmap. It outlines exactly how to bridge the gap from the current greedy engine to the final enterprise-grade full-stack application.
 3.  **`documentation/progress.md`** 
     A living feature checklist. Use this to track completed work and identify what is currently blocked or planned.
-4.  **`rough_plan.md`** (repo root)
-    Raw session notes containing brainstormed ideas, late-night discoveries (like college settings tables), and frontend/API polish requirements.
+4.  ~~**`rough_plan.md`** (repo root)~~ — **removed from tracking**. Was raw session
+    notes containing brainstormed ideas; the file may still exist in your local
+    working copy as a private scratchpad (it is gitignored), but it is not part
+    of the repository. Design decisions that graduated from brainstorming live
+    in the architecture blueprint, plan, and progress docs above.
 
 ---
 
