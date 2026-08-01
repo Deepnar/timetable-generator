@@ -2,23 +2,25 @@
 
 # Timetable Generator — Constraint-Driven Scheduling
 
-**A standalone scheduling service for colleges and similar institutions.
+*A standalone scheduling service for colleges and similar institutions.
 Manage rooms, faculty, student groups, and subjects; define reusable
-profiles; let the solver produce ranked candidate timetables; publish one.**
+profiles; let the solver produce ranked candidate timetables; publish one.*
 
-</div>
+<p>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+"></a>
+  <a href="#technology-stack"><img src="https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20PostgreSQL%20%C2%B7%20OR--Tools-009688.svg?style=flat-square" alt="Stack: FastAPI · PostgreSQL · OR-Tools"></a>
+  <a href="#roadmap"><img src="https://img.shields.io/badge/status-active%20development-orange.svg?style=flat-square" alt="Status: Active development"></a>
+</p>
 
-<div align="center">
-
-| License | Stack | Language | Status |
-|:------:|:------:|:--------:|:------:|
-| MIT | FastAPI · PostgreSQL · OR-Tools | Python 3.11+ | Active development |
-
-</div>
-
-<div align="center">
-
-[Overview](#overview) · [Features](#features) · [Architecture](#architecture) · [Quick start](#quick-start) · [Roadmap](#roadmap) · [Documentation](#documentation)
+<p>
+  <a href="#overview">Overview</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#roadmap">Roadmap</a> ·
+  <a href="#documentation">Documentation</a>
+</p>
 
 </div>
 
