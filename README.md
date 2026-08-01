@@ -1,9 +1,26 @@
-# Timetable Generator API
+<div align="center">
 
-A standalone, constraint-driven scheduling service for colleges and similar
-institutions. Manage rooms, faculty, student groups, and subjects; define
-reusable profiles; let the solver produce ranked candidate timetables;
-publish one. Conflicts across timetable types are structurally impossible.
+# Timetable Generator — Constraint-Driven Scheduling
+
+**A standalone scheduling service for colleges and similar institutions.
+Manage rooms, faculty, student groups, and subjects; define reusable
+profiles; let the solver produce ranked candidate timetables; publish one.**
+
+</div>
+
+<div align="center">
+
+| License | Stack | Language | Status |
+|:------:|:------:|:--------:|:------:|
+| MIT | FastAPI · PostgreSQL · OR-Tools | Python 3.11+ | Active development |
+
+</div>
+
+<div align="center">
+
+[Overview](#overview) · [Features](#features) · [Architecture](#architecture) · [Quick start](#quick-start) · [Roadmap](#roadmap) · [Documentation](#documentation)
+
+</div>
 
 > **Current state.** Greedy and OR-Tools (CP-SAT) solvers are operational;
 > the data-driven constraint registry, soft-constraint scoring, and
@@ -440,4 +457,4 @@ combination resolution and override re-validation are tracked TODOs.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT — see [`LICENSE`](LICENSE). Copyright © 2026 Deepesh Sonar.
