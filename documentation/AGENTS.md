@@ -79,8 +79,10 @@ instances from *other* generations remain live and feed cross-timetable reservat
 
 **Auth.** JWT (`python-jose`) with **bcrypt used directly** in `app/utils/auth.py`. Do **not**
 reintroduce `passlib`: passlib 1.7.4 is incompatible with modern bcrypt (≥4.1) and silently makes
-every password hash/verify raise. The JWT payload carries `admin_id`; every mutation endpoint depends
-on `get_current_admin`.
+every password hash/verify raise. The JWT payload carries `admin_id`. Every route requires a valid
+token via the global `require_auth` middleware in `app/main.py` (exempt only `/health` + `/auth/*`);
+`get_current_admin` stays on mutation endpoints that need the admin identity. `authenticate_token`
+(`app/utils/auth.py`) is shared by the middleware and the dependency.
 
 ## Conventions
 

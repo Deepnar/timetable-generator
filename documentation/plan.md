@@ -94,6 +94,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - Pagination (`?page=1&limit=20`) on all list endpoints.
   - Request logging / audit trail for every mutation.
   - `GET /health` endpoint for deployment monitoring.
+- [x] **Global Auth Gate** — every route (except `/health` + `/auth/*`) requires a valid admin JWT via a single `require_auth` middleware in `app/main.py`, replacing the per-route "mutations only" posture. New routers/endpoints cannot accidentally be left public; OpenAPI docs are gated too. (Phase 1/5 auth hardening, see architecture §4.2.)
 
 ## Phase 6: Deployment & Final Polish
 *Goal: Ship a stable, self-contained full-stack application.*

@@ -31,7 +31,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - ~~**CSV import is not atomic**~~ — ✅ FIXED: `/import/{rooms,faculty,groups,subjects}` are now **all-or-nothing**. Every row is validated up front (required fields, duplicates within the file AND against the DB); any invalid row rejects the whole upload with `422` and `inserted=0`, so the DB never ends up holding rows the response didn't report. `import_rooms` also now requires a non-empty `room_code`.
 - ~~**Profile combinations are never resolved**~~ — ✅ FIXED: `ProfileResolver` (`app/engine/profile_resolver.py`) merges combination members into an effective profile before solving — resources unioned (de-dup by `(resource_type, resource_id)`), parameters resolved with the **highest-weight member winning collisions**, hard/soft constraints merged from every member plus globals. `POST /generate` with `combination_id` now schedules all members' resources; the generation row stores `combination_id` with `profile_id=NULL`. `POST /profiles/combine` validates member existence and weights length; slot-override re-validation re-resolves the combination too. See architecture §6.2.
 - ~~**`GET /constraints/types` is a hardcoded string list**~~ — ✅ FIXED: the endpoint now derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the `ConstraintType` enum), so discovery can never drift from what the Create schemas accept.
-- **Read-route auth is inconsistent** — `/settings` GET requires a token, most other GETs don't. (Direction is a product decision — see `documentation/HANDOFF.md`.)
+- ~~**Read-route auth is inconsistent**~~ — ✅ FIXED: every route now requires a valid admin JWT except `GET /health` and the `/auth/*` endpoints (`register`/`login`). Enforced by one global middleware (`require_auth` in `app/main.py`) instead of a per-route dependency, so a new router/endpoint cannot accidentally be left public; `/docs` and `/openapi.json` are gated too. `get_current_admin` remains only on mutations that need the admin identity. See architecture §4.2 / §7.4.
 
 ---
 
@@ -44,7 +44,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 ### Authentication & Security
 - [x] **JWT Auth**: Admin login, token refresh, bcrypt password hashing.
-- [x] **Protected Routes**: All write/mutation endpoints require valid JWT via `get_current_admin`.
+- [x] **Global Auth Gate**: every route requires a valid admin JWT via a single `require_auth` middleware — exempt only `GET /health` and `/auth/*`. Replaced the old "mutations only" posture where all reads were public.
 - [x] **CORS Middleware**: Configured for frontend communication (localhost:3000).
 
 ### Resource Management (CRUD)

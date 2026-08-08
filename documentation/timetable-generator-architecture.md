@@ -549,7 +549,7 @@ The `engine/` tree intentionally does **not** have a `conflict_detector.py` or
 
 ### 4.2 Core Endpoints
 
-The route prefixes below match the `@router.prefix` declarations in the router files. Every mutating endpoint depends on `get_current_admin` (JWT bearer); list/get endpoints on resources are public by default. Pagination (`?page=`, `?limit=`) is wired through `app/utils/pagination.py` on list endpoints where the router imports it.
+The route prefixes below match the `@router.prefix` declarations in the router files. **Every route requires a valid admin JWT except `GET /health` and the `/auth/*` endpoints** (`register`/`login`). This is enforced by one global middleware (`require_auth` in `app/main.py`) rather than a per-route dependency, so a new router/endpoint cannot accidentally be left public; the middleware runs inside the observability middleware (requests still get logged/audited) and behind CORS (rejected responses still carry CORS headers). The `get_current_admin` dependency remains on mutation endpoints that need the admin identity (`created_by`, `selected_by`, `triggered_by`, …). OpenAPI docs (`/docs`, `/openapi.json`) are also behind the gate. Pagination (`?page=`, `?limit=`) is wired through `app/utils/pagination.py` on list endpoints where the router imports it.
 
 #### Resource Management
 
@@ -971,7 +971,7 @@ There is **no `GET /instances/{id}/conflicts` endpoint** — once a candidate pa
 
 ### 7.4 Row-Level Access Control — *NOT implemented*
 
-Every route (other than `/auth/register`, `/auth/login`, `/health`) accepts any authenticated admin. There is a single `Admin` model with no roles/permissions, no HOD/Teacher/Student user classes, and no per-resource filtering. The full RBAC matrix shown in earlier versions of this doc is **aspirational** — it is collected into the `profiles` table's `department` column only as a free-text label, not an enforced scope.
+**Authentication is global** (implemented): a middleware (`require_auth` in `app/main.py`) rejects every route without a valid admin JWT except `/health` and `/auth/*` (see §4.2). There is a single `Admin` model with no roles/permissions, no HOD/Teacher/Student user classes, and no per-resource filtering — any authenticated admin can read and mutate everything. The full RBAC matrix shown in earlier versions of this doc is **aspirational** — it is collected into the `profiles` table's `department` column only as a free-text label, not an enforced scope.
 
 ### 7.5 Audit Trail — *implemented*
 
