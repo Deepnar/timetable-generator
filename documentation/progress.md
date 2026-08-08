@@ -38,7 +38,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 ## ✅ Completed Features
 
 ### Database & Models
-- [x] **21 Database Tables**: Migrated via Alembic (rooms, blackouts, faculty, availability, groups, subjects, subject_assignments, college_settings, profiles, parameters, combinations, constraints, generation runs, instances, slots, history, reset log, admin, etc.)
+- [x] **22 Database Tables**: Migrated via Alembic (admins, audit_logs, rooms, blackouts, faculty, availability, groups, subjects, subject_assignments, college_settings, profiles, parameters, combinations, hard/soft constraints, generation runs, instances, slots, history, reset log, etc.)
 - [x] **SQLAlchemy 2.0 ORM**: Declarative models with `mapped_column` and relationship mappings.
 - [x] **Database Migration to PostgreSQL**: Switched from local MySQL to Docker-managed Postgres 15 container.
 
@@ -56,7 +56,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 ### Profiles & Constraints
 - [x] **Profile System**: Create/edit profiles, link resources, set parameters.
-- [x] **Profile Combinations**: Merge multiple profiles into an effective profile (`app/engine/profile_resolver.py`); resolution happens automatically at generation time — resources unioned, parameters weighted (highest weight wins on collisions), hard/soft constraints merged from every member plus globals (§6.2).
+- [x] **Profile Combinations**: Merge multiple profiles into an effective profile (`app/engine/profile_resolver.py`); resolution happens automatically at generation time — resources unioned, parameters weighted (highest weight wins on collisions), hard/soft constraints merged from every member plus globals (§6.2). Discoverable/previewable via `GET /profiles/combinations` (members, weights, `resolution_status`) and `POST /profiles/combinations/{id}/resolve` (merged `ResolvedProfile` preview; runs the same resolver the scheduler uses).
 - [x] **Constraint CRUD**: Hard and soft constraint tables, weight management, profile scoping.
 
 ### Scheduling Engine & Data Mapping (Phase 1)

@@ -39,7 +39,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - *Remaining:* the core structural checks (double-booking/capacity/availability) are still inline; optionally fold them into the registry as always-on entries so every rule is uniform.
 - [x] **Profile Combination Resolution**
   - `POST /profiles/combine` now validates members (existence, weights length). `Scheduler.run()` resolves `combination_id` into an effective profile before solving (`app/engine/profile_resolver.py`): resources unioned (de-dup by type+id), parameters merged with the highest-weight member winning collisions, hard/soft constraints merged from every member plus globals. See architecture §6.2.
-  - *Remaining:* a `/profiles/combinations` router (list / explicit `resolve` endpoint) for discoverability and manual preview.
+  - `GET /profiles/combinations` lists combinations with member profiles/weights and a `resolution_status` preview; `POST /profiles/combinations/{id}/resolve` returns the merged `ResolvedProfile` for manual preview (same `ProfileResolver` the scheduler uses). See architecture §4.2.
 - [x] **Implement New Constraint Types** *(7 of 7 done)*
   - [x] `TEACHER_YEAR_RESTRICTION`: Prevent assigning teachers outside their allowed years.
   - [x] `SUBJECT_TIME_PREFERENCE`: Confine a subject to a slot window (e.g., Maths always AM).
