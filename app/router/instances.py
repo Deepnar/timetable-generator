@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from app.database import get_db
 from app.models.admin import Admin
+from app.models.constraints import HardConstraint
 from app.models.generation import (TimetableInstance, TimetableSlot,
                                     InstanceStatus, TimetableGeneration)
 from app.schemas.generation import InstanceResponse, SlotResponse, SlotOverride
 from app.utils.auth import get_current_admin
+from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
+from app.engine.scheduler import Scheduler
+from app.services.settings_service import get_settings
 from datetime import datetime
 
 router = APIRouter(prefix="/instances", tags=["Instances"])
@@ -136,8 +140,75 @@ def override_slot(
         if key != "override_reason":
             setattr(slot, key, value)
 
+    _revalidate_slot(db, slot, instance_id)
+
     slot.is_manual_override = True
     slot.override_reason = override.override_reason
     db.commit()
     db.refresh(slot)
     return slot
+
+
+def _revalidate_slot(db: Session, slot: TimetableSlot, instance_id: int):
+    """Re-run the hard-constraint checker on an edited slot.
+
+    Manual overrides were previously saved blind. Re-validating the new
+    position against the instance's other slots, the cross-timetable
+    reservations, and the profile's registry rules keeps a timetable
+    conflict-free after manual edits.
+    """
+    other_slots = db.scalars(
+        select(TimetableSlot).where(
+            TimetableSlot.instance_id == instance_id,
+            TimetableSlot.id != slot.id,
+        )
+    ).all()
+
+    instance = db.scalars(
+        select(TimetableInstance).where(
+            TimetableInstance.id == instance_id)).first()
+    generation = db.scalars(
+        select(TimetableGeneration).where(
+            TimetableGeneration.id == instance.generation_id)).first() \
+        if instance else None
+
+    hard_constraints = []
+    if generation and generation.profile_id:
+        hard_constraints = db.scalars(
+            select(HardConstraint).where(
+                HardConstraint.is_active == True,
+                or_(
+                    HardConstraint.profile_id == generation.profile_id,
+                    HardConstraint.profile_id.is_(None),
+                ),
+            )
+        ).all()
+
+    candidate = SlotCandidate(
+        instance_id=instance_id,
+        day_of_week=slot.day_of_week,
+        slot_number=slot.slot_number,
+        start_time=slot.start_time,
+        end_time=slot.end_time,
+        faculty_id=slot.faculty_id,
+        room_id=slot.room_id,
+        student_group_id=slot.student_group_id,
+        subject_id=slot.subject_id,
+        session_type=slot.session_type,
+        slot_date=slot.slot_date,
+    )
+    checker = ConstraintChecker(
+        db, other_slots,
+        settings=get_settings(db),
+        reserved=Scheduler(db)._load_published_conflicts(),
+        hard_constraints=hard_constraints,
+    )
+    violations = checker.check_all(candidate)
+    if violations:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Override rejected by constraint checker",
+                "violations": [str(v) for v in violations],
+            },
+        )
