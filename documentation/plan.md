@@ -40,12 +40,12 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Profile Combination Resolution**
   - `POST /profiles/combine` now validates members (existence, weights length). `Scheduler.run()` resolves `combination_id` into an effective profile before solving (`app/engine/profile_resolver.py`): resources unioned (de-dup by type+id), parameters merged with the highest-weight member winning collisions, hard/soft constraints merged from every member plus globals. See architecture §6.2.
   - *Remaining:* a `/profiles/combinations` router (list / explicit `resolve` endpoint) for discoverability and manual preview.
-- [ ] **Implement New Constraint Types** *(4 of 5 done)*
+- [ ] **Implement New Constraint Types** *(5 of 5 done)*
   - [x] `TEACHER_YEAR_RESTRICTION`: Prevent assigning teachers outside their allowed years.
   - [x] `SUBJECT_TIME_PREFERENCE`: Confine a subject to a slot window (e.g., Maths always AM).
   - [x] `MAX_CONSECUTIVE_SAME_TEACHER`: Limit back-to-back slots for a single faculty member.
   - [x] `LAB_BATCH_ROTATION`: Pin a group/lab-batch to specific weekdays (A1 Mon, A2 Tue) — `config_json.group_days`.
-  - [ ] `HOLIDAY_CALENDAR`: *Date-based* global blackout dates still need calendar-date materialization; recurring **weekday** blackouts now work via `room_blackouts.day_of_week`. *(Foundation landed: the `term_start` profile-parameter anchor now materializes `slot_date` in both solvers and the availability checker consults date windows — see architecture §8.8. Holiday blackouts just need a date-matching validator.)*
+  - [x] `HOLIDAY_CALENDAR`: Blackout specific calendar dates via `config_json.holidays` (`["YYYY-MM-DD", ...]`). The validator matches each candidate's materialized `slot_date` (anchored by the profile's `term_start`, §8.8) and is a no-op when the slot has no date. Wired into both solvers through the shared registry. *(Pending separately: `CONTIGUOUS_LAB_SLOTS` (multi-slot sessions) and `EXAM_DATE_SEPARATION`.)*
 
 ## Phase 3: Advanced Solvers & Async Infrastructure
 *Goal: Handle large departments without blocking HTTP requests.*

@@ -352,6 +352,7 @@ rule can be added without a schema migration.
 | `MAX_CONSECUTIVE_SAME_TEACHER`    | `max`, `faculty_id?`                                        | `_max_consecutive_same_teacher`    |
 | `TEACHER_YEAR_RESTRICTION`        | `faculty_id`, `allowed_years`                               | `_teacher_year_restriction`        |
 | `LAB_BATCH_ROTATION`              | `group_days: {"<group_id>": [day_of_week, ...]}`            | `_lab_batch_rotation`              |
+| `HOLIDAY_CALENDAR`                | `holidays: ["YYYY-MM-DD", ...]`                             | `_holiday_calendar`                |
 
 **Soft (scorers in `app/engine/scorer.py`; CP-SAT objective builders in `app/engine/soft_objective.py`):**
 
@@ -785,7 +786,7 @@ Step-by-step:
 
 - Industry-grade constraint satisfaction solver; select it with `algorithm="OR_TOOLS"` on `POST /generate` (greedy remains the default). Installed via `uv add ortools`.
 - `ORToolsSolver` subclasses `GreedySolver` and overrides `solve()`, reusing the same session-building helpers. Constraint handling is split to match the `ConstraintChecker`:
-  - **Per-candidate ("static") rules** — capacity, room type, recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
+  - **Per-candidate ("static") rules** — capacity, room type, recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
   - **Relational rules** — no teacher/room/group double-book, one-subject-per-group-per-day, per-faculty daily/weekly load — are added as CP-SAT constraints (`model.Add(sum(vs) <= 1)`).
 - Objective: `model.Maximize(PLACEMENT_WEIGHT * sum(x.values()) + Σ soft_terms)` — maximise placed sessions first (`PLACEMENT_WEIGHT = 1000.0`), then optimise the active soft preferences via `app/engine/soft_objective.py` (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`; gated by `enable_soft_constraint_scoring`). Rules without a registered objective builder are skipped but still rank instances post-hoc.
 - A final pass through the full checker (with the populated committed_slots) catches committed-dependent registry rules like `MAX_CONSECUTIVE_SAME_TEACHER` and `TEACHER_YEAR_RESTRICTION` that CP-SAT does not model. Such rules can only *drop* a placement; they cannot produce an invalid one.
@@ -1046,6 +1047,7 @@ These are not profile parameters in the key/value sense — they are constraints
 | `SUBJECT_TIME_PREFERENCE`                | ✅      | `parameters.{preferred_days, preferred_slots}` |
 | `TEACHER_YEAR_RESTRICTION`               | ✅      | `parameters.allowed_years` |
 | `LAB_BATCH_ROTATION`                     | ✅      | splits an assignment into two batches |
+| `HOLIDAY_CALENDAR`                       | ✅      | `parameters.holidays` — list of ISO dates; blocks matching `slot_date` (§8.8) |
 | `SAME_SUBJECT_SAME_DAY`                  | ✅      | structural rule, no parameters |
 | `CROSS_DEPT_DAILY_CAP`                   | ✅      | `parameters.max_per_day` (default in `CollegeSettings.config_json["max_cross_dept_per_day"]`) |
 | `NO_CROSS_TIMETABLE_TEACHER/ROOM/GROUP_CONFLICT` | ✅ | structural rule, no parameters |
@@ -1104,7 +1106,7 @@ The solver is a **weekly template** — a timetable describes one repeating week
 - That date is stamped on every `SlotCandidate.slot_date` and persisted on `TimetableSlot.slot_date`.
 - `_check_teacher_availability` treats an availability row with no date bounds as **timeless** (applies every week); one with bounds applies only when `effective_from <= slot_date <= effective_to` (a missing bound is unbounded on that side). Without a `term_start` anchor there is no `slot_date`, so a date-bounded window is **inert** — the same rule that governs date-specific `room_blackouts`.
 - This is the same anchor the iCal export already uses for its `RRULE FREQ=WEEKLY` events, so exports and the checker stay consistent.
-- Future date-based rules (`HOLIDAY_CALENDAR`) will reuse this mechanism.
+- `HOLIDAY_CALENDAR` (registry rule) reuses this mechanism: its validator (`_holiday_calendar` in `app/engine/constraint_registry.py`) refuses any candidate whose materialized `slot_date` appears in `config_json.holidays` (`["YYYY-MM-DD", ...]`), and is a **no-op** when the slot carries no date — so a profile without `term_start` cannot accidentally blank out every week.
 
 ---
 
@@ -1118,7 +1120,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — synchronous `POST /generate` with greedy (default) and OR-Tools CP-SAT.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2).
-- **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`).
+- **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`).
 - **Soft scoring** — `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS` registered as post-hoc scorers **and** as CP-SAT objective builders (`soft_objective.py`); `AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD` catalogued only.
 - **Diversity filter** — seeded re-rolls, `_DIVERSITY_ATTEMPTS=6`, `_DIVERSITY_MIN_DISTANCE=1`.
 - **Instance lifecycle** — `DRAFT → SELECTED → PUBLISHED → ARCHIVED`; publishing auto-archives the previous `PUBLISHED` sibling of the same generation.

@@ -90,9 +90,9 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 ### 🟠 Engine & Solver Improvements
 - [x] **Dynamic Constraint Checker** *(foundation)* — `app/engine/constraint_registry.py` dispatches profile `hard_constraints` (by `config_json`) to registered validators; `constraint_type` is now a plain string so new rules skip schema migrations. Core structural checks stay inline (see plan.md Phase 2).
-- [ ] **New Constraint Types** *(4 of 5 registry rules done)*
-  - Done: `SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION` (pins a group/lab-batch to weekdays via `config_json.group_days`).
-  - Pending: `HOLIDAY_CALENDAR` (date-based blackout needs calendar-date materialization; recurring weekdays work via `room_blackouts.day_of_week`), `CONTIGUOUS_LAB_SLOTS` (multi-slot sessions), `EXAM_DATE_SEPARATION`.
+- [x] **New Constraint Types** *(5 of 5 registry rules done)*
+  - Done: `SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION` (pins a group/lab-batch to weekdays via `config_json.group_days`), `HOLIDAY_CALENDAR` (blocks listed calendar dates via `config_json.holidays`, matched against each slot's materialized `slot_date` from `term_start`).
+  - Pending (separate catalog members, not part of the 5-rule pack): `CONTIGUOUS_LAB_SLOTS` (multi-slot sessions), `EXAM_DATE_SEPARATION`.
 - [x] **Soft Constraint Scoring** — `app/engine/scorer.py` registry weights each instance's soft constraints into `instance.soft_score` / `generation.score_best_instance` (gated by `enable_soft_constraint_scoring`). Ships `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`.
 - [x] **OR-Tools CP-SAT Solver** — `app/engine/solvers/or_tools_solver.py`, selectable via `algorithm="OR_TOOLS"`. Domain-prunes with the shared `ConstraintChecker` and adds relational CP-SAT constraints; greedy remains the default preview solver.
 - [x] **Soft objective in CP-SAT** — `app/engine/soft_objective.py` (`SOFT_OBJECTIVE_REGISTRY`) folds active soft rules into the OR-Tools objective as weighted linear terms; placements stay strictly primary via `PLACEMENT_WEIGHT=1000.0`. Ships builders for `TEACHER_PREFERS_MORNING` and `MINIMIZE_STUDENT_FREE_SLOTS`; unscored rules still rank instances post-hoc.
