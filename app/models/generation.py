@@ -39,6 +39,12 @@ class AlgorithmType(str, enum.Enum):
     GREEDY = "GREEDY"
     OR_TOOLS = "OR_TOOLS"
 
+class VariationMode(str, enum.Enum):
+    RANDOM = "random"
+    BEST = "best"
+    MINIMIZE_TEACHER_GAPS = "minimize-teacher-gaps"
+    MINIMIZE_STUDENT_GAPS = "minimize-student-gaps"
+
 class TimetableGeneration(Base):
     __tablename__ = "timetable_generations"
 
@@ -54,6 +60,8 @@ class TimetableGeneration(Base):
         Enum(GenerationStatus), default=GenerationStatus.PENDING)
     algorithm_used: Mapped[AlgorithmType] = mapped_column(
         Enum(AlgorithmType), default=AlgorithmType.GREEDY)
+    variation: Mapped[VariationMode] = mapped_column(
+        Enum(VariationMode), default=VariationMode.RANDOM)
     instances_requested: Mapped[int] = mapped_column(default=3)
     instances_produced: Mapped[int] = mapped_column(default=0)
     score_best_instance: Mapped[float | None]
