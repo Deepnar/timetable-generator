@@ -68,3 +68,39 @@ class ProfileCombinationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ProfileCombinationMemberResponse(BaseModel):
+    profile_id: int
+    profile_name: Optional[str] = None
+    weight: float
+    is_active: bool
+
+class ProfileCombinationListResponse(BaseModel):
+    id: int
+    name: Optional[str] = None
+    created_at: datetime
+    members: list[ProfileCombinationMemberResponse]
+    resolution_status: str
+
+class ResolvedConstraint(BaseModel):
+    """One merged hard/soft constraint row in a resolved preview."""
+    id: int
+    profile_id: Optional[int] = None
+    constraint_type: str
+    config_json: Optional[dict] = None
+    description: Optional[str] = None
+    is_active: bool
+    weight: Optional[float] = None  # soft constraints only
+
+class ProfileCombinationResolveResponse(BaseModel):
+    """The merged view the solvers would consume for a combination run.
+
+    Mirrors ``app/engine/profile_resolver.ResolvedProfile`` so an admin can
+    preview what a ``POST /generate`` combination run will actually schedule.
+    """
+    combination_id: int
+    source_profile_ids: list[int]
+    params: dict
+    resources: dict[str, list[int]]
+    hard_constraints: list[ResolvedConstraint]
+    soft_constraints: list[ResolvedConstraint]

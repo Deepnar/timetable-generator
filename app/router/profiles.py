@@ -10,8 +10,11 @@ from ..models import Admin
 from ..schemas.profiles import (ProfileCreate, ProfileResponse,
                                    ProfileResourceCreate, ProfileResourceResponse,
                                    ProfileParameterCreate, ProfileParameterResponse,
-                                   ProfileCombinationCreate, ProfileCombinationResponse)
+                                   ProfileCombinationCreate, ProfileCombinationResponse,
+                                   ProfileCombinationListResponse,
+                                   ProfileCombinationResolveResponse)
 from ..utils.auth import get_current_admin
+from ..engine.profile_resolver import ProfileResolver
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
@@ -36,6 +39,111 @@ def get_profiles(
     if department:
         query = query.where(TimetableProfile.department == department)
     return db.scalars(query).all()
+
+# ── Profile Combination List & Resolve ─────────────────────
+# These live BEFORE /profiles/{id} so the literal "combinations" segment is
+# matched first — Starlette path params match any single segment, so a list
+# route registered later would be shadowed by the int-typed {id} route.
+
+def _constraint_dict(c) -> dict:
+    """Serialize a Hard/SoftConstraint row for the resolved preview."""
+    d = {
+        "id": c.id,
+        "profile_id": c.profile_id,
+        "constraint_type": c.constraint_type,
+        "config_json": c.config_json,
+        "description": c.description,
+        "is_active": c.is_active,
+    }
+    if getattr(c, "weight", None) is not None:
+        d["weight"] = float(c.weight)
+    return d
+
+@router.get("/combinations",
+            response_model=list[ProfileCombinationListResponse])
+def get_profile_combinations(db: Session = Depends(get_db)):
+    """List every profile combination with its member profiles and weights.
+
+    ``resolution_status`` is a cheap preview of whether a combination can still
+    be resolved at generation time: RESOLVABLE (all members exist and are
+    active), INACTIVE_MEMBER / MISSING_MEMBER (a member was archived or is
+    gone — ``POST /generate`` and ``/resolve`` will reject it), or NO_MEMBERS.
+    """
+    combos = db.scalars(
+        select(ProfileCombination).order_by(
+            ProfileCombination.created_at.desc(),
+            ProfileCombination.id.desc(),
+        )
+    ).all()
+    result = []
+    for combo in combos:
+        members = db.scalars(
+            select(ProfileCombinationMember).where(
+                ProfileCombinationMember.combination_id == combo.id
+            ).order_by(ProfileCombinationMember.profile_id)
+        ).all()
+        profile_ids = [m.profile_id for m in members]
+        found: dict[int, TimetableProfile] = {}
+        if profile_ids:
+            found = {p.id: p for p in db.scalars(
+                select(TimetableProfile).where(
+                    TimetableProfile.id.in_(profile_ids))
+            ).all()}
+        status = "RESOLVABLE"
+        member_list = []
+        for m in members:
+            profile = found.get(m.profile_id)
+            if profile is None:
+                status = "MISSING_MEMBER"
+                member_list.append({
+                    "profile_id": m.profile_id, "profile_name": None,
+                    "weight": float(m.weight), "is_active": False,
+                })
+                continue
+            if not profile.is_active and status != "MISSING_MEMBER":
+                status = "INACTIVE_MEMBER"
+            member_list.append({
+                "profile_id": m.profile_id, "profile_name": profile.name,
+                "weight": float(m.weight), "is_active": profile.is_active,
+            })
+        if not members:
+            status = "NO_MEMBERS"
+        result.append({
+            "id": combo.id,
+            "name": combo.name,
+            "created_at": combo.created_at,
+            "members": member_list,
+            "resolution_status": status,
+        })
+    return result
+
+@router.post("/combinations/{id}/resolve",
+             response_model=ProfileCombinationResolveResponse)
+def resolve_profile_combination(id: int, db: Session = Depends(get_db)):
+    """Preview the merged profile a combination would schedule.
+
+    Runs the same ``ProfileResolver`` the scheduler uses, so the returned
+    resources / params / constraints are exactly what ``POST /generate`` with
+    this ``combination_id`` would feed to the solvers. A missing, empty, or
+    archived-member combination is a 404 — matching generation-time behaviour.
+    """
+    try:
+        resolved = ProfileResolver(db).resolve(combination_id=id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    return {
+        "combination_id": id,
+        "source_profile_ids": resolved.source_profile_ids,
+        "params": resolved.params,
+        "resources": {
+            rt.value: list(rids) for rt, rids in resolved.resources.items()
+        },
+        "hard_constraints": [_constraint_dict(c)
+                             for c in resolved.hard_constraints],
+        "soft_constraints": [_constraint_dict(c)
+                             for c in resolved.soft_constraints],
+    }
 
 @router.get("/{id}", response_model=ProfileResponse)
 def get_profile(id: int, db: Session = Depends(get_db)):
