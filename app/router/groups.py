@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from app.models.groups import GroupType
 
 from ..database import get_db
 from ..utils.auth import get_current_admin
+from ..utils.pagination import Pagination, pagination, paginate
 from .. import models
 from .. import schemas
 
@@ -17,9 +18,11 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=list[schemas.StudentGroupResponse])
-def get_groups(year: Optional[int] = None,
+def get_groups(response: Response,
+    year: Optional[int] = None,
     department: Optional[str] = None,
     group_type: Optional[GroupType] = None,
+    page: Pagination = Depends(pagination),
     db: Session = Depends(get_db)):
     query = select(models.StudentGroup).where(models.StudentGroup.is_active == True)
     if year is not None:
@@ -28,8 +31,7 @@ def get_groups(year: Optional[int] = None,
         query = query.where(models.StudentGroup.department == department)
     if group_type:
         query = query.where(models.StudentGroup.group_type == group_type)
-    groups = db.scalars(query).all()
-    return groups
+    return paginate(db, query, page, response)
 
 @router.get("/{id}", response_model=schemas.StudentGroupResponse)
 def get_group(id: int, db: Session = Depends(get_db)):

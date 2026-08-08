@@ -5,7 +5,7 @@ and the table the greedy solver expands into individual sessions.
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.models.subject_assignments import SubjectAssignment
 from app.models.subjects import Subject
 from app.models.faculty import Faculty
 from app.models.groups import StudentGroup
+from app.utils.pagination import Pagination, pagination, paginate
 from app.schemas.assignments import (
     SubjectAssignmentCreate,
     SubjectAssignmentResponse,
@@ -46,9 +47,11 @@ def _validate_dependencies(payload, db: Session) -> None:
 
 @router.get("/", response_model=list[SubjectAssignmentResponse])
 def list_assignments(
+    response: Response,
     subject_id: Optional[int] = None,
     faculty_id: Optional[int] = None,
     group_id: Optional[int] = None,
+    page: Pagination = Depends(pagination),
     db: Session = Depends(get_db),
     _: Admin = Depends(get_current_admin),
 ):
@@ -59,7 +62,7 @@ def list_assignments(
         query = query.where(SubjectAssignment.faculty_id == faculty_id)
     if group_id is not None:
         query = query.where(SubjectAssignment.group_id == group_id)
-    return db.scalars(query).all()
+    return paginate(db, query, page, response)
 
 
 @router.get("/{assignment_id}", response_model=SubjectAssignmentResponse)

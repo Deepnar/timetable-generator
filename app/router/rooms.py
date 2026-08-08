@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from app.models.rooms import RoomType
 
 from ..database import get_db
 from ..utils.auth import get_current_admin
+from ..utils.pagination import Pagination, pagination, paginate
 from .. import models
 from .. import schemas
 
@@ -15,10 +16,12 @@ router = APIRouter(prefix="/rooms", tags=["Rooms"])
 
 @router.get("/", response_model=list[schemas.RoomResponse])
 def get_rooms(
+    response: Response,
     room_type: Optional[RoomType] = None,
     min_capacity: Optional[int] = None,
     building: Optional[str] = None,
-    db: Session = Depends(get_db)
+    page: Pagination = Depends(pagination),
+    db: Session = Depends(get_db),
 ):
     query = select(models.Room).where(models.Room.is_active == True)
     if room_type:
@@ -27,8 +30,7 @@ def get_rooms(
         query = query.where(models.Room.capacity >= min_capacity)
     if building:
         query = query.where(models.Room.building == building)
-    rooms = db.scalars(query).all()
-    return rooms
+    return paginate(db, query, page, response)
 
 @router.get("/{id}", response_model=schemas.RoomResponse)
 def get_room(id: int, db: Session = Depends(get_db)):
