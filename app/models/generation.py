@@ -34,6 +34,7 @@ class SessionType(str, enum.Enum):
     EXAM = "EXAM"
     IP = "IP"
     FREE = "FREE"
+    CUSTOM = "CUSTOM"
 
 class AlgorithmType(str, enum.Enum):
     GREEDY = "GREEDY"

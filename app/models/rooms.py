@@ -11,6 +11,7 @@ class RoomType(str, enum.Enum):
     LAB = "LAB"
     SEMINAR_HALL = "SEMINAR_HALL"
     AUDITORIUM = "AUDITORIUM"
+    CUSTOM = "CUSTOM"
 
 class Room(Base):
     __tablename__ = "rooms"
