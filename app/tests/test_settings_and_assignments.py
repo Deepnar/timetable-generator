@@ -884,3 +884,168 @@ def _phase5_polish(s):
         ), entries
 
     return [t_pagination, t_limit_validation, t_audit]
+
+
+@suite("Phase 5 — CSV import atomicity")
+def _phase5_csv_import(s):
+    def _setup(client):
+        from app.tests.test_runner import reset_db, create_admin, login_token, auth_headers
+        reset_db(); create_admin()
+        return auth_headers(login_token(client))
+
+    def _upload(client, headers, csv_text):
+        return client.post(
+            "/import/rooms", headers=headers,
+            files={"file": ("rooms.csv", csv_text, "text/csv")},
+        )
+
+    ROOMS_HEADER = (
+        "name,room_code,room_type,capacity,building,floor,has_projector,has_ac"
+    )
+
+    @test("a clean rooms file imports every row")
+    def t_clean(client):
+        headers = _setup(client)
+        body = "\n".join([
+            ROOMS_HEADER,
+            "R1,RC1,CLASSROOM,40,A,1,false,false",
+            "R2,RC2,LAB,30,B,2,true,true",
+        ])
+        r = _upload(client, headers, body)
+        assert r.status_code == 200, r.text
+        assert r.json()["inserted"] == 2, r.json()
+        rooms = client.get("/rooms/", headers=headers).json()
+        assert {rm["room_code"] for rm in rooms} == {"RC1", "RC2"}
+
+    @test("a bad row rejects the whole file (atomic)")
+    def t_atomic(client):
+        headers = _setup(client)
+        body = "\n".join([
+            ROOMS_HEADER,
+            "Good,GOOD1,CLASSROOM,40,A,1,false,false",
+            "Bad,,CLASSROOM,40,A,1,false,false",  # missing room_code
+        ])
+        r = _upload(client, headers, body)
+        assert r.status_code == 422, r.text
+        payload = r.json()["detail"]
+        assert payload["inserted"] == 0, payload
+        assert payload["message"].startswith("Import rejected"), payload
+        # the "good" row must NOT have been committed
+        assert client.get("/rooms/", headers=headers).json() == []
+
+    @test("duplicate room_code within the file rejects the upload")
+    def t_infile_dup(client):
+        headers = _setup(client)
+        body = "\n".join([
+            ROOMS_HEADER,
+            "R1,RC1,CLASSROOM,40,A,1,false,false",
+            "R2,RC1,LAB,30,B,2,true,true",
+        ])
+        r = _upload(client, headers, body)
+        assert r.status_code == 422, r.text
+        payload = r.json()["detail"]
+        assert payload["inserted"] == 0
+        assert any("within the file" in e["error"] for e in payload["errors"])
+
+    @test("duplicate room_code already in the DB rejects the upload")
+    def t_db_dup(client):
+        headers = _setup(client)
+        body = "\n".join([ROOMS_HEADER, "R1,RC1,CLASSROOM,40,A,1,false,false"])
+        assert _upload(client, headers, body).status_code == 200
+        r = _upload(client, headers, body)
+        assert r.status_code == 422, r.text
+        payload = r.json()["detail"]
+        assert payload["inserted"] == 0
+        assert any("already exists" in e["error"] for e in payload["errors"])
+
+    return [t_clean, t_atomic, t_infile_dup, t_db_dup]
+
+
+@suite("Phase 5 — Constraint type catalog")
+def _phase5_constraint_types(s):
+    @test("GET /constraints/types matches the ConstraintType enum exactly")
+    def t_types(client):
+        from app.models.constraints import (
+            ConstraintType, HARD_CONSTRAINT_TYPES, SOFT_CONSTRAINT_TYPES,
+        )
+        r = client.get("/constraints/types")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        hard, soft = body["hard"], body["soft"]
+        # New registry rules must surface here (they were missing before).
+        assert "SUBJECT_TIME_PREFERENCE" in hard, hard
+        assert "LAB_BATCH_ROTATION" in hard, hard
+        assert "TEACHER_YEAR_RESTRICTION" in hard, hard
+        assert "MAX_CONSECUTIVE_SAME_TEACHER" in hard, hard
+        assert "TEACHER_PREFERS_MORNING" in soft, soft
+        # The catalog lists every enum member exactly once, split by category.
+        all_types = set(t.value for t in ConstraintType)
+        assert set(hard) | set(soft) == all_types, (hard, soft)
+        assert set(hard) == set(t.value for t in HARD_CONSTRAINT_TYPES)
+        assert set(soft) == set(t.value for t in SOFT_CONSTRAINT_TYPES)
+        # No overlap between the two categories.
+        assert set(hard).isdisjoint(soft)
+
+    return [t_types]
+
+
+@suite("Phase 5 — Slot override re-validation")
+def _phase5_override(s):
+    def _generate_slots(client, headers, profile_id):
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": profile_id, "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        inst = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]
+        return inst["id"], client.get(
+            f"/instances/{inst['id']}/slots", headers=headers).json()
+
+    @test("a conflict-free override is saved and flagged manual")
+    def t_valid(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        headers = auth_headers(login_token(client))
+        inst_id, slots = _generate_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+        target = slots[-1]
+        r = client.patch(
+            f"/instances/{inst_id}/slots/{target['id']}", headers=headers,
+            json={"day_of_week": 4, "slot_number": 1,
+                  "override_reason": "swap to Friday"},
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["day_of_week"] == 4
+        assert r.json()["is_manual_override"] is True
+        assert r.json()["override_reason"] == "swap to Friday"
+
+    @test("an override colliding with another slot is rejected 409")
+    def t_conflict(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        headers = auth_headers(login_token(client))
+        inst_id, slots = _generate_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+        # Every session is the same faculty/group/subject; the greedy solver
+        # placed them on (day0,sn1), (day1,sn1), (day2,sn1). Moving the last
+        # one onto (day1,sn1) double-books the teacher, room and group.
+        target = slots[-1]
+        occupied = slots[1]
+        r = client.patch(
+            f"/instances/{inst_id}/slots/{target['id']}", headers=headers,
+            json={"day_of_week": occupied["day_of_week"],
+                  "slot_number": occupied["slot_number"],
+                  "override_reason": "bad move"},
+        )
+        assert r.status_code == 409, r.text
+        payload = r.json()["detail"]
+        assert payload["message"] == "Override rejected by constraint checker"
+        assert payload["violations"], payload
+        # The slot must remain untouched on rejection.
+        r2 = client.get(f"/instances/{inst_id}/slots", headers=headers).json()
+        kept = next(sl for sl in r2 if sl["id"] == target["id"])
+        assert kept["day_of_week"] == slots[-1]["day_of_week"], kept
+        assert kept["is_manual_override"] is False
+
+    return [t_valid, t_conflict]
