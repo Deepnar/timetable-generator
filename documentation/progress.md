@@ -2,7 +2,7 @@
 
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
-**Current State:** `v0.greedy-complete` (Foundation + Greedy Engine phase fully implemented).
+**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring; async generation and a frontend are planned.
 **Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, PostgreSQL database via Docker, and will soon integrate a frontend interface for college admins.
 
 ---
@@ -90,11 +90,12 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 ### 🟠 Engine & Solver Improvements
 - [x] **Dynamic Constraint Checker** *(foundation)* — `app/engine/constraint_registry.py` dispatches profile `hard_constraints` (by `config_json`) to registered validators; `constraint_type` is now a plain string so new rules skip schema migrations. Core structural checks stay inline (see plan.md Phase 2).
-- [ ] **New Constraint Types** *(3 of 5 registry rules done)*
-  - Done: `SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`.
-  - Pending: `LAB_BATCH_ROTATION` (needs lab-batch model), `HOLIDAY_CALENDAR` (weekday-vs-date gap), `DIVISION_START_TIME` (per-division start; global `day_start_time` already works).
+- [ ] **New Constraint Types** *(4 of 5 registry rules done)*
+  - Done: `SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION` (pins a group/lab-batch to weekdays via `config_json.group_days`).
+  - Pending: `HOLIDAY_CALENDAR` (date-based blackout needs calendar-date materialization; recurring weekdays work via `room_blackouts.day_of_week`), `CONTIGUOUS_LAB_SLOTS` (multi-slot sessions), `EXAM_DATE_SEPARATION`.
 - [x] **Soft Constraint Scoring** — `app/engine/scorer.py` registry weights each instance's soft constraints into `instance.soft_score` / `generation.score_best_instance` (gated by `enable_soft_constraint_scoring`). Ships `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`.
-- [x] **OR-Tools CP-SAT Solver** — `app/engine/solvers/or_tools_solver.py`, selectable via `algorithm="OR_TOOLS"`. Domain-prunes with the shared `ConstraintChecker` and adds relational CP-SAT constraints; greedy remains the default preview solver. *(Next: use the soft scorer as a weighted objective; add a diversity filter.)*
+- [x] **OR-Tools CP-SAT Solver** — `app/engine/solvers/or_tools_solver.py`, selectable via `algorithm="OR_TOOLS"`. Domain-prunes with the shared `ConstraintChecker` and adds relational CP-SAT constraints; greedy remains the default preview solver.
+- [x] **Soft objective in CP-SAT** — `app/engine/soft_objective.py` (`SOFT_OBJECTIVE_REGISTRY`) folds active soft rules into the OR-Tools objective as weighted linear terms; placements stay strictly primary via `PLACEMENT_WEIGHT=1000.0`. Ships builders for `TEACHER_PREFERS_MORNING` and `MINIMIZE_STUDENT_FREE_SLOTS`; unscored rules still rank instances post-hoc.
 - [x] **Diversity Filter** — instance #1 is a deterministic baseline; later instances are re-seeded (greedy shuffles search order, OR-Tools varies `random_seed`) and accepted only if their Hamming distance from earlier instances clears a threshold (retries otherwise). Fixes the "3 identical instances" problem.
 
 ### 🟡 Exports, Notifications & Polish

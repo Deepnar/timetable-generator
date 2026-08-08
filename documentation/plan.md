@@ -37,7 +37,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - `app/engine/constraint_registry.py` maps `constraint_type` → validator; the checker loads a profile's active `hard_constraints` rows (plus global ones) and dispatches each with its `config_json`.
   - `constraint_type` is now a plain string column (migration `b7d9f2a1c3e4`), so new rule types need **no** schema migration.
   - *Remaining:* the core structural checks (double-booking/capacity/availability) are still inline; optionally fold them into the registry as always-on entries so every rule is uniform.
-- [ ] **Implement New Constraint Types** *(3 of 5 done)*
+- [ ] **Implement New Constraint Types** *(4 of 5 done)*
   - [x] `TEACHER_YEAR_RESTRICTION`: Prevent assigning teachers outside their allowed years.
   - [x] `SUBJECT_TIME_PREFERENCE`: Confine a subject to a slot window (e.g., Maths always AM).
   - [x] `MAX_CONSECUTIVE_SAME_TEACHER`: Limit back-to-back slots for a single faculty member.
@@ -51,10 +51,10 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - Install and configure **Redis** for caching frequent GET queries, rate limiting, and generation conflict locking.
   - Set up **Celery + Redis** task queue for background processing.
 - [x] **Soft Constraint Scoring** *(done, solver-independent)*
-  - `app/engine/scorer.py` registry scores each instance's soft constraints (weighted mean → `instance.soft_score`, best → `generation.score_best_instance`), gated by `enable_soft_constraint_scoring`. Ships `TEACHER_PREFERS_MORNING` and `MINIMIZE_STUDENT_FREE_SLOTS`. This is the objective function OR-Tools will reuse.
+  - `app/engine/scorer.py` registry scores each instance's soft constraints (weighted mean → `instance.soft_score`, best → `generation.score_best_instance`), gated by `enable_soft_constraint_scoring`. Ships `TEACHER_PREFERS_MORNING` and `MINIMIZE_STUDENT_FREE_SLOTS`. This is the objective function OR-Tools reuses.
 - [x] **OR-Tools CP-SAT Solver** *(integrated)*
-  - `app/engine/solvers/or_tools_solver.py` — select via `algorithm="OR_TOOLS"`. Static rules prune the CP-SAT domain (shared `ConstraintChecker`), relational rules are CP-SAT constraints, objective maximises placements. Greedy stays the default/preview solver.
-  - *Remaining:* fold the soft scorer in as a weighted CP-SAT objective (currently maximises placements; soft scoring is applied post-hoc to rank instances).
+  - `app/engine/solvers/or_tools_solver.py` — select via `algorithm="OR_TOOLS"`. Static rules prune the CP-SAT domain (shared `ConstraintChecker`), relational rules are CP-SAT constraints, objective maximises placements (strictly primary via `PLACEMENT_WEIGHT`) and then optimises the active soft preferences. Greedy stays the default/preview solver.
+  - Soft rules with an objective builder in `app/engine/soft_objective.py` (`SOFT_OBJECTIVE_REGISTRY`) are folded into the CP-SAT objective, so OR-Tools *pursues* preferences (gated by `enable_soft_constraint_scoring`); unscored rules still rank instances post-hoc.
 - [x] **Diversity Filter**: Instance #1 is a deterministic baseline; later instances are re-seeded (greedy randomises search order, OR-Tools varies `random_seed`) and kept only if their Hamming distance from accepted instances clears a threshold, retrying otherwise. *(Future: objective-based variation — minimise teacher vs. student gaps per instance.)*
 - [ ] **Async Generation Pipeline**
   - Move `POST /generate` to fire a Celery task and immediately return `{status: "PENDING", run_id: X}`.
