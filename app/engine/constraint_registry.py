@@ -247,7 +247,14 @@ def _lab_batch_rotation(candidate, committed, config, ctx) -> Optional[str]:
     config: ``{"group_days": {"<group_id>": [day_of_week, ...]}}`` — e.g.
     ``{"group_days": {"11": [0], "12": [1]}}`` puts batch A1 on Monday and A2
     on Tuesday. Groups not listed are unrestricted.
+
+    Gated by the college ``enable_lab_batches`` feature flag: with it off
+    (the default) the rule is inert, so lab-batch rotation is opt-in.
     """
+    # ``ctx`` is None in unit tests, which keep the rule active.
+    if ctx is not None and ctx.settings is not None:
+        if not ctx.settings.enable_lab_batches:
+            return None
     config = config or {}
     group_days = config.get("group_days") or {}
     # JSON object keys are strings; accept int or str group ids.
