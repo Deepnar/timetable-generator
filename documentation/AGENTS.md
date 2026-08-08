@@ -1,212 +1,124 @@
-## 🚀 Session Initialization
+# CLAUDE.md
 
-Before doing anything else, you MUST activate the virtual environment. All dependencies are managed by `uv`.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-```bash
-source .venv/bin/activate
-```
+## What this is
 
-Ensure this is active before running any Python scripts, migrations, or the FastAPI server. Never use `pip`—use `uv add`, `uv sync`, and `uv run` exclusively.
+A standalone timetable-generation backend (FastAPI + SQLAlchemy 2.0 + PostgreSQL) for
+institutions. It manages schedulable resources, runs a constraint-driven solver to produce
+candidate timetables, and lets an admin select and publish one. It is the product itself, not a
+microservice for another ERP. Current checkpoint: greedy and OR-Tools (CP-SAT) solvers working,
+data-driven constraint registry, soft-constraint scoring; async generation and a frontend are
+planned (see `documentation/`).
 
----
+## Environment & commands
 
-# Repository Guidelines
-
-## What This Application Does
-
-This is the **Enterprise Timetable Management System** — a standalone, full-stack application that produces and manages seven timetable types: Class, Faculty, Room Utilization, Event/Seminar, Industry Program (IP), Exam, and Lab schedules. It replaces manual spreadsheet-based scheduling with a constraint-driven engine that guarantees zero cross-timetable conflicts across the entire institution.
-
-### Project Overview & Current Context
-This project is a **complete full-stack application** (Backend + Database + Frontend). It is built on **FastAPI**, **SQLAlchemy 2.0**, and uses a **PostgreSQL database managed via Docker**. It is NOT a microservice for another ERP; it is the primary scheduling product itself.
-
-**Current Development State:**
-The backend system is at the **`v0.greedy-complete`** checkpoint. 
-- **Completed:** The foundational backend is fully built. This includes 21 database tables, full CRUD for all resources (rooms, faculty, groups, subjects), JWT authentication, CSV bulk imports, a dynamic profile/constraint system, a greedy constraint-based solver, synchronous timetable generation, manual slot overrides, PDF/CSV exports, and history/reset workflows.
-- **Dependency Management:** Fully migrated to `uv` (`pyproject.toml`). The old `pip` and `requirements.txt` workflow has been retired.
-
-**Next Major Goal:**
-We are moving into **Phase 1**: fixing the missing Subject-Faculty-Group mapping table, implementing cross-timetable conflict prevention, and adding college-wide feature flags before tackling advanced solvers (OR-Tools) and building the full-stack frontend.
-
----
-
-## Core Concepts
-
-| Concept | Description |
-|---|---|
-| **Resources** | Everything schedulable — faculty, rooms, student groups, equipment |
-| **Constraints** | Hard (inviolable; generation fails) and Soft (preferences scored & weighted) |
-| **Profiles** | Named, saveable bundles of resources + constraints + parameters (think "presets" like *CS Dept Full Semester*) |
-| **Instances** | Every generation run produces multiple candidate timetables; the admin picks one — no auto-commit |
-
----
-
-## 📚 Essential Reference Files
-
-To fully understand the architecture, current progress, and future plans, please read these files:
-
-1.  **`documentation/timetable-generator-architecture.md`** 
-    The master architectural blueprint. It contains the complete database schema designs, endpoint contracts, solver strategies (Greedy vs OR-Tools), and the overall system vision.
-2.  **`documentation/plan.md`** 
-    The phased implementation roadmap. It outlines exactly how to bridge the gap from the current greedy engine to the final enterprise-grade full-stack application.
-3.  **`documentation/progress.md`** 
-    A living feature checklist. Use this to track completed work and identify what is currently blocked or planned.
-4.  ~~**`rough_plan.md`** (repo root)~~ — **removed from tracking**. Was raw session
-    notes containing brainstormed ideas; the file may still exist in your local
-    working copy as a private scratchpad (it is gitignored), but it is not part
-    of the repository. Design decisions that graduated from brainstorming live
-    in the architecture blueprint, plan, and progress docs above.
-
----
-
-## Project Structure & Module Organization
-
-```
-app/
-├── main.py                       # FastAPI entry point, router mounting, CORS
-├── config.py                     # Pydantic Settings loaded from .env
-├── database.py                   # SQLAlchemy engine + session factory (PostgreSQL via psycopg2)
-│
-├── models/                       # SQLAlchemy ORM models — one file per entity domain
-│   ├── rooms.py                  # Rooms + RoomBlackout
-│   ├── faculty.py                # Faculty + FacultyAvailability
-│   ├── groups.py                 # StudentGroups
-│   ├── subjects.py               # Subjects + SubjectHours
-│   ├── profiles.py               # TimetableProfile + profile_resources + profile_parameters
-│   ├── constraints.py            # Hard/Soft constraint models
-│   ├── generation.py             # Generation runs, Instances, Slots
-│   ├── history.py                # Archived timetable snapshots
-│   └── admin.py                  # Admin user model (auth)
-│
-├── schemas/                      # Pydantic request/response models mirroring each domain
-├── router/                       # FastAPI routers — one per resource or feature
-│   ├── auth.py                   # JWT login/token refresh
-│   ├── generate.py               # POST /generate  (core scheduling endpoint)
-│   ├── instances.py              # Instance selection, view, diff
-│   └── ...                       # rooms, faculty, groups, subjects, etc.
-│
-├── engine/                       # Scheduling engine — the heart of the system
-│   ├── scheduler.py              # Orchestrator: validates profile → runs solver → saves slots
-│   ├── constraint_checker.py     # Hard constraint validator (before each slot commit)
-│   └── solvers/
-│       └── greedy_solver.py      # Greedy algorithm (fast previews, current default)
-│       # → Future: or_tools_solver.py (OR-Tools CP-SAT — primary solver)
-│       # → Future: genetic_solver.py (GA for large-scale diversity)
-│
-├── services/                     # Business logic helpers
-│   └── export_service.py         # PDF/CSV export
-├── tasks/                        # Async jobs (future: Celery + Redis)
-└── utils/                        # Cross-cutting utilities
-    └── auth.py                   # JWT creation, verification, password hashing
-
-alembic/                          # DB migrations (configured via alembic.ini)
-docker/                           # Docker configuration for PostgreSQL database
-test_data/                        # Sample CSV fixtures for bulk import
-```
-
----
-
-## Build, Test, and Development Commands
-
-This project uses **[uv](https://github.com/astral-sh/uv)** for fast dependency management and virtual environments. The database is managed via **Docker Compose**.
+Dependencies are managed exclusively with **uv** — never `pip`/`requirements.txt`. Either activate
+the venv (`source .venv/bin/activate`) or prefix commands with `uv run`.
 
 ```bash
-# 1. Install dependencies & create the managed .venv
-uv sync
-
-# 2. Start the PostgreSQL database container
-cd docker && docker compose up -d
-
-# 3. Run the dev server (auto-reload on file changes)
-uv run uvicorn app.main:app --reload --port 8000
-
-# 4. Add a new dependency
-uv add <package_name>
-
-# 5. Generate an Alembic migration
-uv run alembic revision --autogenerate -m "describe change"
-
-# 6. Apply pending migrations
-uv run alembic upgrade head
+uv sync                                              # install deps into managed .venv
+cd docker && docker compose up -d                    # start PostgreSQL 15 (see ports note below)
+uv run alembic upgrade head                          # apply migrations
+uv run uvicorn app.main:app --reload --port 8000     # dev server → http://localhost:8000/docs
+uv run alembic revision --autogenerate -m "message"  # new migration after model changes
+uv add <package>                                     # add a dependency
 ```
 
-> The API is reachable at `http://localhost:8000`. Interactive Swagger docs are at `/docs`.
+**Postgres runs on host port `5433`**, not the default 5432 (`docker/docker-compose.yml` maps
+`5433:5432`; `.env` must set `DB_PORT=5433`). Note `app/config.py` still defaults `DB_PORT` to
+`5432` — the `.env` value is what matters at runtime.
 
----
+## Tests
 
-## Coding Style & Naming Conventions
+There are two independent test entry points; they are **not** pytest and pytest is not installed.
 
-- **Indentation**: 4 spaces. Follow [PEP 8](https://peps.python.org/pep-0008/).
-- **Naming**: snake_case for modules, variables, and functions; PascalCase for classes and Pydantic schemas.
-- **One file per domain entity**: `app/models/<entity>.py`, `app/schemas/<entity>.py`, `app/router/<entity>.py`.
-- **Routers** must expose a `router: APIRouter` object (imported by `app/main.py`).
-- **Models** inherit from `Base` (defined in `app/database.py`). Use `mapped_column` for column definitions.
-- **Schemas** separate `Create`, `Update`, and `Read` variants where applicable.
-- No linter/formatter is currently enforced. Running `ruff check app/` or `flake8 app/` locally is recommended.
+- **`uv run python -m app.tests`** — the real integration suite. `app/tests/conftest.py` stands up a
+  FastAPI `TestClient` against an **in-memory SQLite** DB (no Postgres needed) by monkey-patching
+  `app.database` and every router's `get_db`. `app/tests/test_runner.py` is a hand-rolled runner
+  (`@suite`/`@test` decorators, `seed_minimal()` helper). Run this to validate changes.
+- **`python run_tests.py`** — a smoke script that hits a **live** server on `:8000`. Requires the
+  server + Postgres running and an admin registered via `POST /auth/register` first.
 
----
+When adding a router that the SQLite tests touch, add its module to the patch loop in
+`app/tests/conftest.py`, or its `get_db` won't be overridden and it will hit Postgres.
 
-## Testing Guidelines
+## Architecture (the parts that span files)
 
-The project ships a **custom in-process test runner** (pytest is intentionally *not* used and not
-installed). `app/tests/conftest.py` runs the FastAPI app against an in-memory SQLite DB, so no
-Postgres is needed.
+**Generation pipeline.** `POST /generate` (`app/router/generate.py`) → `Scheduler.run()`
+(`app/engine/scheduler.py`) creates a `TimetableGeneration`, then for each requested instance runs
+`GreedySolver.solve()` (`app/engine/solvers/greedy_solver.py`), which proposes `SlotCandidate`s that
+`ConstraintChecker` (`app/engine/constraint_checker.py`) validates before commit. Generation is
+**synchronous** — it blocks the HTTP request (async/Celery is a future phase).
 
-```bash
-uv run python -m app.tests     # full integration suite (currently 13/13 passing)
-python run_tests.py            # optional smoke test against a LIVE server on :8000
-```
+**Profiles are the solver's input contract.** A `TimetableProfile` bundles resources
+(`profile_resources`: rooms/faculty/groups/subjects), typed parameters (`profile_parameters`, stored
+as strings + a `param_type` tag the solver casts), and constraints. The solver only sees resources
+attached to the profile — nothing global.
 
-When adding tests:
+**`subject_assignments` drives what gets scheduled.** This table is the who-teaches-what-to-which-
+group triad. The solver expands each assignment into `weekly_hours` sessions and schedules those. If
+a subject in the profile has no assignment, it produces zero sessions. This is the single source of
+truth the greedy solver reads instead of assuming every teacher teaches every subject.
 
-- Register a suite with `@suite("name")` and individual cases with `@test("...")` in
-  `app/tests/test_<module>.py` (see `test_settings_and_assignments.py`). Use the `seed_minimal()`
-  helper to build a base scenario.
-- If a new router must run under the SQLite tests, add its module to the `get_db` patch loop in
-  `app/tests/conftest.py`.
-- Prioritize coverage for: router endpoints, engine/solver logic, constraint checker, and profiles.
+**`CollegeSettings` is a singleton (id=1).** Auto-created on app startup and lazily by
+`get_settings()` (`app/services/settings_service.py`). Boolean feature flags gate optional solver
+behavior (e.g. `allow_cross_dept_subjects` — cross-department sessions are dropped when off), and
+`config_json` holds arbitrary tunables (e.g. `max_cross_dept_per_day`, read inside the constraint
+checker).
 
----
+**Cross-timetable safety.** `Scheduler._load_published_conflicts()` builds per-resource reserved
+sets — `{"faculty"|"room"|"group": {(id, day, slot)}}` — from every `PUBLISHED` instance across all
+generations, and `ConstraintChecker._check_published_conflicts()` refuses to reuse them. The sets are
+split per resource deliberately: a combined `(faculty, room, group, day, slot)` tuple would only
+block an identical five-way match and miss the real conflicts (same teacher, different room, etc.).
 
-## Commit & Pull Request Guidelines
+**Instance lifecycle.** `DRAFT → SELECTED → PUBLISHED → ARCHIVED` (`app/router/instances.py`).
+Publishing an instance archives previously published instances of the *same* generation; published
+instances from *other* generations remain live and feed cross-timetable reservations.
 
-### Commits
+**Auth.** JWT (`python-jose`) with **bcrypt used directly** in `app/utils/auth.py`. Do **not**
+reintroduce `passlib`: passlib 1.7.4 is incompatible with modern bcrypt (≥4.1) and silently makes
+every password hash/verify raise. The JWT payload carries `admin_id`; every mutation endpoint depends
+on `get_current_admin`.
 
-Follow the **imperative lowercase** style established in Git history:
+## Conventions
 
-```
-add CORS middleware
-greedy solver working, auth fixed, bcrypt compatible
-PDF and CSV export for timetable instances
-```
+- **One file per domain entity** across `app/models/`, `app/schemas/`, `app/router/`. Routers expose
+  a module-level `router: APIRouter` and are mounted in `app/main.py`. Models inherit `Base`
+  (`app/database.py`) and use `mapped_column`; schemas split `Create`/`Update`/`Response`.
+- **Registering a new table:** define the model, export it from `app/models/__init__.py` (so
+  `Base.metadata` and Alembic autogenerate see it), then create a migration. The Alembic history is a
+  single linear chain (`aeaadc4f2374 → e47081302c4e → 0d633dc08f98 → 0f8db8a263c5 → e5f8a91c0d4e →
+  d3f5a7c9e1b2`).
+- There are **22 tables** (older docs saying "21" predate `audit_logs`).
+- No linter/formatter is enforced; PEP 8, 4-space indent. Commits follow the standing rules below.
 
-- First line under 72 characters.
-- Reference issue numbers in the body when applicable.
+## Git & commits (standing rules)
 
-### Pull Requests
+This repo is destined to become public, so the git log is part of the artifact — commit accordingly.
 
-Include a brief description of changes. If the PR introduces new DB tables or schema changes, **note the Alembic migration**. If it touches the engine or solver logic, describe the algorithmic impact.
+1. **Impersonal, factual messages.** Describe what changed and why, in the repository's voice.
+   Never narrate the session — no "the user said…", "as requested…", "we decided…", "per our
+   discussion". Subject ≤ ~70 chars; body explains the *why*.
+2. **Many small, focused commits.** Split by concern, not by session — one logical change per
+   commit (migration / worker / docs / tests as separate commits). Never one massive end-of-session
+   commit. If a message needs bullets to list unrelated changes, it should have been several commits.
+3. **Stage in logical chunks** (`git add <specific paths>` per commit), not `git add -A` once.
 
----
+## Reference docs
 
-## Implementation Status vs. Roadmap
+`documentation/` holds the deeper design material: `timetable-generator-architecture.md` (schema +
+endpoint + solver blueprint), `plan.md` (phased roadmap), `progress.md` (feature checklist), and
+`AGENTS.md` (contributor guide). `rough_plan.md` is a private, gitignored scratchpad
+kept locally only; it is not part of the repository. Treat the code as ground truth
+where these disagree.
 
-The architecture blueprint defines five phases. Current state:
+## ⚠️ Keep the architecture doc in sync with the code (mandatory)
 
-| Phase | Scope | Status |
-|---|---|---|
-| **1 — Foundation** | Project structure, DB tables (21), CRUD APIs, auth, CSV import, subject assignments, college settings | ✅ Largely complete |
-| **2 — Greedy Engine** | Greedy scheduler, hard constraint checker, sync `/generate`, cross-timetable conflict prevention | ✅ Complete |
-| **3 — Real Solver** | OR-Tools CP-SAT, soft constraint scorer, multi-instance diversity, Celery async | ⏳ Planned |
-| **4 — Profile System** | Profile combine/resolve, profile shift, annual reset workflow | ⏳ Planned |
-| **5 — Enterprise** | Manual override **re-check** (override endpoint exists; re-validation TODO), iCal export, notifications, versioning | ⏳ Planned |
-
-When contributing to future phases, always reference the architecture doc for the endpoint contract, data model expectations, and algorithm details.
-
----
-
-## Security & Configuration Tips
-
-- **Never commit `.env`**. Copy from `.env.example` and set your own values.
-- `SECRET_KEY` must be a strong random string — rotate in production.
-- The database is now managed via Docker Compose (`docker/docker-compose.yml`) using PostgreSQL 15. Ensure the container is running before starting the FastAPI server.
-- This is a **standalone full-stack application**. It handles its own authentication, database connection, and frontend serving (when implemented).
+When you add or change a feature (a table, endpoint, engine rule, parameter, or flag), update
+`documentation/timetable-generator-architecture.md` **in the same change** — schema in §3, endpoints
+in §4, engine in §5, parameters in §8. The blueprint must not drift from the code. Also update
+`plan.md`/`progress.md` checkboxes. (The architecture doc still carries pre-pivot framing — it says
+"MySQL" and "module for an ERP"; the project is now standalone on PostgreSQL, so correct stale bits
+you touch.)
