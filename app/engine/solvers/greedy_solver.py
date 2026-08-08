@@ -9,7 +9,7 @@ that any feature flag (e.g. ``allow_cross_dept_subjects``) actually affects
 which sessions are generated.
 """
 import random
-from datetime import time
+from datetime import time, date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_
 
@@ -71,6 +71,7 @@ class GreedySolver:
         self.params: dict = {}
         self.settings: CollegeSettings = get_settings(db)
         self._load_params()
+        self._term_start: date | None = self._parse_term_start()
 
     # ── param loading ────────────────────────────────────────
     def _load_params(self) -> None:
@@ -94,6 +95,33 @@ class GreedySolver:
 
     def _get_param(self, key: str, default):
         return self.params.get(key, default)
+
+    # ── calendar-date anchoring ──────────────────────────────
+    def _parse_term_start(self) -> date | None:
+        """Read the ``term_start`` profile param ("YYYY-MM-DD").
+
+        The solver is a weekly template; anchoring it to a term start date
+        lets date-based rules (availability windows, holiday blackouts) be
+        evaluated against the concrete date of each slot in the first week.
+        """
+        raw = self._get_param("term_start", None)
+        if not raw:
+            return None
+        try:
+            return date.fromisoformat(str(raw))
+        except ValueError:
+            return None
+
+    def _materialize_slot_date(self, day_of_week: int) -> date | None:
+        """Map a weekday to the calendar date it falls on in the term's week.
+
+        Returns the first occurrence of ``day_of_week`` on/after the term
+        start, or ``None`` when the profile has no ``term_start`` anchor.
+        """
+        if self._term_start is None:
+            return None
+        delta = (day_of_week - self._term_start.weekday()) % 7
+        return self._term_start + timedelta(days=delta)
 
     # ── time structure ───────────────────────────────────────
     def _build_slot_times(self) -> list[tuple[int, time, time]]:
@@ -279,11 +307,13 @@ class GreedySolver:
                             student_group_id=session.student_group_id,
                             subject_id=session.subject_id,
                             session_type=session.session_type,
+                            slot_date=self._materialize_slot_date(day),
                             is_cross_department=session.is_cross_department,
                         )
                         if checker.is_valid(candidate):
                             self.committed_slots.append(TimetableSlot(
                                 instance_id=self.instance_id,
+                                slot_date=self._materialize_slot_date(day),
                                 day_of_week=day,
                                 slot_number=slot_number,
                                 start_time=start_time,

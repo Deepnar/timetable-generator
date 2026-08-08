@@ -74,6 +74,7 @@ class ORToolsSolver(GreedySolver):
                             student_group_id=session.student_group_id,
                             subject_id=session.subject_id,
                             session_type=session.session_type,
+                            slot_date=self._materialize_slot_date(day),
                             is_cross_department=session.is_cross_department,
                         )
                         if not static_checker.is_valid(candidate):
@@ -162,6 +163,7 @@ class ORToolsSolver(GreedySolver):
                 start_time=st, end_time=en, faculty_id=s.faculty_id,
                 room_id=room_id, student_group_id=s.student_group_id,
                 subject_id=s.subject_id, session_type=s.session_type,
+                slot_date=self._materialize_slot_date(day),
                 is_cross_department=s.is_cross_department,
             )
             if checker.is_valid(candidate):
@@ -170,6 +172,7 @@ class ORToolsSolver(GreedySolver):
                     start_time=st, end_time=en, faculty_id=s.faculty_id,
                     room_id=room_id, student_group_id=s.student_group_id,
                     subject_id=s.subject_id, session_type=s.session_type,
+                    slot_date=self._materialize_slot_date(day),
                     is_manual_override=False,
                 ))
         return self.committed_slots

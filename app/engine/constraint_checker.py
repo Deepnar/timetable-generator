@@ -215,6 +215,8 @@ class ConstraintChecker:
             )
         ).all()
         for w in windows:
+            if not self._availability_window_applies(w, c.slot_date):
+                continue
             if w.slot_start and w.slot_end:
                 if c.start_time < w.slot_end and c.end_time > w.slot_start:
                     return [ConstraintViolation(
@@ -228,6 +230,27 @@ class ConstraintChecker:
                     f"Faculty {c.faculty_id} unavailable all day {c.day_of_week}",
                 )]
         return []
+
+    @staticmethod
+    def _availability_window_applies(w: FacultyAvailability, slot_date) -> bool:
+        """Whether an availability row is active for a candidate slot.
+
+        A window with no date bounds is timeless and always applies. One with
+        ``effective_from``/``effective_to`` only applies when the slot's
+        materialized calendar date falls inside them (inclusive; a missing
+        bound means "unbounded" on that side). Without a materialized date
+        there is nothing to compare, so a date-bounded window is treated as
+        inert — the same rule that governs date-specific room blackouts.
+        """
+        if w.effective_from is None and w.effective_to is None:
+            return True
+        if slot_date is None:
+            return False
+        if w.effective_from is not None and slot_date < w.effective_from:
+            return False
+        if w.effective_to is not None and slot_date > w.effective_to:
+            return False
+        return True
 
     def _check_faculty_load(self, c: SlotCandidate) -> list[ConstraintViolation]:
         """Enforce a teacher's ``max_hours_per_day`` / ``max_hours_per_week``.
