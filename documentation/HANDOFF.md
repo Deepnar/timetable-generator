@@ -6,87 +6,107 @@ history preserves older handoffs.
 
 ## Session summary (committed & pushed)
 
-State at handoff: **50/50 tests passing** (`uv run python -m app.tests`), tree clean.
+State at handoff: **57/57 tests passing** (`uv run python -m app.tests`), tree clean.
 
-This session fixed the faculty availability date-range bug plus three more of the
-"Newly Identified" items from `documentation/progress.md`:
+This session implemented **profile combination resolution** — the "NEXT TASK" from the
+previous handoff (also `documentation/progress.md` → "Newly Identified").
 
-1. **Faculty availability date-range** — `effective_from`/`effective_to` were never
-   consulted and were `nullable=False` against optional schemas.
-   - Migration `e9f4a2b6d8c0`: both columns nullable (new Alembic head).
-   - New **`term_start`** profile parameter (`"YYYY-MM-DD"`) anchors the weekly
-     template; `GreedySolver._materialize_slot_date(day)` stamps `slot_date` on every
-     `SlotCandidate` and committed `TimetableSlot` (both greedy and OR-Tools).
-   - `ConstraintChecker._check_teacher_availability` now filters by the window;
-     `_availability_window_applies` encodes: no bounds ⇒ timeless; bounded ⇒ only when
-     `effective_from <= slot_date <= effective_to`; no anchor ⇒ inert (matches
-     date-specific `room_blackouts`). See architecture §8.8.
-2. **CSV import atomicity** — `app/router/import_csv.py::_atomic_import` makes
-   `/import/{rooms,faculty,groups,subjects}` all-or-nothing: any invalid row (missing
-   required field, duplicate within the file OR against the DB) ⇒ `422`, `inserted=0`,
-   nothing committed. `import_rooms` now requires a non-empty `room_code`.
-3. **`GET /constraints/types` drift** — the endpoint now derives hard/soft lists from
-   `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` defined next to the `ConstraintType`
-   enum in `app/models/constraints.py`.
-4. **Slot override re-validation** — `PATCH /instances/{id}/slots/{slot_id}` now runs the
-   full `ConstraintChecker` (`_revalidate_slot` in `app/router/instances.py`) against the
-   instance's other slots, the profile's registry rules, and published cross-timetable
-   reservations; a conflict returns `409` and leaves the slot untouched.
+**The bug:** `POST /profiles/combine` stored members in `profile_combination_members`, but
+`Scheduler.run()` only read `profile_id`, so `POST /generate` with a `combination_id`
+failed. Now fixed end to end:
 
-Commits: `5c78e5c` `2fdc2be` `ce601d1` `314abdb` `fe86b5b` (availability fix), then the
-three bug fixes in the commit log of this session (engine/tests/docs split per AGENTS.md).
+1. **`app/engine/profile_resolver.py`** (new) — `ProfileResolver.resolve(profile_id,
+   combination_id)` returns a `ResolvedProfile` (params dict, resources keyed by
+   `ResourceType`, hard/soft constraint lists). Merge semantics (documented in
+   architecture §6.2):
+   - **Resources** — union across members, de-dup by `(resource_type, resource_id)`.
+   - **Parameters** — highest-weight member wins on `param_key` collisions; ties break on
+     lower profile id for determinism. Values are type-cast (same casting the solver's
+     old `_load_params` did).
+   - **Hard constraints** — union of global rows (`profile_id IS NULL`) + every member's
+     rows, de-duped by `(constraint_type, config_json)`.
+   - **Soft constraints** — same union, de-duped by `(constraint_type, config_json)` with
+     the highest weight kept.
+   - Resolution is **in-memory per run** — no synthetic `timetable_profiles` row is
+     written, so member edits are always reflected and the profiles table stays clean.
+2. **Engine** — `Scheduler.run()` resolves once up front and passes the `ResolvedProfile`
+   to the solvers; `GreedySolver`/`ORToolsSolver` constructors now take `profile:
+   ResolvedProfile` (not `profile_id`) and read params/resources/hard/soft from it instead
+   of re-querying by id. A combination generation records `profile_id=NULL` +
+   `combination_id=<id>`. Missing/inactive profile or combination member → `ValueError`
+   → the router returns 404.
+3. **`POST /profiles/combine`** — now validates member profiles exist (404) and that a
+   `weights` list matches `profile_ids` length (422).
+4. **`PATCH /instances/{id}/slots/{slot_id}`** — `_revalidate_slot` re-resolves the
+   generation's `combination_id` through `ProfileResolver` (with `require_active=False`
+   so an override still works after a member was archived).
+
+Commits (pushed to `main`): `0558340` (engine), `5b5bc55` (router), `88e03bb` (tests),
+`a384a70` (docs).
 
 ## Context to read before starting
 
 - `AGENTS.md` (repo root) — environment, tests, architecture notes, commit rules.
 - `documentation/timetable-generator-architecture.md` — schema §3, endpoints §4, engine §5,
-  parameters §8 (esp. §8.8 calendar-date anchoring, new).
+  §6.2 (combination merge semantics — rewritten this session), parameters §8 (esp. §8.8).
 - `documentation/plan.md` (phased roadmap) and `documentation/progress.md` (status).
-- Engine: `app/engine/scheduler.py`, `app/engine/solvers/greedy_solver.py`,
-  `app/engine/solvers/or_tools_solver.py`, `app/engine/constraint_checker.py`,
-  `app/engine/constraint_registry.py`, `app/engine/scorer.py`, `app/engine/soft_objective.py`.
-- Tests: suites in `app/tests/test_settings_and_assignments.py`, runner in
-  `app/tests/test_runner.py`, DB override in `app/tests/conftest.py`. Hand-rolled, **not** pytest.
+- Engine: `app/engine/profile_resolver.py` (new), `app/engine/scheduler.py`,
+  `app/engine/solvers/greedy_solver.py`, `app/engine/solvers/or_tools_solver.py`,
+  `app/engine/constraint_checker.py`, `app/engine/constraint_registry.py`,
+  `app/engine/scorer.py`, `app/engine/soft_objective.py`.
+- Tests: `app/tests/test_settings_and_assignments.py` (Phase 4 suite — combination
+  resolution), `seed_two_profiles` in `app/tests/test_runner.py`. Hand-rolled, **not** pytest.
 
-## NEXT TASK — profile combination resolution
+## NEXT TASK — read-route auth consistency (product decision)
 
-**The bug:** `POST /profiles/combine` stores members in `profile_combination_members`, but
-`Scheduler.run()` (`app/engine/scheduler.py`) only ever reads `profile_id`. `POST /generate`
-accepts `combination_id`, yet generating from a combination fails because the solver gets no
-resolved profile. The endpoint currently misleads.
+**The gap:** `GET /settings` requires a JWT (`Depends(get_current_admin)`), but most other
+GETs (`/rooms`, `/faculty`, `/groups`, `/subjects`, `/profiles`, `/constraints/types`,
+`/export/...`, `/history`, etc.) are public. `documentation/progress.md` → "Newly
+Identified" flags this as the next item.
 
-**Where to look:**
-- `app/router/profiles.py` — the `/combine` endpoint and member storage.
-- `app/engine/scheduler.py::run` — takes both `profile_id` and `combination_id`; ignores the latter.
-- `app/engine/solvers/greedy_solver.py` / `or_tools_solver.py` — constructors take a single `profile_id`.
-- `app/models/profiles.py` — `ProfileCombination`, `ProfileCombinationMember` (has `weight`).
-- `app/models/generation.py` — `TimetableGeneration.combination_id` already exists.
+**Decision needed — protect everything except `/health` + `/auth/*`, or leave reads public?**
 
-**Suggested approach:** resolve a combination into an effective profile before solving:
-merge member `profile_resources` (union, de-dup by `(resource_type, resource_id)`), merge
-`profile_parameters` (highest `weight` wins on key collisions), merge member + profile-level
-`hard_constraints`/`soft_constraints`, then pass the effective profile id/params to the solver.
-Decide and document collision semantics. Add tests in `app/tests/test_settings_and_assignments.py`.
+The likely direction (per the previous handoff) is **fully authenticated**: gate every
+route behind `get_current_admin` except `/health` and the `/auth/register` + `/auth/login`
+endpoints. That means:
+
+- Sweeping every router in `app/router/` (and the ones auto-mounted in `app/main.py`)
+  to add `current_admin: Admin = Depends(get_current_admin)` to each GET.
+- A cleaner alternative: a global middleware/dependency in `app/main.py` that exempts
+  only `/health` and `/auth/*` (all non-mutating + mutating auth endpoints), so individual
+  routers don't each need the dependency.
+- **Tests will break**: many tests GET without headers (`/health` is fine to stay public,
+  but `GET /constraints/types`, `GET /rooms/` with pagination, `/export/...` reads, etc.
+  will start returning 401). `app/tests/test_settings_and_assignments.py` has several
+  unauthenticated GETs that would need `auth_headers(login_token(client))`.
+
+Pick a direction, implement, update the affected tests, and document the decision in the
+architecture doc §4.2 (which currently says "list/get endpoints on resources are public by
+default").
 
 ## Remaining known items (see `documentation/progress.md`)
 
-- **Read-route auth inconsistency** — `/settings` GET requires a token, most GETs don't.
-  Product decision: protect everything except `/health` + `/auth/*`, or leave reads public?
-  Fully authenticated is the likely direction; it requires updating tests that GET without headers.
-- **Registry rules** — `HOLIDAY_CALENDAR` (date-matching validator only; the
-  `term_start`/`slot_date` machinery from this session is the foundation), `CONTIGUOUS_LAB_SLOTS`
+- **Registry rules** — `HOLIDAY_CALENDAR` (date-matching validator; the
+  `term_start`/`slot_date` machinery is the foundation), `CONTIGUOUS_LAB_SLOTS`
   (multi-slot sessions — deep engine change), `EXAM_DATE_SEPARATION`.
 - **Async generation** — Celery/Redis; `GET /generate/{id}/status` already exists.
-- **OR-Tools diversity** — objective-based variation (best / minimize-teacher-gaps / minimize-student-gaps).
+- **OR-Tools diversity** — objective-based variation (best / minimize-teacher-gaps /
+  minimize-student-gaps).
 - **Flexibility roadmap** — fold structural checks into the registry, generic resource
   requirements, `CUSTOM` enum escape hatches, wire `enable_lab_batches`.
 - **Frontend + full-stack Dockerization** — Next.js app + top-level compose.
+- **`/profiles/combinations` router** — there is still no list endpoint and no explicit
+  `POST /profiles/combinations/{id}/resolve` (resolution is automatic inside the scheduler);
+  tracked in `plan.md`.
 
 ## Gotchas
 
 - Postgres runs on host port **5433** (`.env` sets `DB_PORT=5433`); `docker/docker-compose.yml` maps it.
 - Tests: `uv run python -m app.tests` (not pytest). Add any router touched by tests to the
   patch loop in `app/tests/conftest.py`.
+- The solver constructors now take a `ResolvedProfile`, not `profile_id` — build one via
+  `ProfileResolver(db).resolve(profile_id, combination_id)` if you construct solvers
+  directly outside the scheduler.
 - Keeping `documentation/timetable-generator-architecture.md` in sync is mandatory (schema §3,
   endpoints §4, engine §5, parameters §8).
-- Alembic head: `e9f4a2b6d8c0`. 22 tables.
+- Alembic head: `e9f4a2b6d8c0`. 22 tables. No migration was needed this session.
