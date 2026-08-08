@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from app.database import get_db
 from app.models.admin import Admin
-from app.models.constraints import HardConstraint
 from app.models.generation import (TimetableInstance, TimetableSlot,
                                     InstanceStatus, TimetableGeneration)
 from app.schemas.generation import InstanceResponse, SlotResponse, SlotOverride
 from app.utils.auth import get_current_admin
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
+from app.engine.profile_resolver import ProfileResolver
 from app.engine.scheduler import Scheduler
 from app.services.settings_service import get_settings
 from datetime import datetime
@@ -173,16 +173,15 @@ def _revalidate_slot(db: Session, slot: TimetableSlot, instance_id: int):
         if instance else None
 
     hard_constraints = []
-    if generation and generation.profile_id:
-        hard_constraints = db.scalars(
-            select(HardConstraint).where(
-                HardConstraint.is_active == True,
-                or_(
-                    HardConstraint.profile_id == generation.profile_id,
-                    HardConstraint.profile_id.is_(None),
-                ),
-            )
-        ).all()
+    if generation and (generation.profile_id or generation.combination_id):
+        # Resolve the same effective profile the scheduler used: for a
+        # combination the member profiles' rules are merged. require_active is
+        # off so an override still works if the source profile was archived.
+        hard_constraints = ProfileResolver(db).resolve(
+            profile_id=generation.profile_id,
+            combination_id=generation.combination_id,
+            require_active=False,
+        ).hard_constraints
 
     candidate = SlotCandidate(
         instance_id=instance_id,

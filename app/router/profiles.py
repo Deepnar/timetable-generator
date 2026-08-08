@@ -220,6 +220,28 @@ def combine_profiles(
     db: Session = Depends(get_db),
     current_admin: Admin = Depends(get_current_admin)
 ):
+    if not combo.profile_ids:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least one profile_id is required"
+        )
+    if combo.weights is not None and len(combo.weights) != len(combo.profile_ids):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="weights must have the same length as profile_ids"
+        )
+    # Reject dangling members up front so a combination never silently
+    # resolves to fewer profiles at generation time.
+    for profile_id in combo.profile_ids:
+        profile = db.scalars(
+            select(TimetableProfile).where(TimetableProfile.id == profile_id)
+        ).first()
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Profile {profile_id} not found"
+            )
+
     new_combo = ProfileCombination(
         name=combo.name,
         created_by=current_admin.id
