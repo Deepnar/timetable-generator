@@ -42,32 +42,44 @@ def create_access_token(data: dict) -> str:
         algorithm=settings.ALGORITHM
     )
 
-def get_current_admin(
-    credentials=Depends(security),
-    db: Session = Depends(get_db)
-) -> Admin:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+def authenticate_token(token: str, db: Session) -> Admin | None:
+    """Validate a bearer token and return the active admin, or ``None``.
+
+    Shared by the ``get_current_admin`` dependency and the global auth
+    middleware in ``app.main`` so every non-exempt request is checked the
+    same way.
+    """
     try:
         payload = jwt.decode(
-            credentials.credentials,
+            token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
-        admin_id: int = payload.get("admin_id")
+        admin_id: int | None = payload.get("admin_id")
         if admin_id is None:
-            raise credentials_exception
+            return None
     except JWTError:
-        raise credentials_exception
+        return None
 
     admin = db.scalars(
         select(Admin).where(Admin.id == admin_id)
     ).first()
 
     if not admin or not admin.is_active:
-        raise credentials_exception
+        return None
 
+    return admin
+
+
+def get_current_admin(
+    credentials=Depends(security),
+    db: Session = Depends(get_db)
+) -> Admin:
+    admin = authenticate_token(credentials.credentials, db)
+    if admin is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return admin

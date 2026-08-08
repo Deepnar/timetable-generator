@@ -19,7 +19,6 @@ router = APIRouter(prefix="/instances", tags=["Instances"])
 def get_instances(
     generation_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin)
 ):
     instances = db.scalars(
         select(TimetableInstance).where(
@@ -37,7 +36,6 @@ def get_instances(
 def get_slots(
     instance_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin)
 ):
     slots = db.scalars(
         select(TimetableSlot).where(

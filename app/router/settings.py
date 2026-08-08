@@ -12,10 +12,7 @@ router = APIRouter(prefix="/settings", tags=["College Settings"])
 
 
 @router.get("/", response_model=CollegeSettingsResponse)
-def read_settings(
-    db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
-):
+def read_settings(db: Session = Depends(get_db)):
     """Read the current feature-flag configuration."""
     return get_settings(db)
 

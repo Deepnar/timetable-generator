@@ -14,8 +14,6 @@ from sqlalchemy import select
 
 from app.database import get_db
 from app.models.generation import TimetableInstance
-from app.models.admin import Admin
-from app.utils.auth import get_current_admin
 from app.services.export_service import (
     get_filtered_slots,
     describe_filters,
@@ -52,7 +50,6 @@ def export_timetable_pdf(
     year: Optional[int] = None,
     department: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin),
 ):
     instance = _require_instance(instance_id, db)
     slots = get_filtered_slots(
@@ -80,7 +77,6 @@ def export_timetable_csv(
     year: Optional[int] = None,
     department: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin),
 ):
     _require_instance(instance_id, db)
     slots = get_filtered_slots(
@@ -113,7 +109,6 @@ def export_timetable_ical(
     term_start: Optional[date] = None,
     term_end: Optional[date] = None,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin),
 ):
     instance = _require_instance(instance_id, db)
     slots = get_filtered_slots(

@@ -6,8 +6,6 @@ from app.database import get_db
 from app.models.history import TimetableHistory, TimetableResetLog, ArchiveReason, ResetType
 from app.models.generation import TimetableInstance, TimetableSlot, InstanceStatus
 from app.models.profiles import TimetableProfile, ProfileResource, ProfileParameter
-from app.models.admin import Admin
-from app.utils.auth import get_current_admin
 from datetime import datetime
 import json
 
@@ -18,7 +16,6 @@ router = APIRouter(prefix="/history", tags=["History"])
 def get_history(
     academic_year: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin)
 ):
     query = select(TimetableHistory)
     if academic_year:
@@ -42,7 +39,6 @@ def get_history(
 def get_history_snapshot(
     id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin)
 ):
     record = db.scalars(
         select(TimetableHistory).where(TimetableHistory.id == id)

@@ -181,7 +181,6 @@ def trigger_reset(
 @router.get("/log")
 def get_reset_log(
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin)
 ):
     logs = db.scalars(
         select(TimetableResetLog).order_by(

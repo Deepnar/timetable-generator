@@ -8,9 +8,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.database import get_db
-from app.models import Admin
 from app.models.audit import AuditLog
-from app.utils.auth import get_current_admin
 from app.utils.pagination import Pagination, pagination, paginate
 
 router = APIRouter(prefix="/audit", tags=["Audit"])
@@ -37,7 +35,6 @@ def list_audit(
     status_code: Optional[int] = None,
     page: Pagination = Depends(pagination),
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
 ):
     """Most-recent-first audit entries, filterable and paginated."""
     query = select(AuditLog).order_by(AuditLog.created_at.desc(), AuditLog.id.desc())

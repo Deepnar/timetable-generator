@@ -59,7 +59,6 @@ def trigger_generation(
 def get_generation_status(
     run_id: int,
     db: Session = Depends(get_db),
-    current_admin: Admin = Depends(get_current_admin)
 ):
     generation = db.scalars(
         select(TimetableGeneration).where(

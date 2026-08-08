@@ -53,7 +53,6 @@ def list_assignments(
     group_id: Optional[int] = None,
     page: Pagination = Depends(pagination),
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
 ):
     query = select(SubjectAssignment)
     if subject_id is not None:
@@ -69,7 +68,6 @@ def list_assignments(
 def get_assignment(
     assignment_id: int,
     db: Session = Depends(get_db),
-    _: Admin = Depends(get_current_admin),
 ):
     assignment = db.get(SubjectAssignment, assignment_id)
     if not assignment:
