@@ -363,8 +363,8 @@ rule can be added without a schema migration.
 |-----------------------------------|---------------------|-------------------|-----------------------------------------------|
 | `TEACHER_PREFERS_MORNING`         | ✅ yes              | ✅ yes            | `faculty_id?`, `boundary_slot?` (default 4)   |
 | `MINIMIZE_STUDENT_FREE_SLOTS`     | ✅ yes              | ✅ yes            | `{}`                                          |
+| `MINIMIZE_TEACHER_FREE_SLOTS`     | ✅ yes              | ✅ yes            | `{}`                                          |
 | `AVOID_CONSECUTIVE_SAME_SUBJECT`  | ❌ no               | ❌ no             | —                                             |
-| `MINIMIZE_TEACHER_FREE_SLOTS`     | ❌ no               | ❌ no             | —                                             |
 | `DISTRIBUTE_SUBJECTS_EVENLY`      | ❌ no               | ❌ no             | —                                             |
 | `BALANCE_TEACHER_LOAD`            | ❌ no               | ❌ no             | —                                             |
 
@@ -397,6 +397,7 @@ CREATE TABLE timetable_generations (
     timetable_type      timetabletype NOT NULL,                       -- CLASS | FACULTY | ROOM | EVENT | EXAM | IP | CUSTOM
     generation_status   generationstatus NOT NULL DEFAULT 'PENDING',  -- PENDING | RUNNING | COMPLETED | FAILED
     algorithm_used      algorithmtype NOT NULL DEFAULT 'GREEDY',      -- native enum (not VARCHAR(50))
+    variation           variationmode NOT NULL DEFAULT 'RANDOM',      -- random | best | minimize-teacher-gaps | minimize-student-gaps (§5.3)
     score_best_instance FLOAT,                                        -- best soft score; NULL when no soft rules
     instances_requested INTEGER NOT NULL DEFAULT 3,
     instances_produced  INTEGER NOT NULL DEFAULT 0,
@@ -684,6 +685,8 @@ POST   /generate                       Trigger a generation run (synchronous or 
     semester,
     instances_requested: 3,                         # how many options to produce
     algorithm: "OR_TOOLS" | "GREEDY",               # OR_TOOLS requires `uv add ortools`
+    variation: "random",                            # instance strategy: random | best |
+                                                    # minimize-teacher-gaps | minimize-student-gaps (§5.3)
     respect_existing_published: true                # always honoured: Scheduler._load_published_conflicts
   }
   Response (sync, ASYNC_GENERATION=false): 201 with the TimetableGeneration row
@@ -785,12 +788,12 @@ Step-by-step:
    ```
    Splitting per resource (rather than a single 5-way tuple) means a published booking blocks the faculty, room, or group at that time slot REGARDLESS of the other dimensions. An **exam generation** passes `exempt_groups=` (the profile's own `STUDENT_GROUP` ids when the profile is in exam mode): those groups' published slots are skipped, so a branch on exams can reuse its suspended class slots while every other branch's active classes stay protected (§5.4).
 3. **Build Sessions to Schedule.** From `subject_assignments` rows, expand each `(subject, faculty, group, weekly_hours, load_share)` into `weekly_hours` `SessionToSchedule` objects. Each session carries `session_type` (`LECTURE` / `LAB` from `requires_lab`), an `is_cross_department` flag (`group.department != subject.department`), and is dropped if the `college_settings.allow_cross_dept_subjects` flag is off and the cross-dept flag is on. In **exam mode** (§5.4) each assignment instead becomes exactly ONE `SessionType.EXAM` session.
-4. **Solver Runs N times for N candidate instances.**
-   - Instance #1: seed = `None` (deterministic baseline).
-   - Instance #i (i > 0): seed = `i * 100 + attempt`.
-   - For each attempt (up to `_DIVERSITY_ATTEMPTS = 6`): greedy shuffles `working_days` / `slot_times` / `rooms`; OR-Tools varies `solver.parameters.random_seed`.
-   - Keep the first fingerprint whose Hamming distance from every already-accepted instance is ≥ `_DIVERSITY_MIN_DISTANCE = 1`; otherwise try the next seed. If all 6 attempts collide, the **last attempt** is kept (so a tiny problem still produces a result rather than a duplicate).
-5. **Score & Rank.** If `enable_soft_constraint_scoring` is on AND there is at least one active soft rule, `score_instance(slots, soft_rules, ctx)` returns a weighted-mean satisfaction in `[0, 1]` and is stored on `instance.soft_score`; the best across instances is recorded on `generation.score_best_instance`. **With no soft rules at all**, `instance.soft_score` is left unset and `generation.score_best_instance` stays `NULL`. (For OR-Tools, the same soft rules are also folded into the CP-SAT objective — §5.2 — so the solver *pursues* them during search.)
+4. **Solver Runs N times for N candidate instances.** The run row records a `variation` strategy (from the request, default `random`) that shapes the seeded re-rolls (§5.3):
+   - **Instance #1: seed = `None`** (deterministic baseline) unless `variation="best"`.
+   - **Instance #i (i > 0): seed = `i * 100 + attempt`**; with `variation="best"`, instance #1 is seeded too (`0 * 100 + attempt`) so a genuine optimum can be found.
+   - For each attempt (up to `_DIVERSITY_ATTEMPTS = 6`): greedy shuffles `working_days` / `slot_times` / `rooms` — or reorders its search by the gap criterion for `minimize-teacher-gaps` / `minimize-student-gaps`; OR-Tools varies `solver.parameters.random_seed` and, for a gap criterion, adds a small secondary objective term (§5.2).
+   - **Acceptance:** keep the first fingerprint whose Hamming distance from every already-accepted instance is ≥ `_DIVERSITY_MIN_DISTANCE = 1`; otherwise try the next seed. If all 6 attempts collide, the **last attempt** is kept (so a tiny problem still produces a result rather than a duplicate). With `variation="best"`, instead of keeping the first distinct attempt, the scheduler keeps the **highest-scoring distinct attempt** (`max` on the soft score).
+5. **Score & Rank.** If `enable_soft_constraint_scoring` is on AND there is at least one active soft rule, `score_instance(slots, soft_rules, ctx)` returns a weighted-mean satisfaction in `[0, 1]` and is stored on `instance.soft_score`; the best across instances is recorded on `generation.score_best_instance`. **With no soft rules at all**, `instance.soft_score` is left unset and `generation.score_best_instance` stays `NULL`, and `variation="best"` degrades to keeping the first attempt (there is nothing to score). (For OR-Tools, the same soft rules are also folded into the CP-SAT objective — §5.2 — so the solver *pursues* them during search.)
 6. **Commit & Return.** Scheduler sets `generation.status=COMPLETED`, `instances_produced`, `score_best_instance`, `completed_at`, `run_duration_ms` and `db.commit()`s. The router returns the row as the 201 response (sync) or the 202 PENDING snapshot (async). On failure `solve_generation` rolls the run back and marks the row `FAILED` with `error_log` (and `completed_at`) before re-raising — the sync router turns the re-raised exception into a 500, while the worker swallows it because the run row already records the outcome.
 
 ### 5.2 Solver Strategy
@@ -801,7 +804,7 @@ Step-by-step:
 - `ORToolsSolver` subclasses `GreedySolver` and overrides `solve()`, reusing the same session-building helpers. Constraint handling is split to match the `ConstraintChecker`:
   - **Per-candidate ("static") rules** — capacity, room type, recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `CONTIGUOUS_LAB_SLOTS`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
   - **Relational rules** — no teacher/room/group double-book, one-subject-per-group-per-day, per-faculty daily/weekly load — are added as CP-SAT constraints (`model.Add(sum(vs) <= 1)`). A block session registers its variable in the double-book buckets for *every* slot it occupies, and contributes its full length to the load buckets, so CP-SAT treats a block as a contiguous booking.
-- Objective: `model.Maximize(PLACEMENT_WEIGHT * sum(x.values()) + Σ soft_terms)` — maximise placed sessions first (`PLACEMENT_WEIGHT = 1000.0`), then optimise the active soft preferences via `app/engine/soft_objective.py` (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`; gated by `enable_soft_constraint_scoring`). Rules without a registered objective builder are skipped but still rank instances post-hoc.
+- Objective: `model.Maximize(PLACEMENT_WEIGHT * sum(x.values()) + Σ soft_terms + Σ variation_terms)` — maximise placed sessions first (`PLACEMENT_WEIGHT = 1000.0`), then optimise the active soft preferences via `app/engine/soft_objective.py` (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`; gated by `enable_soft_constraint_scoring`). Rules without a registered objective builder are skipped but still rank instances post-hoc. For a seeded instance whose run is `variation="minimize-teacher-gaps"` or `"minimize-student-gaps"`, `_build_variation_terms` additionally folds a small span term into the objective (§5.3) so the re-roll actively packs the teacher's / group's sessions instead of being a pure random seed. All secondary weights stay far below `PLACEMENT_WEIGHT`, so a soft preference or variation can only shape *which* equal-cardinality solution is returned — never trade away a placed session.
 - **`EXAM_DATE_SEPARATION` is modelled as a relational CP-SAT rule** (not just a domain-pruning rule): its registry validator reads committed slots, so it cannot fire during static pruning and would otherwise only shed placements in the final pass (letting CP-SAT pack a group's exams onto one day). `_add_exam_separation` adds, per group, "at most one exam per calendar date" plus "no exams on two dates closer than `min_days`", using the materialized dates from `term_start` (inert without an anchor).
 - A final pass through the full checker (with the populated committed_slots) catches committed-dependent registry rules like `MAX_CONSECUTIVE_SAME_TEACHER` and `TEACHER_YEAR_RESTRICTION` that CP-SAT does not model. Such rules can only *drop* a placement; they cannot produce an invalid one.
 - **Hard timeout: `ORToolsSolver.max_time_seconds = 5.0`** (class constant). There is **no `solver_timeout_seconds` profile parameter** — the 30-second value in older docs is illustrative only.
@@ -884,7 +887,7 @@ Known limitations: `_check_cross_dept_cap` still counts committed *slots* rather
 
 ### 5.3 Multiple Instances Strategy
 
-**Implemented (seeded diversity filter).** Solvers are deterministic — re-running with no seed produces the same timetable. To generate meaningfully different candidates the scheduler treats **instance #1 as a deterministic baseline** (seed = `None`) and generates each later instance with a different seed:
+**Implemented (objective-based variation on top of the seeded diversity filter).** Solvers are deterministic — re-running with no seed produces the same timetable. To generate meaningfully different candidates the scheduler treats **instance #1 as a deterministic baseline** (seed = `None`) and generates each later instance with a different seed:
 
 - **Greedy** randomises the search order of `working_days`, `slot_times`, and `rooms` via `random.Random(seed).shuffle(...)`.
 - **OR-Tools** sets `solver.parameters.random_seed = self.seed` and enables `randomize_search = True`.
@@ -896,7 +899,15 @@ The diversity filter compares fingerprints. For each instance:
 3. Accept an attempt only if its symmetric-difference ("Hamming-style" distance) with every already-accepted signature is at least `_DIVERSITY_MIN_DISTANCE = 1` (i.e. at least one placement must differ).
 4. If no attempt clears the threshold, the **last attempt** is kept (so a tiny problem still produces a result rather than an empty or duplicated instance).
 
-> **Objective-based variation** (Instance #1 = best soft score, #2 = minimise teacher gaps, #3 = minimise student gaps, #4+ = random restarts) is **NOT implemented** — only the seed-driven diversity filter is. This is tracked as a future refinement in `plan.md`.
+**Objective-based variation.** The `POST /generate` request body accepts a `variation` field (`app/models/generation.py::VariationMode`, persisted on the run row so the async worker reapplies it). Four strategies:
+
+- **`"random"` (default)** — the seed-only behaviour above. Instance #1 is the deterministic baseline; instances #2+ are re-seeded re-rolls kept if they clear the Hamming gate.
+- **`"best"`** — every instance is seeded (`i * 100 + attempt`, including instance #1) and the scheduler keeps the **highest-scoring distinct attempt** (soft-score `max`; ties break to the first). This is how a run can ask for "the best timetable" as instance #1 instead of the plain baseline. Without any active soft rule it degrades to keeping the first attempt, since there is nothing to score.
+- **`"minimize-teacher-gaps"`** / **`"minimize-student-gaps"`** — the seeded re-rolls pursue a gap-minimising criterion so later candidates are not just random restarts:
+  - **Greedy** changes its *search order*: `_build_sessions` groups each peer's (faculty / group) sessions together, and `_criterion_scan` orders the (day, slot) scan so days where the peer already teaches come first and slots beside its existing placements come first — the greedy fills around what is there instead of restarting at the earliest free slot. Every (day, slot) is still considered, so the criterion can never make a session unschedulable.
+  - **OR-Tools** adds a small **span objective** (via `_build_variation_terms`, §5.2): for every (peer, day) with ≥2 placements it subtracts `last - first + 1`, pushing the solver to pack the peer's sessions into contiguous slots. The term only exists for seeded instances (seed ≠ `None`).
+
+In every non-`"best"` strategy, instance #1 stays the deterministic baseline; only the seeded instances are reshaped. `app/engine/scorer.py` and `app/engine/soft_objective.py` both ship the gap scorers/builders under `MINIMIZE_STUDENT_FREE_SLOTS` and `MINIMIZE_TEACHER_FREE_SLOTS` (§8.7).
 
 ### 5.4 Exam scheduling (`EXAM_DATE_SEPARATION` + exam mode)
 
@@ -1140,6 +1151,7 @@ Today's `ProfileScope` enum only has `DEPARTMENT | YEAR | DIVISION` (see §6.1).
 | `solver_timeout_seconds`     | ❌ ignored — `ORToolsSolver.max_time_seconds = 5.0` is a class constant. The router does not pass a request-side override. |
 | `diversity_threshold`        | ❌ ignored — `_DIVERSITY_MIN_DISTANCE = 1` is a module constant in `scheduler.py`. |
 | `instances_to_generate`      | ✅ read from `POST /generate` request body (`instances_per_generation`), not from `profile_parameters`. |
+| `variation`                  | ✅ read from `POST /generate` request body (`variation`), not from `profile_parameters` (§5.3). |
 
 ### 8.7 Soft-Constraint Scoring
 
@@ -1147,8 +1159,11 @@ Two soft scorers are implemented (`app/engine/scorer.py` — `SOFT_CONSTRAINT_RE
 
 - `TEACHER_PREFERS_MORNING` — weights morning slots over afternoon slots; `config_json.boundary_slot` (default 4), optional `faculty_id`.
 - `MINIMIZE_STUDENT_FREE_SLOTS` — penalises gaps between a group's first and last scheduled slot in a day.
+- `MINIMIZE_TEACHER_FREE_SLOTS` — teacher-side mirror: penalises gaps between a teacher's first and last scheduled slot in a day.
 
-Other soft candidates from the registry (`AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD`) are **catalogued** but their scorers/objective builders are not registered — enabling them in `constraint_rules` has no effect on `instance.soft_score`.
+The two gap rules double as the objective terms behind the `variation="minimize-teacher-gaps"` / `"minimize-student-gaps"` strategies (§5.3): a run with those variations folds the matching span term into the OR-Tools objective even when the profile defines no such soft rule.
+
+Other soft candidates from the registry (`AVOID_CONSECUTIVE_SAME_SUBJECT`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD`) are **catalogued** but their scorers/objective builders are not registered — enabling them in `constraint_rules` has no effect on `instance.soft_score`.
 
 ### 8.8 Calendar-date anchoring (`term_start`)
 
@@ -1176,8 +1191,8 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `EXAM_DATE_SEPARATION`).
 - **Exam scheduling** — `session_type: EXAM` profile mode turns each assignment into one `SessionType.EXAM` session; `EXAM_DATE_SEPARATION` spaces a group's exams by `min_days` (relational CP-SAT rule in OR-Tools); the published-conflict loader exempts the examing groups' own class slots so one branch can exam while others teach (§5.4).
 - **Multi-slot lab sessions** — `CONTIGUOUS_LAB_SLOTS` registry rule: `_build_sessions` expands governed lab subjects into contiguous blocks, the checker double-booking/load/reservation checks are block-aware via `SlotCandidate.block_length`, and OR-Tools models blocks per start slot with per-sub-slot exclusivity (§5.2).
-- **Soft scoring** — `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS` registered as post-hoc scorers **and** as CP-SAT objective builders (`soft_objective.py`); `AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD` catalogued only.
-- **Diversity filter** — seeded re-rolls, `_DIVERSITY_ATTEMPTS=6`, `_DIVERSITY_MIN_DISTANCE=1`.
+- **Soft scoring** — `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS` registered as post-hoc scorers **and** as CP-SAT objective builders (`soft_objective.py`); `AVOID_CONSECUTIVE_SAME_SUBJECT`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD` catalogued only.
+- **Diversity filter + objective-based variation** — seeded re-rolls (`_DIVERSITY_ATTEMPTS=6`, `_DIVERSITY_MIN_DISTANCE=1`), with a per-run `variation` strategy (`random` / `best` / `minimize-teacher-gaps` / `minimize-student-gaps`, §5.3).
 - **Instance lifecycle** — `DRAFT → SELECTED → PUBLISHED → ARCHIVED`; publishing auto-archives the previous `PUBLISHED` sibling of the same generation.
 - **Manual override** — `PATCH /instances/{instance_id}/slots/{slot_id}` sets `is_manual_override=true`, writes `override_reason`, and re-validates the new position with the full constraint checker (409 on conflict).
 - **Cross-timetable safety** — `Scheduler._load_published_conflicts()` + `ConstraintChecker._check_published_conflicts()` (per-resource split sets).
@@ -1214,8 +1229,8 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 1. **WebSocket progress push for generation** — the async worker (§7.1) already exposes PENDING/RUNNING/COMPLETED; push state changes instead of polling.
 2. **Wire `profile_parameters` to the engine** — most of §8 is in the table but not in the solver.
-3. ~~**Fold soft scoring into the CP-SAT objective**~~ — ✅ done (`soft_objective.py`; `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`).
-4. **Object-based instance variation** — replace seed-only diversity with "best / minimise teacher gaps / minimise student gaps / random".
+3. ~~**Fold soft scoring into the CP-SAT objective**~~ — ✅ done (`soft_objective.py`; `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`).
+4. ~~**Object-based instance variation**~~ — ✅ done (`variation` field on `POST /generate`; `random` / `best` / `minimize-teacher-gaps` / `minimize-student-gaps`, §5.3).
 5. **Frontend** — Next.js SPA using the API documented in §4.2.
 6. **Notification service** — emails + push on publish.
 7. **RBAC** — once a teacher/student app needs read scoping.

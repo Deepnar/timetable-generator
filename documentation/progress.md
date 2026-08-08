@@ -2,7 +2,7 @@
 
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
-**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, opt-in async generation (Celery/Redis); a frontend is planned.
+**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, objective-based instance variation (best / minimize gaps), opt-in async generation (Celery/Redis); a frontend is planned.
 **Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, PostgreSQL database via Docker, and will soon integrate a frontend interface for college admins.
 
 ---
@@ -95,7 +95,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Soft Constraint Scoring** — `app/engine/scorer.py` registry weights each instance's soft constraints into `instance.soft_score` / `generation.score_best_instance` (gated by `enable_soft_constraint_scoring`). Ships `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`.
 - [x] **OR-Tools CP-SAT Solver** — `app/engine/solvers/or_tools_solver.py`, selectable via `algorithm="OR_TOOLS"`. Domain-prunes with the shared `ConstraintChecker` and adds relational CP-SAT constraints; greedy remains the default preview solver.
 - [x] **Soft objective in CP-SAT** — `app/engine/soft_objective.py` (`SOFT_OBJECTIVE_REGISTRY`) folds active soft rules into the OR-Tools objective as weighted linear terms; placements stay strictly primary via `PLACEMENT_WEIGHT=1000.0`. Ships builders for `TEACHER_PREFERS_MORNING` and `MINIMIZE_STUDENT_FREE_SLOTS`; unscored rules still rank instances post-hoc.
-- [x] **Diversity Filter** — instance #1 is a deterministic baseline; later instances are re-seeded (greedy shuffles search order, OR-Tools varies `random_seed`) and accepted only if their Hamming distance from earlier instances clears a threshold (retries otherwise). Fixes the "3 identical instances" problem.
+- [x] **Diversity Filter + objective-based variation** — instance #1 is a deterministic baseline; later instances are re-seeded (greedy shuffles search order, OR-Tools varies `random_seed`) and accepted only if their Hamming distance from earlier instances clears a threshold (retries otherwise). Fixes the "3 identical instances" problem. `POST /generate` now also accepts `variation` (`random` / `best` / `minimize-teacher-gaps` / `minimize-student-gaps`): `"best"` seeds instance #1 and keeps the highest-scoring distinct attempt; the gap modes reshape the seeded re-rolls (greedy reorders its search around the peer's placements via `_criterion_scan`, OR-Tools adds a span term to the CP-SAT objective). See architecture §5.3.
 
 ### 🟡 Exports, Notifications & Polish
 - [x] **Filtered Exports** — PDF/CSV/iCal accept `group_id` / `faculty_id` / `year` / `department` via a shared `get_filtered_slots` helper (`/export/instances/{id}/{pdf,csv,ical}`).
