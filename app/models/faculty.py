@@ -32,5 +32,5 @@ class FacultyAvailability(Base):
     slot_end: Mapped[time | None] = mapped_column(nullable=True)
     availability : Mapped[AvailabilityType] = mapped_column(Enum(AvailabilityType), nullable=False)
     reason : Mapped[str | None] = mapped_column(String(255), nullable=True)
-    effective_from: Mapped[date | None] = mapped_column(Date, nullable=False)
-    effective_to: Mapped[date | None] = mapped_column(Date, nullable=False)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
