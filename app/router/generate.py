@@ -41,7 +41,8 @@ def trigger_generation(
             instances_requested=request.instances_requested,
             algorithm=request.algorithm,
             triggered_by=current_admin.id,
-            combination_id=request.combination_id
+            combination_id=request.combination_id,
+            variation=request.variation
         )
         return generation
     except ValueError as e:
@@ -77,7 +78,8 @@ def _start_async_generation(
         instances_requested=request.instances_requested,
         algorithm=request.algorithm,
         triggered_by=current_admin.id,
-        combination_id=request.combination_id
+        combination_id=request.combination_id,
+        variation=request.variation
     )
     payload = GenerationResponse.model_validate(generation).model_dump(mode="json")
     scheduler.db.commit()

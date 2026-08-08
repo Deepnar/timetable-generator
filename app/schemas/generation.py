@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from app.models.generation import (TimetableType, GenerationStatus,
-                                    InstanceStatus, SessionType, AlgorithmType)
+                                    InstanceStatus, SessionType, AlgorithmType,
+                                    VariationMode)
 from typing import Optional
 from datetime import datetime, date, time
 
@@ -12,6 +13,7 @@ class GenerationRequest(BaseModel):
     timetable_type: TimetableType
     instances_requested: int = 3
     algorithm: AlgorithmType = AlgorithmType.GREEDY
+    variation: VariationMode = VariationMode.RANDOM
 
 class GenerationResponse(BaseModel):
     id: int
@@ -22,6 +24,7 @@ class GenerationResponse(BaseModel):
     timetable_type: TimetableType
     generation_status: GenerationStatus
     algorithm_used: AlgorithmType
+    variation: VariationMode
     instances_requested: int
     instances_produced: int
     score_best_instance: Optional[float] = None
