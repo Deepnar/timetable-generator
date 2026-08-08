@@ -29,7 +29,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - ~~**Room blackout check is effectively dead**~~ — ✅ FIXED: `room_blackouts` now supports recurring **weekday** blackouts (`day_of_week`), which the checker enforces against the recurring templates. Date-specific blackouts still await calendar-date materialization.
 - ~~**Faculty availability date-range ignored**~~ — ✅ FIXED: `effective_from`/`effective_to` are now nullable (migration `e9f4a2b6d8c0`) so timeless windows can be created via CRUD/CSV, and the checker consults them against each slot's materialized date. The solver anchors the weekly template with the new **`term_start`** profile parameter (see architecture §8.8) and stamps `TimetableSlot.slot_date`; a date-bounded window only blocks the week it covers, and a window with no bounds stays timeless.
 - ~~**CSV import is not atomic**~~ — ✅ FIXED: `/import/{rooms,faculty,groups,subjects}` are now **all-or-nothing**. Every row is validated up front (required fields, duplicates within the file AND against the DB); any invalid row rejects the whole upload with `422` and `inserted=0`, so the DB never ends up holding rows the response didn't report. `import_rooms` also now requires a non-empty `room_code`.
-- **Profile combinations are never resolved** — `/profiles/combine` stores members, but `Scheduler`/`GreedySolver` only read a single `profile_id`; generating from a `combination_id` fails. (Loosely Phase 4, but the endpoint currently misleads.) → **NEXT TASK** (see `documentation/HANDOFF.md`).
+- ~~**Profile combinations are never resolved**~~ — ✅ FIXED: `ProfileResolver` (`app/engine/profile_resolver.py`) merges combination members into an effective profile before solving — resources unioned (de-dup by `(resource_type, resource_id)`), parameters resolved with the **highest-weight member winning collisions**, hard/soft constraints merged from every member plus globals. `POST /generate` with `combination_id` now schedules all members' resources; the generation row stores `combination_id` with `profile_id=NULL`. `POST /profiles/combine` validates member existence and weights length; slot-override re-validation re-resolves the combination too. See architecture §6.2.
 - ~~**`GET /constraints/types` is a hardcoded string list**~~ — ✅ FIXED: the endpoint now derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the `ConstraintType` enum), so discovery can never drift from what the Create schemas accept.
 - **Read-route auth is inconsistent** — `/settings` GET requires a token, most other GETs don't. (Direction is a product decision — see `documentation/HANDOFF.md`.)
 
@@ -56,7 +56,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 ### Profiles & Constraints
 - [x] **Profile System**: Create/edit profiles, link resources, set parameters.
-- [x] **Profile Combinations**: Merge multiple profiles, preview conflict resolution.
+- [x] **Profile Combinations**: Merge multiple profiles into an effective profile (`app/engine/profile_resolver.py`); resolution happens automatically at generation time — resources unioned, parameters weighted (highest weight wins on collisions), hard/soft constraints merged from every member plus globals (§6.2).
 - [x] **Constraint CRUD**: Hard and soft constraint tables, weight management, profile scoping.
 
 ### Scheduling Engine & Data Mapping (Phase 1)

@@ -244,10 +244,10 @@ CREATE TABLE profile_resources (
     resource_id   INTEGER NOT NULL
 );
 
--- PROFILE COMBINATIONS (profiles merged together for a run — currently
--- stored only; the scheduler does not yet resolve combination members;
--- generation accepts `combination_id` and stores it, but still uses one
--- `profile_id`. See §5.1 step 1.)
+-- PROFILE COMBINATIONS (profiles merged together for a run)
+-- `combination_id` on the generation row selects a combination; the scheduler
+-- resolves the members into one effective profile before solving (resources
+-- unioned, parameters weighted, constraints merged — see §6.2).
 CREATE TABLE profile_combinations (
     id          SERIAL PRIMARY KEY,
     name        VARCHAR(150),
@@ -389,7 +389,7 @@ When **no** soft rules apply (none defined for the profile, or none registered),
 CREATE TABLE timetable_generations (
     id                  SERIAL PRIMARY KEY,
     profile_id          INTEGER REFERENCES timetable_profiles(id),
-    combination_id      INTEGER REFERENCES profile_combinations(id),   -- stored, but not yet resolved
+    combination_id      INTEGER REFERENCES profile_combinations(id),   -- resolved into an effective profile (§6.2)
     academic_year       VARCHAR(10) NOT NULL,
     semester            SMALLINT,
     timetable_type      timetabletype NOT NULL,                       -- CLASS | FACULTY | ROOM | EVENT | EXAM | IP | CUSTOM
@@ -521,6 +521,7 @@ timetable-api/
 │   └── subjects.py                  # /subjects CRUD
 ├── engine/
 │   ├── scheduler.py                 # Scheduler.run() orchestrator
+│   ├── profile_resolver.py          # ResolvedProfile + ProfileResolver (single/combination merge)
 │   ├── constraint_checker.py        # ConstraintChecker, SlotCandidate, ConstraintViolation
 │   ├── constraint_registry.py       # HARD_CONSTRAINT_REGISTRY + @hard_rule
 │   ├── scorer.py                    # SOFT_CONSTRAINT_REGISTRY + score_instance()
@@ -641,9 +642,10 @@ POST   /profiles/{id}/parameters       Upsert by (profile_id, param_key)
 DELETE /profiles/{id}/parameters/{param_key}    Remove a parameter
 
 POST   /profiles/combine               Create a profile_combination + members
-                                        # NOTE: combination rows are stored but the scheduler
-                                        # does not yet resolve them — see §5.1 step 1.
-                                        # There is no GET /profiles/combinations list and no
+                                        # NOTE: members are resolved into an effective
+                                        # profile automatically at generation time — see
+                                        # §6.2 for the merge semantics. There is no
+                                        # GET /profiles/combinations list and no
                                         # /profiles/combinations/{id}/resolve endpoint yet;
                                         # those are tracked in plan.md.
 ```
@@ -672,7 +674,7 @@ GET    /constraints/types              Discovery: hard + soft type catalogs
 ```
 POST   /generate                       Trigger a generation run (synchronous)
   Body: {
-    profile_id OR combination_id,                  # combination_id is stored but not yet resolved
+    profile_id OR combination_id,                  # combination merges members into an effective profile (§6.2)
     timetable_type,
     academic_year,
     semester,
@@ -760,7 +762,7 @@ GET    /audit                          List most-recent-first audit entries
 
 Step-by-step:
 
-1. **Load Profile.** `SELECT * FROM timetable_profiles WHERE id=? AND is_active=true`. Then load `profile_resources`, `profile_parameters`, active `hard_constraints` and (if scoring is enabled) active `soft_constraints`. **`combination_id` (if provided) is STORED on the generation row but `profile_combination_members` are NOT YET merged** — the scheduler always operates on a single `profile_id`. Combination resolution is tracked in `plan.md`.
+1. **Resolve the input contract.** `ProfileResolver.resolve(profile_id, combination_id)` (`app/engine/profile_resolver.py`) produces a single :class:`ResolvedProfile` — for a plain run, exactly that profile's data; for a combination, the merged union of every member profile (see §6.2 for the merge semantics). The generation row stores `profile_id` (a single run) or `combination_id` (a combination) exactly as the caller asked, while the solver consumes the merged view. A missing or inactive profile / combination member is rejected up front.
 2. **Cross-Timetable Conflict Loader.** `Scheduler._load_published_conflicts()` selects every `TimetableSlot` belonging to every `TimetableInstance` with `status=PUBLISHED` and builds per-resource reserved sets:
    ```
    {"faculty": {(faculty_id, day_of_week, slot_number), ...},
@@ -877,21 +879,18 @@ CUSTOM      →  User-defined combination                   (catalog only — no
 
 `DEPARTMENT`, `YEAR`, and `DIVISION` are the scopes the scheduler actually understands — they affect which `profile_resources` rows are loaded into the run. `EVENT`, `EXAM`, and `CUSTOM` are valid enum values for input validation but **share the same solver/registry path** as `DEPARTMENT` today; date-bound types (exam/event) reuse the primitive set as a regular `DEPARTMENT` profile with their `profile_resources` filtered to the relevant subset. There is no calendar-date materialisation on `timetable_slots` yet, so an exam timetable is just a weekly recurring grid.
 
-### 6.2 Combining Profiles — *PARTIAL: tables exist, scheduler ignores `combination_id`*
+### 6.2 Combining Profiles — *implemented (resolution happens at generation time)*
 
-The `profile_combinations` and `profile_combination_members` tables **do exist** (migration `e47081302c4e`) and `TimetableGeneration.combination_id` carries a foreign key to `profile_combinations.id`. However:
+The `profile_combinations` and `profile_combination_members` tables exist (migration `e47081302c4e`), `TimetableGeneration.combination_id` carries a foreign key to `profile_combinations.id`, and `POST /profiles/combine` creates the member rows (validating that every member profile exists, and that `weights` matches the number of members). When `POST /generate` is called with a `combination_id`, `ProfileResolver` (`app/engine/profile_resolver.py`) merges the members into one **`ResolvedProfile`** that the solvers consume exactly like a single profile. Merge semantics:
 
-- The **scheduler does not read `combination_id`**. `Scheduler.run()` only expands the single `TimetableProfile` referenced by `TimetableGeneration.profile_id` — the combination members are not merged, weights are not consulted, and no per-rule resolution happens.
-- There is **no `/profiles/combinations` router** (no `GET / POST / PUT / DELETE` for combinations) — the table is reachable only via direct SQL.
-- `profile_combination_members.weight` is `DECIMAL(3,2)` (e.g., 0.60 for a 60/40 split) — a future use will probably use it for parameter merging.
+1. **Resources** — union across all members, de-duplicated by `(resource_type, resource_id)`. A room/faculty/group/subject listed by two members is attached once.
+2. **Parameters** — on a `param_key` collision the member with the **highest `weight` wins**; ties break on the lower profile id so the merge is deterministic regardless of row order. The winner's value *and* `param_type` (its cast form) is what the solver reads.
+3. **Hard constraints** — union of the global rows (`profile_id IS NULL`) plus every member's rows, de-duplicated by `(constraint_type, config_json)` so a rule shared by two members is not applied twice.
+4. **Soft constraints** — same union, de-duplicated by `(constraint_type, config_json)` with the **highest weight kept** on collisions (a repeated preference takes the most-important weight).
 
-If a future "Combine" feature is added, expected flows:
+The merged profile is computed **in memory per run** — no synthetic `timetable_profiles` row is created, so member edits are always reflected on the next generation and the profiles table stays clean. A generation row created from a combination records `profile_id = NULL` and `combination_id = <id>`. The slot-override re-validation (`_revalidate_slot`) re-resolves the same combination (with `require_active=False`, so an override still works if a member was archived after generation).
 
-- A `POST /profiles/combinations` would create the combination + member rows.
-- Conflict resolution would be one of:
-  1. **Higher-weight member wins** (weight set in `profile_combination_members`)
-  2. **Restrictive-merge** (e.g., for `max_daily_load_teacher`, take the minimum across members)
-  3. **Admin-prompted** via `POST /profiles/combinations/{id}/resolve` (does not exist today)
+There is still **no `/profiles/combinations` router** — no list endpoint and no explicit `POST /profiles/combinations/{id}/resolve`; resolution is automatic inside the scheduler. Those are tracked in `plan.md`.
 
 ### 6.3 Profile Shift — *NOT IMPLEMENTED*
 
@@ -1118,6 +1117,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **Schema (22 tables)** — Alembic chain `aeaadc4f2374 → … → e9f4a2b6d8c0`; latest migration is `e9f4a2b6d8c0` (faculty availability dates nullable).
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — synchronous `POST /generate` with greedy (default) and OR-Tools CP-SAT.
+- **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2).
 - **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`).
 - **Soft scoring** — `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS` registered as post-hoc scorers **and** as CP-SAT objective builders (`soft_objective.py`); `AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD` catalogued only.
 - **Diversity filter** — seeded re-rolls, `_DIVERSITY_ATTEMPTS=6`, `_DIVERSITY_MIN_DISTANCE=1`.
@@ -1136,7 +1136,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 ### 🟡 Partial — *working, but with documented gaps*
 
 - **Profile scope** — `ScopeType` enum has six values (DEPARTMENT/YEAR/DIVISION/EVENT/EXAM/CUSTOM) but only DEPARTMENT/YEAR/DIVISION have distinct solver branches; EVENT/EXAM/CUSTOM run through the same DEPARTMENT path.
-- **Profile combine** — `profile_combinations` and `profile_combination_members` tables exist and `TimetableGeneration.combination_id` is a real FK, but the scheduler ignores `combination_id` and there is no `/profiles/combinations` router.
+- **Profile combine** — resolution is implemented (`app/engine/profile_resolver.py`, §6.2) and `TimetableGeneration.combination_id` is honoured by `Scheduler.run()`, but there is still no `/profiles/combinations` router (no list endpoint / no explicit resolve endpoint).
 - **Manual override** — re-validated by the constraint checker, but there is still no `DELETE /instances/{id}/slots/{slot_id}` and no `GET /instances/{id}/conflicts`.
 - **Export JSON** — there is no `/generate/export/json` route; consumers fetch slots via `GET /instances/{id}/slots` instead.
 - **Soft scoring in CP-SAT** — soft preferences are folded into the OR-Tools objective (`soft_objective.py`), but only the two shipped rules have builders; greedy still ignores soft preferences during placement (post-hoc scoring only).
@@ -1145,7 +1145,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 ### 🔴 Not implemented (planned, but no code)
 
 - **Async / Celery** — `POST /generate` is synchronous.
-- **Profile combine resolve** — `POST /profiles/combinations/{id}/resolve` does not exist.
+- **Profile combine manual resolve endpoint** — `POST /profiles/combinations/{id}/resolve` does not exist; resolution happens automatically inside the scheduler instead.
 - **Profile shift** — front-end is on its own.
 - **RBAC** — single-role `Admin` model; HOD/Teacher/Student users don't exist.
 - **Notification on publish** — no email / WebSocket / SSE.
