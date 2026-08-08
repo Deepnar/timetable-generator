@@ -353,6 +353,7 @@ rule can be added without a schema migration.
 | `TEACHER_YEAR_RESTRICTION`        | `faculty_id`, `allowed_years`                               | `_teacher_year_restriction`        |
 | `LAB_BATCH_ROTATION`              | `group_days: {"<group_id>": [day_of_week, ...]}`            | `_lab_batch_rotation`              |
 | `HOLIDAY_CALENDAR`                | `holidays: ["YYYY-MM-DD", ...]`                             | `_holiday_calendar`                |
+| `CONTIGUOUS_LAB_SLOTS`            | `block_lengths: {"<subject_id>": int}`, `default_block_length?: int` | `_contiguous_lab_slots`  |
 
 **Soft (scorers in `app/engine/scorer.py`; CP-SAT objective builders in `app/engine/soft_objective.py`):**
 
@@ -368,7 +369,6 @@ rule can be added without a schema migration.
 **Not implemented (catalogued but with no validator / scorer):**
 
 - `EXAM_DATE_SEPARATION` (hard) — listed historically; no validator.
-- `CONTIGUOUS_LAB_SLOTS` (hard) — listed historically; no validator. Today every session occupies exactly one slot; multi-slot labs are a future lever (`plan.md`).
 - `TEACHER_SUBJECT_MATCH` (hard) — implicit, because the solver only generates sessions from `subject_assignments` rows, which already bind a faculty to a subject/group.
 
 > The catalog (`ConstraintType` enum) is the single source of truth for what the API surface accepts in `GET /constraints/types` — the endpoint derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the enum in `app/models/constraints.py`), so a new enum member can never drift from discovery.
@@ -786,8 +786,8 @@ Step-by-step:
 
 - Industry-grade constraint satisfaction solver; select it with `algorithm="OR_TOOLS"` on `POST /generate` (greedy remains the default). Installed via `uv add ortools`.
 - `ORToolsSolver` subclasses `GreedySolver` and overrides `solve()`, reusing the same session-building helpers. Constraint handling is split to match the `ConstraintChecker`:
-  - **Per-candidate ("static") rules** — capacity, room type, recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
-  - **Relational rules** — no teacher/room/group double-book, one-subject-per-group-per-day, per-faculty daily/weekly load — are added as CP-SAT constraints (`model.Add(sum(vs) <= 1)`).
+  - **Per-candidate ("static") rules** — capacity, room type, recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `CONTIGUOUS_LAB_SLOTS`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
+  - **Relational rules** — no teacher/room/group double-book, one-subject-per-group-per-day, per-faculty daily/weekly load — are added as CP-SAT constraints (`model.Add(sum(vs) <= 1)`). A block session registers its variable in the double-book buckets for *every* slot it occupies, and contributes its full length to the load buckets, so CP-SAT treats a block as a contiguous booking.
 - Objective: `model.Maximize(PLACEMENT_WEIGHT * sum(x.values()) + Σ soft_terms)` — maximise placed sessions first (`PLACEMENT_WEIGHT = 1000.0`), then optimise the active soft preferences via `app/engine/soft_objective.py` (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`; gated by `enable_soft_constraint_scoring`). Rules without a registered objective builder are skipped but still rank instances post-hoc.
 - A final pass through the full checker (with the populated committed_slots) catches committed-dependent registry rules like `MAX_CONSECUTIVE_SAME_TEACHER` and `TEACHER_YEAR_RESTRICTION` that CP-SAT does not model. Such rules can only *drop* a placement; they cannot produce an invalid one.
 - **Hard timeout: `ORToolsSolver.max_time_seconds = 5.0`** (class constant). There is **no `solver_timeout_seconds` profile parameter** — the 30-second value in older docs is illustrative only.
@@ -844,6 +844,29 @@ status = solver.Solve(model)
 **Optional: Genetic Algorithm** — *NOT implemented*.
 
 The doc previously listed a third option ("Genetic Algorithm") with a `genetic_solver.py` file; **there is no such file** and `AlgorithmType` only has `GREEDY` and `OR_TOOLS`. If added later it will live in `app/engine/solvers/genetic_solver.py`.
+
+#### Multi-slot lab sessions (`CONTIGUOUS_LAB_SLOTS`)
+
+Most sessions occupy exactly one slot, but a lab practical is a *block* — 2+ consecutive slots in the same room, teacher, and group. The rule's `config_json` shape is:
+
+```json
+{
+  "block_lengths": {"<subject_id>": 3, "<subject_id>": 2},
+  "default_block_length": 3
+}
+```
+
+`block_lengths` pins specific lab subjects to a block size (JSON keys arrive as strings; int ids are matched too); `default_block_length` applies to every lab subject not listed, so one row can block an entire department's labs.
+
+How it works end to end:
+
+1. **Expansion** — `GreedySolver._lab_block_lengths()` reads the rule(s) off the resolved profile into a `subject_id -> length` map. `_build_sessions()` splits a governed lab assignment's `weekly_hours` into full blocks (`weekly_hours // length`) plus a single-slot remainder, so e.g. 4 hours at length 3 becomes one 3-slot block + one single session. A session carries `block_length` (default 1).
+2. **Placement** — a block is a candidate that spans `slot_number .. slot_number + block_length - 1`; its `start_time`/`end_time` cover the whole span. The greedy solver only tries start slots that leave room in the day (`start + length - 1 <= slots_per_day`) and commits one `TimetableSlot` per sub-slot.
+3. **Checking** — `SlotCandidate.block_length` + the `slot_numbers` range make the checker block-aware: the teacher/room/group double-book checks and the cross-timetable reservation check fire if *any* sub-slot collides; `FACULTY_MAX_HOURS_PER_DAY/WEEK` count the block's full length. Time-window rules (unavailability, room blackouts) already overlap-check the whole span. `SAME_SUBJECT_SAME_DAY` naturally allows one block per subject per group per day.
+4. **Registry rules** — `SUBJECT_TIME_PREFERENCE` requires the block's *last* slot to respect `max_slot` (and its first to respect `min_slot`); `MAX_CONSECUTIVE_SAME_TEACHER` counts the block as one contiguous run; `_contiguous_lab_slots` itself is a consistency guard that a block candidate matches its configured size. `configured_block_length()` (exported from `app/engine/constraint_registry.py`) is the single resolver shared by the expansion and the validator.
+5. **OR-Tools** — a block session gets variables keyed by its *start* slot (`x[si, day, start, room]`, domain-pruned by the static checker with the block's full span). It registers in the double-book buckets for every sub-slot and `block_length` times in the load buckets; the final committed-aware pass validates the whole block and expands it into sub-slots.
+
+Known limitations: `_check_cross_dept_cap` still counts committed *slots* rather than sessions, so a committed block contributes its length to the per-day cross-dept tally; the soft CP-SAT objective builders (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`) key placements by a block's start slot only.
 
 ### 5.3 Multiple Instances Strategy
 
@@ -1048,6 +1071,7 @@ These are not profile parameters in the key/value sense — they are constraints
 | `TEACHER_YEAR_RESTRICTION`               | ✅      | `parameters.allowed_years` |
 | `LAB_BATCH_ROTATION`                     | ✅      | splits an assignment into two batches |
 | `HOLIDAY_CALENDAR`                       | ✅      | `parameters.holidays` — list of ISO dates; blocks matching `slot_date` (§8.8) |
+| `CONTIGUOUS_LAB_SLOTS`                   | ✅      | `block_lengths` / `default_block_length` — runs governed lab subjects as multi-slot blocks (§5.2) |
 | `SAME_SUBJECT_SAME_DAY`                  | ✅      | structural rule, no parameters |
 | `CROSS_DEPT_DAILY_CAP`                   | ✅      | `parameters.max_per_day` (default in `CollegeSettings.config_json["max_cross_dept_per_day"]`) |
 | `NO_CROSS_TIMETABLE_TEACHER/ROOM/GROUP_CONFLICT` | ✅ | structural rule, no parameters |
@@ -1121,6 +1145,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **Generation** — synchronous `POST /generate` with greedy (default) and OR-Tools CP-SAT.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2).
 - **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`).
+- **Multi-slot lab sessions** — `CONTIGUOUS_LAB_SLOTS` registry rule: `_build_sessions` expands governed lab subjects into contiguous blocks, the checker double-booking/load/reservation checks are block-aware via `SlotCandidate.block_length`, and OR-Tools models blocks per start slot with per-sub-slot exclusivity (§5.2).
 - **Soft scoring** — `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS` registered as post-hoc scorers **and** as CP-SAT objective builders (`soft_objective.py`); `AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD` catalogued only.
 - **Diversity filter** — seeded re-rolls, `_DIVERSITY_ATTEMPTS=6`, `_DIVERSITY_MIN_DISTANCE=1`.
 - **Instance lifecycle** — `DRAFT → SELECTED → PUBLISHED → ARCHIVED`; publishing auto-archives the previous `PUBLISHED` sibling of the same generation.
