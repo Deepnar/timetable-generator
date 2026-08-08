@@ -11,14 +11,9 @@ which sessions are generated.
 import random
 from datetime import time, date, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
+from sqlalchemy import select
 
-from app.models.profiles import (
-    TimetableProfile,
-    ProfileResource,
-    ProfileParameter,
-    ResourceType,
-)
+from app.models.profiles import ResourceType
 from app.models.constraints import HardConstraint
 from app.models.rooms import Room, RoomType
 from app.models.faculty import Faculty
@@ -29,6 +24,7 @@ from app.models.generation import TimetableSlot, SessionType
 from app.models.settings import CollegeSettings
 from app.services.settings_service import get_settings
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
+from app.engine.profile_resolver import ResolvedProfile
 
 
 class SessionToSchedule:
@@ -55,10 +51,18 @@ class GreedySolver:
     """Most-constrained-first greedy placement."""
 
     def __init__(
-        self, db: Session, profile_id: int, instance_id: int, seed: int | None = None
+        self,
+        db: Session,
+        profile: ResolvedProfile,
+        instance_id: int,
+        seed: int | None = None,
     ):
         self.db = db
-        self.profile_id = profile_id
+        # The resolved profile is the solver's entire input contract — either a
+        # single profile or the merged view of a combination (see
+        # app/engine/profile_resolver.py). Nothing is read from the DB by id.
+        self.profile = profile
+        self.profile_id = profile.profile_id
         self.instance_id = instance_id
         # A seed randomises the search order so the scheduler can generate
         # genuinely different candidate instances (see the diversity filter).
@@ -68,30 +72,9 @@ class GreedySolver:
         # Populated by the scheduler with PUBLISHED reservations, keyed by
         # resource ("faculty" / "room" / "group") -> {(id, day, slot)}.
         self.reserved_conflicts: dict[str, set[tuple]] = {}
-        self.params: dict = {}
+        self.params: dict = profile.params
         self.settings: CollegeSettings = get_settings(db)
-        self._load_params()
         self._term_start: date | None = self._parse_term_start()
-
-    # ── param loading ────────────────────────────────────────
-    def _load_params(self) -> None:
-        rows = self.db.scalars(
-            select(ProfileParameter).where(
-                ProfileParameter.profile_id == self.profile_id
-            )
-        ).all()
-        for p in rows:
-            if p.param_type == "INT":
-                self.params[p.param_key] = int(p.param_value)
-            elif p.param_type == "FLOAT":
-                self.params[p.param_key] = float(p.param_value)
-            elif p.param_type == "BOOLEAN":
-                self.params[p.param_key] = p.param_value.lower() == "true"
-            elif p.param_type == "JSON":
-                import json
-                self.params[p.param_key] = json.loads(p.param_value)
-            else:
-                self.params[p.param_key] = p.param_value
 
     def _get_param(self, key: str, default):
         return self.params.get(key, default)
@@ -166,25 +149,11 @@ class GreedySolver:
         return [day_map[d] for d in working_days_param if d in day_map]
 
     def _get_profile_resources(self, resource_type: ResourceType) -> list[int]:
-        rows = self.db.scalars(
-            select(ProfileResource).where(
-                ProfileResource.profile_id == self.profile_id,
-                ProfileResource.resource_type == resource_type,
-            )
-        ).all()
-        return [r.resource_id for r in rows]
+        return self.profile.resource_ids(resource_type)
 
     def _load_hard_constraints(self) -> list[HardConstraint]:
-        """Active hard constraints for this profile plus any global ones."""
-        return self.db.scalars(
-            select(HardConstraint).where(
-                HardConstraint.is_active == True,
-                or_(
-                    HardConstraint.profile_id == self.profile_id,
-                    HardConstraint.profile_id.is_(None),
-                ),
-            )
-        ).all()
+        """Active hard rules for the resolved profile (global + per-member)."""
+        return list(self.profile.hard_constraints)
 
     # ── session expansion ────────────────────────────────────
     def _build_sessions(self) -> list[SessionToSchedule]:

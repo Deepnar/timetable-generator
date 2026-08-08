@@ -1,7 +1,8 @@
 """Orchestrates the full timetable generation run.
 
 Flow:
-1. Validate the profile exists.
+1. Resolve the input contract — a single profile or a merged combination —
+   into an effective profile (see ``app/engine/profile_resolver.py``).
 2. Create a ``TimetableGeneration`` record (status=PENDING).
 3. Load cross-timetable conflicts from any PUBLISHED instance.
 4. Run the solver N times for N candidate instances.
@@ -9,7 +10,7 @@ Flow:
 """
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
+from sqlalchemy import select
 
 from app.models.generation import (
     TimetableGeneration,
@@ -19,9 +20,8 @@ from app.models.generation import (
     InstanceStatus,
     AlgorithmType,
 )
-from app.models.profiles import TimetableProfile
-from app.models.constraints import SoftConstraint
 from app.services.settings_service import get_settings
+from app.engine.profile_resolver import ProfileResolver
 from app.engine.solvers.greedy_solver import GreedySolver
 from app.engine.scorer import score_instance, ScoringContext
 
@@ -39,7 +39,7 @@ class Scheduler:
 
     def run(
         self,
-        profile_id: int,
+        profile_id: int | None,
         timetable_type: str,
         academic_year: str,
         semester: int | None,
@@ -48,17 +48,14 @@ class Scheduler:
         triggered_by: int,
         combination_id: int | None = None,
     ) -> TimetableGeneration:
-        profile = self.db.scalars(
-            select(TimetableProfile).where(
-                TimetableProfile.id == profile_id,
-                TimetableProfile.is_active == True,
-            )
-        ).first()
-        if not profile:
-            raise ValueError(f"Profile {profile_id} not found or inactive")
+        # Resolve the input contract once: a single profile, or a combination
+        # merged into an effective profile (see app/engine/profile_resolver.py).
+        # The generation row keeps profile_id/combination_id as the user asked
+        # while the solver consumes the merged view.
+        resolved = ProfileResolver(self.db).resolve(profile_id, combination_id)
 
         generation = TimetableGeneration(
-            profile_id=profile_id,
+            profile_id=resolved.profile_id,
             combination_id=combination_id,
             academic_year=academic_year,
             semester=semester,
@@ -79,7 +76,7 @@ class Scheduler:
         # instance is scored so the admin can rank the candidates.
         settings = get_settings(self.db)
         soft_rules = (
-            self._load_soft_constraints(profile_id)
+            resolved.soft_constraints
             if settings.enable_soft_constraint_scoring
             else []
         )
@@ -111,7 +108,7 @@ class Scheduler:
                 # instances are seeded to diverge from it.
                 seed = None if i == 0 else i * 100 + attempt
                 solver = self._make_solver(
-                    algorithm, profile_id, instance.id, seed=seed
+                    algorithm, resolved, instance.id, seed=seed
                 )
                 solver.reserved_conflicts = reserved_conflicts
                 slots = solver.solve()
@@ -144,7 +141,7 @@ class Scheduler:
     def _make_solver(
         self,
         algorithm: AlgorithmType,
-        profile_id: int,
+        profile,
         instance_id: int,
         seed: int | None = None,
     ):
@@ -153,10 +150,10 @@ class Scheduler:
             # Lazy import so the heavy ortools dependency is only loaded when used.
             from app.engine.solvers.or_tools_solver import ORToolsSolver
             return ORToolsSolver(
-                db=self.db, profile_id=profile_id, instance_id=instance_id, seed=seed
+                db=self.db, profile=profile, instance_id=instance_id, seed=seed
             )
         return GreedySolver(
-            db=self.db, profile_id=profile_id, instance_id=instance_id, seed=seed
+            db=self.db, profile=profile, instance_id=instance_id, seed=seed
         )
 
     @staticmethod
@@ -171,18 +168,6 @@ class Scheduler:
     def _hamming(a: frozenset, b: frozenset) -> int:
         """Number of placements that differ between two instances."""
         return len(a ^ b)
-
-    def _load_soft_constraints(self, profile_id: int) -> list[SoftConstraint]:
-        """Active soft constraints for this profile plus any global ones."""
-        return self.db.scalars(
-            select(SoftConstraint).where(
-                SoftConstraint.is_active == True,
-                or_(
-                    SoftConstraint.profile_id == profile_id,
-                    SoftConstraint.profile_id.is_(None),
-                ),
-            )
-        ).all()
 
     def _load_published_conflicts(self) -> dict[str, set[tuple]]:
         """Fetch every slot of every PUBLISHED instance.

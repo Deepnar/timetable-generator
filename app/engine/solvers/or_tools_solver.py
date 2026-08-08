@@ -185,15 +185,5 @@ class ORToolsSolver(GreedySolver):
         return self._fac_cache[faculty_id]
 
     def _load_soft_constraints(self) -> list[SoftConstraint]:
-        """Active soft constraints for this profile plus any global ones."""
-        from sqlalchemy import or_, select
-
-        return self.db.scalars(
-            select(SoftConstraint).where(
-                SoftConstraint.is_active == True,
-                or_(
-                    SoftConstraint.profile_id == self.profile_id,
-                    SoftConstraint.profile_id.is_(None),
-                ),
-            )
-        ).all()
+        """Active soft rules for the resolved profile (global + per-member)."""
+        return list(self.profile.soft_constraints)
