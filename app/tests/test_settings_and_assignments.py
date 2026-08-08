@@ -888,6 +888,45 @@ def _phase5_polish(s):
     return [t_pagination, t_limit_validation, t_audit]
 
 
+@suite("Phase 5 — Global auth gate")
+def _phase5_auth_gate(s):
+    @test("every read requires a JWT except /health and /auth/*")
+    def t_auth_gate(client):
+        from app.tests.test_runner import (
+            reset_db, create_admin, login_token, auth_headers,
+        )
+        reset_db(); create_admin()
+        # Public endpoints stay public.
+        assert client.get("/health").status_code == 200
+        assert client.post(
+            "/auth/login",
+            json={"email": "admin@example.com", "password": "admin123"},
+        ).status_code == 200
+        # Reads that used to be public now return 401 without a token.
+        for path in (
+            "/rooms/", "/faculty/", "/groups/", "/subjects/",
+            "/blackouts/", "/faculty_availability/",
+            "/constraints/hard", "/constraints/soft", "/constraints/types",
+            "/profiles/", "/settings/", "/audit/", "/history/",
+            "/reset/log", "/assignments/",
+        ):
+            r = client.get(path)
+            assert r.status_code == 401, (path, r.status_code, r.text)
+        # With a valid token they work again.
+        headers = auth_headers(login_token(client))
+        for path in (
+            "/rooms/", "/faculty/", "/groups/", "/subjects/",
+            "/blackouts/", "/faculty_availability/",
+            "/constraints/hard", "/constraints/soft", "/constraints/types",
+            "/profiles/", "/settings/", "/audit/", "/history/",
+            "/reset/log", "/assignments/",
+        ):
+            r = client.get(path, headers=headers)
+            assert r.status_code == 200, (path, r.status_code, r.text)
+
+    return [t_auth_gate]
+
+
 @suite("Phase 5 — CSV import atomicity")
 def _phase5_csv_import(s):
     def _setup(client):
@@ -967,10 +1006,15 @@ def _phase5_csv_import(s):
 def _phase5_constraint_types(s):
     @test("GET /constraints/types matches the ConstraintType enum exactly")
     def t_types(client):
+        from app.tests.test_runner import (
+            reset_db, create_admin, login_token, auth_headers,
+        )
         from app.models.constraints import (
             ConstraintType, HARD_CONSTRAINT_TYPES, SOFT_CONSTRAINT_TYPES,
         )
-        r = client.get("/constraints/types")
+        reset_db(); create_admin()
+        headers = auth_headers(login_token(client))
+        r = client.get("/constraints/types", headers=headers)
         assert r.status_code == 200, r.text
         body = r.json()
         hard, soft = body["hard"], body["soft"]
