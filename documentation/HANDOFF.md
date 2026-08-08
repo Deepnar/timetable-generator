@@ -6,83 +6,76 @@ history preserves older handoffs.
 
 ## Session summary (committed & pushed)
 
-State at handoff: **94/94 tests passing** (`uv run python -m app.tests`), tree clean, pushed.
+State at handoff: **101/101 tests passing** (`uv run python -m app.tests`), tree clean, pushed.
 
-This session implemented **OR-Tools objective-based diversity** (the "NEXT TASK" from the
-previous handoff). Instance diversity is no longer purely seed-based: `POST /generate`
-now accepts a `variation` strategy and the solvers actively pursue it.
+This session implemented the **`/profiles/combinations` router** (the top-ranked NEXT TASK
+from the previous handoff). Combination resolution was previously invisible — `POST
+/generate` merged members automatically inside the scheduler with no way to list them or
+preview a run. Two endpoints now sit in `app/router/profiles.py`:
 
-1. **New column.** `TimetableGeneration.variation` (`VariationMode`: `random` / `best` /
-   `minimize-teacher-gaps` / `minimize-student-gaps`, `app/models/generation.py`), persisted
-   so the async worker re-applies the same strategy the client asked for. New migration
-   `b4f1c9d3e7a2` (head) creates the `variationmode` enum + NOT NULL column
-   (`server_default='RANDOM'`). Alembic chain is still linear: `… → e9f4a2b6d8c0 →
-   b4f1c9d3e7a2`.
-2. **Request/response.** `GenerationRequest.variation` (defaults RANDOM, so existing
-   callers are unaffected) + `GenerationResponse.variation`; router threads it through both
-   the sync and async paths (`app/router/generate.py`).
-3. **Greedy** (`app/engine/solvers/greedy_solver.py`). `_criterion_peer_attr()` maps a gap
-   variation to the peer attribute (`faculty_id` / `student_group_id`); `_criterion_scan()`
-   orders the (day, slot) scan so days the peer already teaches come first and slots are
-   tried by distance to its existing placements; `_build_sessions` groups a peer's sessions
-   together for criterion runs. Only **seeded** instances pursue the criterion — instance #1
-   stays the deterministic baseline.
-4. **OR-Tools** (`app/engine/solvers/or_tools_solver.py`). `_build_variation_terms()` adds a
-   secondary span term to the CP-SAT objective for seeded instances with a gap variation
-   (weight −1.0, far below `PLACEMENT_WEIGHT=1000.0` so placements stay strictly primary).
-   The span builder was generalized in `app/engine/soft_objective.py` into
-   `_build_span_terms(ctx, peer_attr, label)` shared by the student- and teacher-gap
-   objectives.
-5. **Teacher-gap scorer.** `MINIMIZE_TEACHER_FREE_SLOTS` added to `app/engine/scorer.py`
-   (mirror of the student-gap scorer) and to the `SOFT_OBJECTIVE_REGISTRY`; documented in
-   the architecture soft-constraint table (§3.3).
-6. **Scheduler** (`app/engine/scheduler.py`). `_solve()` collects all `_DIVERSITY_ATTEMPTS`
-   candidates per instance. For `"best"` it seeds instance #1 too, keeps only attempts
-   passing the Hamming-distance gate, and takes the highest `soft_score` (first attempt if
-   no soft rules are active); other modes keep the existing seed logic
-   (`None` for instance #1, else `i*100+attempt`) with the last-attempt fallback.
-7. **Tests — 7 new (87 → 94).** `app/tests/test_variation.py`: default + explicit variation
-   echoed on run/status, async create_generation carries BEST, instance #1 baseline
-   unchanged for gap modes, greedy/OR-Tools candidates actually reach 0 free slots, and BEST
-   matches the independently recomputed max of seeds 0..5.
+1. **`GET /profiles/combinations`** — lists every combination (newest first) with its
+   member profiles (id, name, weight, `is_active`) and a cheap `resolution_status` preview:
+   `RESOLVABLE` / `INACTIVE_MEMBER` / `MISSING_MEMBER` / `NO_MEMBERS`. Anything but
+   `RESOLVABLE` means `POST /generate` and `/resolve` will 404 the combination, so an admin
+   sees the problem *before* running.
+2. **`POST /profiles/combinations/{id}/resolve`** — runs the **same `ProfileResolver`** the
+   scheduler uses and returns the merged `ResolvedProfile` for manual preview:
+   `combination_id`, `source_profile_ids`, `params` (already weight-merged), `resources`
+   keyed by resource type, and `hard_constraints` / `soft_constraints` rows. A missing,
+   empty, or archived-member combination is a 404, matching generation-time behaviour.
 
-Commits (one per concern): model+migration, engine, router+schema, tests, docs.
+Schemas (`app/schemas/profiles.py`): `ProfileCombinationMemberResponse`,
+`ProfileCombinationListResponse`, `ResolvedConstraint`,
+`ProfileCombinationResolveResponse`.
+
+**Route-ordering gotcha (the one real bug):** `GET /profiles/combinations` is registered
+**before** `GET /profiles/{id}`. Starlette path params match *any single segment*, so a
+literal `"combinations"` route declared later is shadowed by the `{id}` route and returns
+422 (`int_parsing`). This is documented in a code comment and architecture §4.2. The
+existing `POST /profiles/combine` never hit this because there is no `POST /profiles/{id}`
+route. Keep this in mind for any future literal sub-route under `/profiles`.
+
+Tests — **7 new (94 → 101)** in `app/tests/test_combinations.py` (registered in
+`app/tests/__main__.py`): list returns member names/weights + RESOLVABLE; archiving a
+member flips the status to INACTIVE_MEMBER; resolve shows weighted param collisions
+(higher-weight member wins), unioned resources, merged member constraints; resolve output
+matches what a combination generation actually schedules; unknown/archived combinations
+404; empty DB → empty list. No `conftest.py` change needed — the routes live in
+`app.router.profiles`, which was already in the patch loop.
+
+Commits (one per concern): API (schemas+router), tests, docs. While updating docs the
+stale Alembic chain header in the architecture doc (§3 + §9) was corrected to head
+`b4f1c9d3e7a2` (the previous session committed the `variation` migration but never bumped
+the chain) and the "21 tables" count in progress.md was fixed to 22.
 
 ## Context to read before starting
 
 - `AGENTS.md` (repo root) — environment, tests, architecture notes, commit rules.
-- `documentation/timetable-generator-architecture.md` — **§5.3 (Diversity Filter + variation
-  — implemented)** — read this first, §5.1 step 4 (scheduler `_solve`), §5.2 (CP-SAT
-  objective incl. variation terms), §4.2 (Generation endpoints), §3 (schema incl. the
-  `variation` column), §8.6/§8.7 (tuning + soft scoring).
-- `documentation/plan.md` (Phase 2/3 items now ticked; Phase 4 = frontend) and
-  `documentation/progress.md` (🟠 → next items below).
-- Engine plumbing: `app/engine/scheduler.py` (`_solve`, `_make_solver`),
-  `app/engine/solvers/greedy_solver.py` (`_criterion_peer_attr`, `_criterion_scan`,
-  `_build_sessions`), `app/engine/solvers/or_tools_solver.py` (`_build_variation_terms`),
-  `app/engine/soft_objective.py` (`_build_span_terms`), `app/engine/scorer.py`
-  (`_minimize_teacher_free_slots`).
-- Tests: `app/tests/test_variation.py` (new), `app/tests/conftest.py` (no change needed —
-  generate router was already patched), `app/tests/__main__.py` (new module registered).
+- `documentation/timetable-generator-architecture.md` — **§6.2 (Combining Profiles — now
+  includes the list/resolve endpoints)**, §4.2 (Profile Management endpoints), §5.1 step 4
+  (scheduler `_solve`), §3 (schema incl. `variation` column + migration chain).
+- `documentation/plan.md` (Phase 2 item "Profile Combination Resolution" now fully ticked)
+  and `documentation/progress.md` (🟠 → next items below).
+- Engine plumbing: `app/engine/profile_resolver.py` (`ProfileResolver`, `ResolvedProfile`,
+  merge semantics — the resolve endpoint is a thin HTTP wrapper over it),
+  `app/router/profiles.py` (new combination routes + the route-ordering comment),
+  `app/schemas/profiles.py` (new combination schemas).
+- Tests: `app/tests/test_combinations.py` (new), `app/tests/__main__.py` (module
+  registered), `app/tests/conftest.py` (patch loop — no change needed).
 
-## NEXT TASK — `/profiles/combinations` router + flexibility roadmap
+## NEXT TASK — flexibility roadmap (engine-spanning)
 
-With variation done, pick one of these two (both are small- to medium-sized; the previous
-handoff ranked them first):
+The other option from the previous handoff is still open, and it is the top-ranked
+remaining item:
 
-1. **`/profiles/combinations` router** (`app/router/profiles.py` area; architecture §6.2 and
-   §4.2, plan.md lines ~42): there is still **no list endpoint** and **no explicit
-   `POST /profiles/combinations/{id}/resolve`** — resolution is automatic inside the
-   scheduler via `ProfileResolver`. Add `GET /profiles/combinations` (member profiles,
-   weights, resolution status) and the explicit resolve endpoint that returns the merged
-   `ResolvedProfile` for manual preview/discoverability. Register the router in
-   `app/main.py`; if the SQLite tests touch it, add its module to the patch loop in
-   `app/tests/conftest.py`.
-2. **Flexibility roadmap** (progress.md 🟠, plan.md lines ~25): fold the core structural
-   checks into the constraint registry (currently inline in `ConstraintChecker`), generic
-   resource requirements, `CUSTOM` enum escape hatches, and wire
-   `enable_lab_batches`/`enable_soft_constraint_scoring` flags. Larger, engine-spanning —
-   worth its own session.
+1. **Flexibility roadmap** (progress.md 🟠, plan.md lines ~25-30): fold the core structural
+   checks into the constraint registry (currently inline in `ConstraintChecker` — double
+   booking / capacity / room-type / availability / blackouts / faculty load / published
+   conflicts), generic resource requirements (replace `Subject.requires_lab` with declared
+   requirements matched against room attributes), `CUSTOM` enum escape hatches for
+   `RoomType`/`SessionType`/`GroupType`/`TimetableType`, and wire
+   `enable_lab_batches`/`enable_soft_constraint_scoring` flags. This is larger and
+   engine-spanning — worth its own session.
 
 Further down (progress.md): **Redis Integration** (cache frequent GETs, rate-limit,
 generation-conflict locking — Redis already runs as the Celery broker/backend),
@@ -91,7 +84,6 @@ then **Phase 4 frontend + full-stack Dockerization**.
 
 ## Remaining known items (see `documentation/progress.md`)
 
-- **`/profiles/combinations` router** — no list endpoint, no explicit resolve endpoint.
 - **Flexibility roadmap** — fold structural checks into the registry, generic resource
   requirements, `CUSTOM` enum escape hatches, wire `enable_lab_batches`.
 - **Redis Integration** — caching/rate-limiting/generation-conflict-locking usage still open.
@@ -102,10 +94,13 @@ then **Phase 4 frontend + full-stack Dockerization**.
 ## Gotchas
 
 - Postgres runs on host port **5433** (`.env` sets `DB_PORT=5433`); Redis maps `6379`.
-  Alembic head: `b4f1c9d3e7a2`. 22 tables (now 22 + the `variation` column).
+  Alembic head: `b4f1c9d3e7a2`. 22 tables.
 - Tests: `uv run python -m app.tests` (not pytest). Add any router touched by tests to the
   patch loop in `app/tests/conftest.py`. New test modules must be imported in
   `app/tests/__main__.py` to register their suites.
+- **Literal sub-routes under `/profiles` must be registered before `/{id}`** (Starlette
+  path params match any single segment → a later `"combinations"` list route gets shadowed
+  and returns 422). See the comment above `get_profile_combinations`.
 - **Alembic enum migration gotcha:** the `variationmode` migration explicitly creates the
   enum via `variationmode.create(op.get_bind())` in `upgrade()` and drops it with
   `DROP TYPE IF EXISTS` in `downgrade()` — a bare `sa.Enum(...)` column without that call
