@@ -202,6 +202,123 @@ def _phase1_engine(s):
     return [t_cross_off, t_cross_on, t_bug_fix]
 
 
+@suite("Phase 1 — Faculty availability date ranges")
+def _phase1_availability_dates(s):
+    def _gen_slots(client, headers, profile_id):
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": profile_id, "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        r = client.get(f"/instances/{gen['id']}", headers=headers)
+        inst_id = r.json()[0]["id"]
+        return client.get(f"/instances/{inst_id}/slots", headers=headers).json()
+
+    @test("availability CRUD works without effective dates (data-integrity)")
+    def t_crud_without_dates(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/faculty_availability/", headers=headers, json={
+            "faculty_id": ids["faculty"],
+            "day_of_week": 0,
+            "availability": "UNAVAILABLE",
+        })
+        assert r.status_code == 201, r.text
+        body = r.json()
+        assert body["effective_from"] is None
+        assert body["effective_to"] is None
+
+    @test("date-bounded unavailability blocks only its week")
+    def t_date_window(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        # Anchor the weekly template to Mon 2025-01-06.
+        r = client.post(
+            f"/profiles/{ids['profile']}/parameters", headers=headers,
+            json={"param_key": "term_start", "param_value": "2025-01-06",
+                  "param_type": "STRING"},
+        )
+        assert r.status_code in (200, 201), r.text
+        # Teacher unavailable all day Monday that week.
+        r = client.post("/faculty_availability/", headers=headers, json={
+            "faculty_id": ids["faculty"], "day_of_week": 0,
+            "availability": "UNAVAILABLE",
+            "effective_from": "2025-01-06", "effective_to": "2025-01-12",
+        })
+        assert r.status_code == 201, r.text
+        avail_id = r.json()["id"]
+
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+        assert all(sl["day_of_week"] != 0 for sl in slots), (
+            f"Monday should be blocked, got days {[sl['day_of_week'] for sl in slots]}"
+        )
+        # Committed slots carry the materialized calendar date.
+        assert all(sl["slot_date"] is not None for sl in slots), slots
+
+        # Slide the window to a week that does NOT cover the term start;
+        # Monday becomes schedulable again.
+        r = client.put(f"/faculty_availability/{avail_id}", headers=headers, json={
+            "faculty_id": ids["faculty"], "day_of_week": 0,
+            "availability": "UNAVAILABLE",
+            "effective_from": "2025-02-01", "effective_to": "2025-02-07",
+        })
+        assert r.status_code == 200, r.text
+        slots2 = _gen_slots(client, headers, ids["profile"])
+        assert len(slots2) == 3, slots2
+        assert any(sl["day_of_week"] == 0 for sl in slots2), (
+            f"Monday should be free again, got days {[sl['day_of_week'] for sl in slots2]}"
+        )
+
+    @test("timeless unavailability still blocks its weekday")
+    def t_timeless(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/faculty_availability/", headers=headers, json={
+            "faculty_id": ids["faculty"], "day_of_week": 0,
+            "availability": "UNAVAILABLE",
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+        assert all(sl["day_of_week"] != 0 for sl in slots), (
+            [sl["day_of_week"] for sl in slots]
+        )
+
+    @test("_availability_window_applies semantics")
+    def t_window_rule(client):
+        from datetime import date
+        from app.engine.constraint_checker import ConstraintChecker
+
+        class _W:
+            def __init__(self, f, t):
+                self.effective_from, self.effective_to = f, t
+
+        d = date(2025, 1, 6)
+        # No bounds -> timeless.
+        assert ConstraintChecker._availability_window_applies(_W(None, None), d) is True
+        # Inside the window.
+        assert ConstraintChecker._availability_window_applies(_W(d, date(2025, 1, 12)), d) is True
+        # Outside the window.
+        assert ConstraintChecker._availability_window_applies(
+            _W(date(2025, 1, 13), date(2025, 1, 19)), d) is False
+        # No materialized date -> a date-bounded window is inert.
+        assert ConstraintChecker._availability_window_applies(_W(d, date(2025, 1, 12)), None) is False
+        # Half-bounded windows are unbounded on the missing side.
+        assert ConstraintChecker._availability_window_applies(_W(d, None), date(2025, 6, 1)) is True
+        assert ConstraintChecker._availability_window_applies(
+            _W(None, date(2024, 12, 31)), d) is False
+
+    return [t_crud_without_dates, t_date_window, t_timeless, t_window_rule]
+
+
 @suite("Phase 1 — Cross-timetable safety")
 def _phase1_cross_timetable(s):
     def _generate_one(client, headers, profile_id):
