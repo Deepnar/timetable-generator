@@ -24,9 +24,14 @@ produce an invalid one.
 from collections import defaultdict
 
 from app.models.faculty import Faculty
+from app.models.constraints import SoftConstraint
 from app.models.generation import TimetableSlot
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.solvers.greedy_solver import GreedySolver
+from app.engine.soft_objective import (
+    PLACEMENT_WEIGHT,
+    build_soft_objective,
+)
 
 
 class ORToolsSolver(GreedySolver):
@@ -118,7 +123,18 @@ class ORToolsSolver(GreedySolver):
             if fac and fac.max_hours_per_week:
                 model.Add(sum(vs) <= fac.max_hours_per_week)
 
-        model.Maximize(sum(x.values()))
+        # Soft preferences (gated by the college scoring flag): fold active
+        # soft constraints into the objective so the solver pursues them,
+        # not just the placement count. Placements stay strictly primary via
+        # PLACEMENT_WEIGHT; the soft terms only break ties among solutions
+        # with the same number of placements.
+        objective = PLACEMENT_WEIGHT * sum(x.values())
+        if self.settings.enable_soft_constraint_scoring:
+            for expr, weight in build_soft_objective(
+                model, x, sessions, self._load_soft_constraints(), len(slot_times)
+            ):
+                objective += weight * expr
+        model.Maximize(objective)
 
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = self.max_time_seconds
@@ -164,3 +180,17 @@ class ORToolsSolver(GreedySolver):
         if faculty_id not in self._fac_cache:
             self._fac_cache[faculty_id] = self.db.get(Faculty, faculty_id)
         return self._fac_cache[faculty_id]
+
+    def _load_soft_constraints(self) -> list[SoftConstraint]:
+        """Active soft constraints for this profile plus any global ones."""
+        from sqlalchemy import or_, select
+
+        return self.db.scalars(
+            select(SoftConstraint).where(
+                SoftConstraint.is_active == True,
+                or_(
+                    SoftConstraint.profile_id == self.profile_id,
+                    SoftConstraint.profile_id.is_(None),
+                ),
+            )
+        ).all()
