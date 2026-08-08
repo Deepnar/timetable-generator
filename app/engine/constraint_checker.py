@@ -36,6 +36,7 @@ class SlotCandidate:
         session_type: str,
         slot_date=None,
         is_cross_department: bool = False,
+        block_length: int = 1,
     ):
         self.instance_id = instance_id
         self.day_of_week = day_of_week
@@ -49,6 +50,14 @@ class SlotCandidate:
         self.session_type = session_type
         self.slot_date = slot_date
         self.is_cross_department = is_cross_department
+        # A block session occupies ``block_length`` consecutive slots starting
+        # at ``slot_number`` (1 == a single slot, the historical default).
+        self.block_length = block_length
+
+    @property
+    def slot_numbers(self) -> range:
+        """The consecutive slot numbers this candidate occupies."""
+        return range(self.slot_number, self.slot_number + self.block_length)
 
 
 class ConstraintViolation:
@@ -113,12 +122,12 @@ class ConstraintChecker:
             if (
                 s.faculty_id == c.faculty_id
                 and s.day_of_week == c.day_of_week
-                and s.slot_number == c.slot_number
+                and s.slot_number in c.slot_numbers
             ):
                 return [ConstraintViolation(
                     "NO_TEACHER_DOUBLE_BOOK",
                     f"Faculty {c.faculty_id} already assigned "
-                    f"day {c.day_of_week} slot {c.slot_number}",
+                    f"day {c.day_of_week} slot {s.slot_number}",
                 )]
         return []
 
@@ -127,12 +136,12 @@ class ConstraintChecker:
             if (
                 s.room_id == c.room_id
                 and s.day_of_week == c.day_of_week
-                and s.slot_number == c.slot_number
+                and s.slot_number in c.slot_numbers
             ):
                 return [ConstraintViolation(
                     "NO_ROOM_DOUBLE_BOOK",
                     f"Room {c.room_id} already booked "
-                    f"day {c.day_of_week} slot {c.slot_number}",
+                    f"day {c.day_of_week} slot {s.slot_number}",
                 )]
         return []
 
@@ -141,12 +150,12 @@ class ConstraintChecker:
             if (
                 s.student_group_id == c.student_group_id
                 and s.day_of_week == c.day_of_week
-                and s.slot_number == c.slot_number
+                and s.slot_number in c.slot_numbers
             ):
                 return [ConstraintViolation(
                     "NO_GROUP_DOUBLE_BOOK",
                     f"Group {c.student_group_id} already scheduled "
-                    f"day {c.day_of_week} slot {c.slot_number}",
+                    f"day {c.day_of_week} slot {s.slot_number}",
                 )]
         return []
 
@@ -155,29 +164,31 @@ class ConstraintChecker:
 
         Cross-timetable safety: a teacher, room, or group booked at
         (day, slot) in any published instance cannot be reused here, even if
-        the other two dimensions differ.
+        the other two dimensions differ. A multi-slot block checks every slot
+        it spans.
         """
         if not self.reserved:
             return []
-        key = (c.day_of_week, c.slot_number)
-        if (c.faculty_id, *key) in self.reserved.get("faculty", ()):
-            return [ConstraintViolation(
-                "NO_CROSS_TIMETABLE_TEACHER_CONFLICT",
-                f"Faculty {c.faculty_id} already booked in a published "
-                f"timetable on day {c.day_of_week} slot {c.slot_number}",
-            )]
-        if (c.room_id, *key) in self.reserved.get("room", ()):
-            return [ConstraintViolation(
-                "NO_CROSS_TIMETABLE_ROOM_CONFLICT",
-                f"Room {c.room_id} already booked in a published "
-                f"timetable on day {c.day_of_week} slot {c.slot_number}",
-            )]
-        if (c.student_group_id, *key) in self.reserved.get("group", ()):
-            return [ConstraintViolation(
-                "NO_CROSS_TIMETABLE_GROUP_CONFLICT",
-                f"Group {c.student_group_id} already scheduled in a published "
-                f"timetable on day {c.day_of_week} slot {c.slot_number}",
-            )]
+        for n in c.slot_numbers:
+            key = (c.day_of_week, n)
+            if (c.faculty_id, *key) in self.reserved.get("faculty", ()):
+                return [ConstraintViolation(
+                    "NO_CROSS_TIMETABLE_TEACHER_CONFLICT",
+                    f"Faculty {c.faculty_id} already booked in a published "
+                    f"timetable on day {c.day_of_week} slot {n}",
+                )]
+            if (c.room_id, *key) in self.reserved.get("room", ()):
+                return [ConstraintViolation(
+                    "NO_CROSS_TIMETABLE_ROOM_CONFLICT",
+                    f"Room {c.room_id} already booked in a published "
+                    f"timetable on day {c.day_of_week} slot {n}",
+                )]
+            if (c.student_group_id, *key) in self.reserved.get("group", ()):
+                return [ConstraintViolation(
+                    "NO_CROSS_TIMETABLE_GROUP_CONFLICT",
+                    f"Group {c.student_group_id} already scheduled in a published "
+                    f"timetable on day {c.day_of_week} slot {n}",
+                )]
         return []
 
     def _check_room_capacity(self, c: SlotCandidate) -> list[ConstraintViolation]:
@@ -256,7 +267,8 @@ class ConstraintChecker:
         """Enforce a teacher's ``max_hours_per_day`` / ``max_hours_per_week``.
 
         One slot counts as one hour (the domain uses "hours" and "slots"
-        interchangeably). A ``0``/falsy limit means "no limit".
+        interchangeably); a multi-slot block counts as its full length. A
+        ``0``/falsy limit means "no limit".
         """
         faculty = self.db.get(Faculty, c.faculty_id)
         if not faculty:
@@ -266,21 +278,21 @@ class ConstraintChecker:
                 1
                 for s in self.committed_slots
                 if s.faculty_id == c.faculty_id and s.day_of_week == c.day_of_week
-            )
-            if day_count >= faculty.max_hours_per_day:
+            ) + c.block_length
+            if day_count > faculty.max_hours_per_day:
                 return [ConstraintViolation(
                     "FACULTY_MAX_HOURS_PER_DAY",
-                    f"Faculty {c.faculty_id} already at daily cap "
+                    f"Faculty {c.faculty_id} would exceed daily cap "
                     f"{faculty.max_hours_per_day} on day {c.day_of_week}",
                 )]
         if faculty.max_hours_per_week:
             week_count = sum(
                 1 for s in self.committed_slots if s.faculty_id == c.faculty_id
-            )
-            if week_count >= faculty.max_hours_per_week:
+            ) + c.block_length
+            if week_count > faculty.max_hours_per_week:
                 return [ConstraintViolation(
                     "FACULTY_MAX_HOURS_PER_WEEK",
-                    f"Faculty {c.faculty_id} already at weekly cap "
+                    f"Faculty {c.faculty_id} would exceed weekly cap "
                     f"{faculty.max_hours_per_week}",
                 )]
         return []

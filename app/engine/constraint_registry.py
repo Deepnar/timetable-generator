@@ -50,6 +50,25 @@ class ConstraintContext:
         return self._group_cache[group_id]
 
 
+def configured_block_length(subject_id: int, config: dict | None) -> int | None:
+    """Resolve how many consecutive slots a subject's lab sessions span.
+
+    config: ``{"block_lengths": {"<subject_id>": int}, "default_block_length"?: int}``
+    — a JSON-object key map plus an optional fallback for unlisted subjects.
+    A subject explicitly listed in ``block_lengths`` wins over the default;
+    ``None`` means the rule does not govern this subject.
+    """
+    config = config or {}
+    lengths = config.get("block_lengths") or {}
+    # JSON object keys arrive as strings; accept int or str ids.
+    length = lengths.get(str(subject_id))
+    if length is None:
+        length = lengths.get(subject_id)
+    if length is not None:
+        return int(length)
+    return config.get("default_block_length")
+
+
 # ── validators ───────────────────────────────────────────────
 # Each is intentionally small and pure so new rules are easy to add and test.
 
@@ -59,7 +78,9 @@ def _subject_time_preference(candidate, committed, config, ctx) -> Optional[str]
     config: ``{"subject_id"?: int, "max_slot"?: int, "min_slot"?: int,
                "period"?: "MORNING"|"AFTERNOON", "boundary_slot"?: int}``
     ``period`` is sugar: MORNING => max_slot=boundary, AFTERNOON => min_slot=boundary+1.
-    Omitting ``subject_id`` applies the rule to every subject.
+    Omitting ``subject_id`` applies the rule to every subject. A multi-slot
+    block must fit entirely inside the window (its last slot bounded by
+    ``max_slot``, its first by ``min_slot``).
     """
     config = config or {}
     subject_id = config.get("subject_id")
@@ -75,11 +96,18 @@ def _subject_time_preference(candidate, committed, config, ctx) -> Optional[str]
     if period == "AFTERNOON" and boundary is not None and min_slot is None:
         min_slot = boundary + 1
 
-    slot = candidate.slot_number
-    if max_slot is not None and slot > max_slot:
-        return f"subject {candidate.subject_id} must be at/before slot {max_slot} (got {slot})"
-    if min_slot is not None and slot < min_slot:
-        return f"subject {candidate.subject_id} must be at/after slot {min_slot} (got {slot})"
+    start = candidate.slot_number
+    end = candidate.slot_number + candidate.block_length - 1
+    if max_slot is not None and end > max_slot:
+        return (
+            f"subject {candidate.subject_id} must end at/before slot "
+            f"{max_slot} (block ends at {end})"
+        )
+    if min_slot is not None and start < min_slot:
+        return (
+            f"subject {candidate.subject_id} must start at/after slot "
+            f"{min_slot} (block starts at {start})"
+        )
     return None
 
 
@@ -87,7 +115,8 @@ def _max_consecutive_same_teacher(candidate, committed, config, ctx) -> Optional
     """Cap a teacher's back-to-back slots on a single day.
 
     config: ``{"max": int, "faculty_id"?: int}``. Without ``faculty_id`` the
-    cap applies to every teacher.
+    cap applies to every teacher. A multi-slot block counts as one contiguous
+    run, so a 3-slot lab block advances the run by 3.
     """
     config = config or {}
     max_run = config.get("max")
@@ -103,14 +132,15 @@ def _max_consecutive_same_teacher(candidate, committed, config, ctx) -> Optional
         if s.faculty_id == candidate.faculty_id
         and s.day_of_week == candidate.day_of_week
     }
-    same_day.add(candidate.slot_number)
+    occupied = set(candidate.slot_numbers)
+    same_day |= occupied
 
-    run = 1
+    run = len(occupied)
     left = candidate.slot_number - 1
     while left in same_day:
         run += 1
         left -= 1
-    right = candidate.slot_number + 1
+    right = candidate.slot_number + candidate.block_length
     while right in same_day:
         run += 1
         right += 1
@@ -186,9 +216,38 @@ def _holiday_calendar(candidate, committed, config, ctx) -> Optional[str]:
     return None
 
 
+def _contiguous_lab_slots(candidate, committed, config, ctx) -> Optional[str]:
+    """Require lab blocks to span exactly the configured number of slots.
+
+    config: ``{"block_lengths": {"<subject_id>": int}, "default_block_length"?: int}``
+    — how many consecutive slots each lab session of a subject occupies. The
+    solver expands a lab subject's ``weekly_hours`` into blocks of that size
+    (any remainder stays single-slot), so this validator is a consistency
+    guard: a block candidate must match the size configured for its subject,
+    and candidates of subjects the rule does not explicitly list are untouched.
+    """
+    config = config or {}
+    # Only explicitly-listed subjects are checked; ``default_block_length`` is
+    # a fallback for the solver's expansion and does not govern validation here
+    # (the solver always forms default-sized blocks anyway).
+    lengths = config.get("block_lengths") or {}
+    expected = lengths.get(str(candidate.subject_id))
+    if expected is None:
+        expected = lengths.get(candidate.subject_id)
+    if expected is None or candidate.block_length <= 1:
+        return None
+    if candidate.block_length != int(expected):
+        return (
+            f"subject {candidate.subject_id} lab sessions must run as "
+            f"{expected} contiguous slots (got {candidate.block_length})"
+        )
+    return None
+
+
 # Register after definition so the functions read top-to-bottom.
 hard_rule("SUBJECT_TIME_PREFERENCE")(_subject_time_preference)
 hard_rule("MAX_CONSECUTIVE_SAME_TEACHER")(_max_consecutive_same_teacher)
 hard_rule("TEACHER_YEAR_RESTRICTION")(_teacher_year_restriction)
 hard_rule("LAB_BATCH_ROTATION")(_lab_batch_rotation)
 hard_rule("HOLIDAY_CALENDAR")(_holiday_calendar)
+hard_rule("CONTIGUOUS_LAB_SLOTS")(_contiguous_lab_slots)

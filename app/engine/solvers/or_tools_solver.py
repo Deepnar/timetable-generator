@@ -49,6 +49,7 @@ class ORToolsSolver(GreedySolver):
         working_days = self._get_working_days()
         slot_times = self._build_slot_times()
         slot_lookup = {sn: (st, en) for sn, st, en in slot_times}
+        max_slot_number = max(slot_lookup)
         hard_constraints = self._load_hard_constraints()
 
         # Domain pruning uses the same checker as greedy with an EMPTY committed
@@ -65,17 +66,22 @@ class ORToolsSolver(GreedySolver):
         for si, session in enumerate(sessions):
             rooms = self._get_rooms(session.requires_lab)
             for day in working_days:
-                for sn, st, en in slot_times:
+                for sn, _st, _en in slot_times:
+                    end_slot = sn + session.block_length - 1
+                    if end_slot > max_slot_number:
+                        continue
                     for room in rooms:
                         candidate = SlotCandidate(
                             instance_id=self.instance_id, day_of_week=day,
-                            slot_number=sn, start_time=st, end_time=en,
+                            slot_number=sn, start_time=slot_lookup[sn][0],
+                            end_time=slot_lookup[end_slot][1],
                             faculty_id=session.faculty_id, room_id=room.id,
                             student_group_id=session.student_group_id,
                             subject_id=session.subject_id,
                             session_type=session.session_type,
                             slot_date=self._materialize_slot_date(day),
                             is_cross_department=session.is_cross_department,
+                            block_length=session.block_length,
                         )
                         if not static_checker.is_valid(candidate):
                             continue
@@ -90,7 +96,9 @@ class ORToolsSolver(GreedySolver):
         for vs in per_session.values():
             model.Add(sum(vs) <= 1)
 
-        # Relational constraints.
+        # Relational constraints. A block session registers one variable for
+        # every slot it occupies, so no teacher/room/group can overlap any part
+        # of it; the daily/weekly load buckets count the block's full length.
         by_teacher_slot = defaultdict(list)
         by_room_slot = defaultdict(list)
         by_group_slot = defaultdict(list)
@@ -99,12 +107,14 @@ class ORToolsSolver(GreedySolver):
         by_teacher = defaultdict(list)
         for (si, day, sn, room_id), var in x.items():
             s = sessions[si]
-            by_teacher_slot[(s.faculty_id, day, sn)].append(var)
-            by_room_slot[(room_id, day, sn)].append(var)
-            by_group_slot[(s.student_group_id, day, sn)].append(var)
+            for n in range(sn, sn + s.block_length):
+                by_teacher_slot[(s.faculty_id, day, n)].append(var)
+                by_room_slot[(room_id, day, n)].append(var)
+                by_group_slot[(s.student_group_id, day, n)].append(var)
             by_group_subject_day[(s.student_group_id, s.subject_id, day)].append(var)
-            by_teacher_day[(s.faculty_id, day)].append(var)
-            by_teacher[s.faculty_id].append(var)
+            for _ in range(s.block_length):
+                by_teacher_day[(s.faculty_id, day)].append(var)
+                by_teacher[s.faculty_id].append(var)
 
         for vs in by_teacher_slot.values():
             model.Add(sum(vs) <= 1)
@@ -157,7 +167,9 @@ class ORToolsSolver(GreedySolver):
         )
         for si, day, sn, room_id in chosen:
             s = sessions[si]
-            st, en = slot_lookup[sn]
+            end_slot = sn + s.block_length - 1
+            st = slot_lookup[sn][0]
+            en = slot_lookup[end_slot][1]
             candidate = SlotCandidate(
                 instance_id=self.instance_id, day_of_week=day, slot_number=sn,
                 start_time=st, end_time=en, faculty_id=s.faculty_id,
@@ -165,16 +177,20 @@ class ORToolsSolver(GreedySolver):
                 subject_id=s.subject_id, session_type=s.session_type,
                 slot_date=self._materialize_slot_date(day),
                 is_cross_department=s.is_cross_department,
+                block_length=s.block_length,
             )
             if checker.is_valid(candidate):
-                self.committed_slots.append(TimetableSlot(
-                    instance_id=self.instance_id, day_of_week=day, slot_number=sn,
-                    start_time=st, end_time=en, faculty_id=s.faculty_id,
-                    room_id=room_id, student_group_id=s.student_group_id,
-                    subject_id=s.subject_id, session_type=s.session_type,
-                    slot_date=self._materialize_slot_date(day),
-                    is_manual_override=False,
-                ))
+                slot_date = self._materialize_slot_date(day)
+                for n in range(sn, end_slot + 1):
+                    n_st, n_en = slot_lookup[n]
+                    self.committed_slots.append(TimetableSlot(
+                        instance_id=self.instance_id, day_of_week=day,
+                        slot_number=n, start_time=n_st, end_time=n_en,
+                        faculty_id=s.faculty_id, room_id=room_id,
+                        student_group_id=s.student_group_id,
+                        subject_id=s.subject_id, session_type=s.session_type,
+                        slot_date=slot_date, is_manual_override=False,
+                    ))
         return self.committed_slots
 
     def _faculty(self, faculty_id):

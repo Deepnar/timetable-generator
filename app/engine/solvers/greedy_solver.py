@@ -38,6 +38,7 @@ class SessionToSchedule:
         session_type: SessionType,
         requires_lab: bool,
         is_cross_department: bool = False,
+        block_length: int = 1,
     ):
         self.subject_id = subject_id
         self.faculty_id = faculty_id
@@ -45,6 +46,9 @@ class SessionToSchedule:
         self.session_type = session_type
         self.requires_lab = requires_lab
         self.is_cross_department = is_cross_department
+        # A lab block occupies ``block_length`` consecutive slots on one day
+        # (1 == a single-slot session, the historical default).
+        self.block_length = block_length
 
 
 class GreedySolver:
@@ -155,13 +159,48 @@ class GreedySolver:
         """Active hard rules for the resolved profile (global + per-member)."""
         return list(self.profile.hard_constraints)
 
+    def _lab_block_lengths(self) -> dict[int, int]:
+        """Map subject_id -> contiguous-block length from CONTIGUOUS_LAB_SLOTS.
+
+        The rule's config is ``{"block_lengths": {"<subject_id>": int},
+        "default_block_length"?: int}``. ``default_block_length`` applies to
+        every lab subject not explicitly listed, so the engine can form blocks
+        for a whole department with one row.
+        """
+        lengths: dict[int, int] = {}
+        default: int | None = None
+        for rule in self._load_hard_constraints():
+            rule_type = getattr(rule.constraint_type, "value", rule.constraint_type)
+            if rule_type != "CONTIGUOUS_LAB_SLOTS":
+                continue
+            config = getattr(rule, "config_json", None) or {}
+            if config.get("default_block_length"):
+                default = int(config["default_block_length"])
+            for key, value in (config.get("block_lengths") or {}).items():
+                try:
+                    lengths[int(key)] = int(value)
+                except (ValueError, TypeError):
+                    continue
+        if default is not None:
+            for subject_id in self._get_profile_resources(ResourceType.SUBJECT):
+                lengths.setdefault(subject_id, default)
+        return lengths
+
     # ── session expansion ────────────────────────────────────
     def _build_sessions(self) -> list[SessionToSchedule]:
-        """Expand every subject-assignment into N concrete sessions."""
+        """Expand every subject-assignment into concrete sessions.
+
+        A lab subject governed by a ``CONTIGUOUS_LAB_SLOTS`` rule is expanded
+        into blocks of the configured size (its ``weekly_hours`` is split into
+        full blocks plus a single-slot remainder), so each block becomes one
+        multi-slot session instead of several isolated one-slot sessions.
+        """
         sessions: list[SessionToSchedule] = []
         profile_subject_ids = self._get_profile_resources(ResourceType.SUBJECT)
         if not profile_subject_ids:
             return sessions
+
+        block_lengths = self._lab_block_lengths()
 
         assignments = self.db.scalars(
             select(SubjectAssignment).where(
@@ -206,15 +245,38 @@ class GreedySolver:
             session_type = (
                 SessionType.LAB if subject.requires_lab else SessionType.LECTURE
             )
-            for _ in range(assignment.weekly_hours):
-                sessions.append(SessionToSchedule(
-                    subject_id=subject.id,
-                    faculty_id=assignment.faculty_id,
-                    student_group_id=assignment.group_id,
-                    session_type=session_type,
-                    requires_lab=subject.requires_lab,
-                    is_cross_department=is_cross_dept,
-                ))
+            block_length = block_lengths.get(subject.id) if subject.requires_lab else None
+            if block_length and block_length >= 2:
+                full_blocks, remainder = divmod(assignment.weekly_hours, block_length)
+                for _ in range(full_blocks):
+                    sessions.append(SessionToSchedule(
+                        subject_id=subject.id,
+                        faculty_id=assignment.faculty_id,
+                        student_group_id=assignment.group_id,
+                        session_type=session_type,
+                        requires_lab=subject.requires_lab,
+                        is_cross_department=is_cross_dept,
+                        block_length=block_length,
+                    ))
+                for _ in range(remainder):
+                    sessions.append(SessionToSchedule(
+                        subject_id=subject.id,
+                        faculty_id=assignment.faculty_id,
+                        student_group_id=assignment.group_id,
+                        session_type=session_type,
+                        requires_lab=subject.requires_lab,
+                        is_cross_department=is_cross_dept,
+                    ))
+            else:
+                for _ in range(assignment.weekly_hours):
+                    sessions.append(SessionToSchedule(
+                        subject_id=subject.id,
+                        faculty_id=assignment.faculty_id,
+                        student_group_id=assignment.group_id,
+                        session_type=session_type,
+                        requires_lab=subject.requires_lab,
+                        is_cross_department=is_cross_dept,
+                    ))
 
         # most constrained first
         sessions.sort(key=lambda s: (
@@ -242,6 +304,8 @@ class GreedySolver:
         sessions = self._build_sessions()
         working_days = self._get_working_days()
         slot_times = self._build_slot_times()
+        slot_lookup = {sn: (st, en) for sn, st, en in slot_times}
+        max_slot_number = max(slot_lookup)
         # When seeded, randomise the search order so different seeds yield
         # different (still valid) timetables for the diversity filter.
         if self.rng is not None:
@@ -261,9 +325,14 @@ class GreedySolver:
             for day in working_days:
                 if placed:
                     break
-                for slot_number, start_time, end_time in slot_times:
+                for slot_number, _start_time, _end_time in slot_times:
                     if placed:
                         break
+                    end_slot = slot_number + session.block_length - 1
+                    if end_slot > max_slot_number:
+                        continue
+                    start_time = slot_lookup[slot_number][0]
+                    end_time = slot_lookup[end_slot][1]
                     for room in rooms:
                         candidate = SlotCandidate(
                             instance_id=self.instance_id,
@@ -278,22 +347,26 @@ class GreedySolver:
                             session_type=session.session_type,
                             slot_date=self._materialize_slot_date(day),
                             is_cross_department=session.is_cross_department,
+                            block_length=session.block_length,
                         )
                         if checker.is_valid(candidate):
-                            self.committed_slots.append(TimetableSlot(
-                                instance_id=self.instance_id,
-                                slot_date=self._materialize_slot_date(day),
-                                day_of_week=day,
-                                slot_number=slot_number,
-                                start_time=start_time,
-                                end_time=end_time,
-                                faculty_id=session.faculty_id,
-                                room_id=room.id,
-                                student_group_id=session.student_group_id,
-                                subject_id=session.subject_id,
-                                session_type=session.session_type,
-                                is_manual_override=False,
-                            ))
+                            slot_date = self._materialize_slot_date(day)
+                            for n in range(slot_number, end_slot + 1):
+                                n_start, n_end = slot_lookup[n]
+                                self.committed_slots.append(TimetableSlot(
+                                    instance_id=self.instance_id,
+                                    slot_date=slot_date,
+                                    day_of_week=day,
+                                    slot_number=n,
+                                    start_time=n_start,
+                                    end_time=n_end,
+                                    faculty_id=session.faculty_id,
+                                    room_id=room.id,
+                                    student_group_id=session.student_group_id,
+                                    subject_id=session.subject_id,
+                                    session_type=session.session_type,
+                                    is_manual_override=False,
+                                ))
                             placed = True
                             break
             if not placed:
