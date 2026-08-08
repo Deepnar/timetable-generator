@@ -2,7 +2,9 @@
 import csv
 import io
 
-from app.tests.test_runner import suite, test, seed_minimal, seed_two_divisions
+from app.tests.test_runner import (
+    suite, test, seed_minimal, seed_two_divisions, seed_two_profiles,
+)
 
 
 @suite("Phase 1 — Health & Settings")
@@ -1049,3 +1051,153 @@ def _phase5_override(s):
         assert kept["is_manual_override"] is False
 
     return [t_valid, t_conflict]
+
+
+@suite("Phase 4 — Profile combination resolution")
+def _phase4_combinations(s):
+    def _generate(client, headers, **body):
+        r = client.post("/generate/", headers=headers, json={
+            "academic_year": "2025-26",
+            "semester": 3,
+            "timetable_type": "CLASS",
+            "instances_requested": 1,
+            "algorithm": "GREEDY",
+            **body,
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        inst = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]
+        slots = client.get(
+            f"/instances/{inst['id']}/slots", headers=headers).json()
+        return gen, slots
+
+    @test("a combination merges resources so one run schedules both profiles")
+    def t_merge_resources(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_two_profiles()
+        headers = auth_headers(login_token(client))
+        r = client.post("/profiles/combine", headers=headers, json={
+            "name": "Dept combined",
+            "profile_ids": [ids["profile_a"], ids["profile_b"]],
+        })
+        assert r.status_code == 201, r.text
+        combo_id = r.json()["id"]
+
+        gen, slots = _generate(client, headers, combination_id=combo_id)
+        assert gen["combination_id"] == combo_id, gen
+        assert gen["profile_id"] is None, gen
+        # 3 weekly hours per subject x 2 subjects.
+        assert len(slots) == 6, f"expected 6 slots, got {len(slots)}"
+        assert {sl["subject_id"] for sl in slots} == {
+            ids["subject_a"], ids["subject_b"]
+        }, slots
+        assert {sl["student_group_id"] for sl in slots} == {
+            ids["group_a"], ids["group_b"]
+        }, slots
+
+    @test("parameter collisions resolve to the higher-weight member")
+    def t_param_weight(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_two_profiles()
+        headers = auth_headers(login_token(client))
+        # Profile A starts at 09:00 (weight 1), Profile B at 08:00 (weight 2).
+        for pid, start in ((ids["profile_a"], "09:00"),
+                           (ids["profile_b"], "08:00")):
+            r = client.post(f"/profiles/{pid}/parameters", headers=headers, json={
+                "param_key": "day_start_time", "param_value": start,
+                "param_type": "STRING",
+            })
+            assert r.status_code in (200, 201), r.text
+        r = client.post("/profiles/combine", headers=headers, json={
+            "profile_ids": [ids["profile_a"], ids["profile_b"]],
+            "weights": [1.0, 2.0],
+        })
+        assert r.status_code == 201, r.text
+        _gen, slots = _generate(client, headers, combination_id=r.json()["id"])
+        assert slots, "expected slots"
+        earliest = min(s["start_time"] for s in slots)
+        assert earliest.startswith("08:00"), earliest
+
+    @test("a member's hard constraint is enforced in the combined run")
+    def t_constraint_merge(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_two_profiles()
+        headers = auth_headers(login_token(client))
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile_a"],
+            "constraint_type": "SUBJECT_TIME_PREFERENCE",
+            "config_json": {"subject_id": ids["subject_a"], "max_slot": 1},
+        })
+        assert r.status_code == 201, r.text
+        r = client.post("/profiles/combine", headers=headers, json={
+            "profile_ids": [ids["profile_a"], ids["profile_b"]],
+        })
+        assert r.status_code == 201, r.text
+        _gen, slots = _generate(client, headers, combination_id=r.json()["id"])
+        assert len(slots) == 6, f"expected 6 slots, got {len(slots)}"
+        a = [sl for sl in slots if sl["subject_id"] == ids["subject_a"]]
+        assert a, "expected profile A's subject to be scheduled"
+        assert all(sl["slot_number"] <= 1 for sl in a), (
+            [sl["slot_number"] for sl in a]
+        )
+
+    @test("combine rejects unknown profile ids")
+    def t_combine_unknown(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_two_profiles()
+        headers = auth_headers(login_token(client))
+        r = client.post("/profiles/combine", headers=headers, json={
+            "profile_ids": [ids["profile_a"], 99999],
+        })
+        assert r.status_code == 404, r.text
+
+    @test("weights must match the profile_ids length")
+    def t_weight_mismatch(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_two_profiles()
+        headers = auth_headers(login_token(client))
+        r = client.post("/profiles/combine", headers=headers, json={
+            "profile_ids": [ids["profile_a"], ids["profile_b"]],
+            "weights": [1.0],
+        })
+        assert r.status_code == 422, r.text
+
+    @test("generating from a combination with an archived member is rejected")
+    def t_inactive_member(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_two_profiles()
+        headers = auth_headers(login_token(client))
+        r = client.post("/profiles/combine", headers=headers, json={
+            "profile_ids": [ids["profile_a"], ids["profile_b"]],
+        })
+        assert r.status_code == 201, r.text
+        combo_id = r.json()["id"]
+        # Archiving a member makes the combination unresolvable at generate time.
+        r = client.delete(f"/profiles/{ids['profile_b']}", headers=headers)
+        assert r.status_code == 204, r.text
+        r = client.post("/generate/", headers=headers, json={
+            "combination_id": combo_id, "academic_year": "2025-26",
+            "semester": 3, "timetable_type": "CLASS",
+            "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 404, r.text
+
+    @test("OR-Tools resolves a combination the same way")
+    def t_ortools_combination(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_two_profiles()
+        headers = auth_headers(login_token(client))
+        r = client.post("/profiles/combine", headers=headers, json={
+            "profile_ids": [ids["profile_a"], ids["profile_b"]],
+        })
+        assert r.status_code == 201, r.text
+        _gen, slots = _generate(client, headers, combination_id=r.json()["id"],
+                                algorithm="OR_TOOLS")
+        assert len(slots) == 6, f"expected 6 slots, got {len(slots)}"
+        assert {sl["subject_id"] for sl in slots} == {
+            ids["subject_a"], ids["subject_b"]
+        }, slots
+
+    return [t_merge_resources, t_param_weight, t_constraint_merge,
+            t_ortools_combination, t_combine_unknown, t_weight_mismatch,
+            t_inactive_member]
