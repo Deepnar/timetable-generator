@@ -12,17 +12,50 @@ A validator has the signature::
 and returns a human-readable reason on violation, or ``None`` when the
 candidate is acceptable. ``ctx`` is a :class:`ConstraintContext` providing
 cached lookups so validators don't each re-query the database.
+
+Every rule — including the core structural ones (double-booking, capacity,
+room requirements, availability, blackouts, faculty load, cross-timetable
+safety) — lives in this registry. The structural rules are *always-on*: the
+:class:`ConstraintChecker` dispatches the :data:`STRUCTURAL_RULES` list on
+every candidate, independent of any ``hard_constraints`` row, so they can
+never be turned off by data. Data-driven rules (``SUBJECT_TIME_PREFERENCE``
+etc.) are dispatched only when a profile row asks for them.
 """
 from __future__ import annotations
 
 from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.models.groups import StudentGroup
+from app.models.rooms import Room, RoomBlackout
+from app.models.subjects import Subject
+from app.models.faculty import Faculty, FacultyAvailability, AvailabilityType
 
 # type string -> validator
 HARD_CONSTRAINT_REGISTRY: dict[str, Callable] = {}
+
+# The always-on structural rules, in the order the checker reports them.
+# They are dispatched by :meth:`ConstraintChecker.check_all` on every candidate
+# regardless of the profile's ``hard_constraints`` rows; rows of these types
+# stay decorative (a profile cannot switch a structural rule off).
+STRUCTURAL_RULES: tuple[str, ...] = (
+    "NO_TEACHER_DOUBLE_BOOK",
+    "NO_ROOM_DOUBLE_BOOK",
+    "NO_GROUP_DOUBLE_BOOK",
+    "NO_CROSS_TIMETABLE_TEACHER_CONFLICT",
+    "NO_CROSS_TIMETABLE_ROOM_CONFLICT",
+    "NO_CROSS_TIMETABLE_GROUP_CONFLICT",
+    "ROOM_CAPACITY_SUFFICIENT",
+    "ROOM_TYPE_MATCH",
+    "RESPECT_TEACHER_UNAVAILABILITY",
+    "FACULTY_MAX_HOURS_PER_DAY",
+    "FACULTY_MAX_HOURS_PER_WEEK",
+    "RESPECT_ROOM_BLACKOUT",
+    "SAME_SUBJECT_SAME_DAY",
+    "CROSS_DEPT_DAILY_CAP",
+)
 
 
 def hard_rule(constraint_type) -> Callable:
@@ -37,17 +70,72 @@ def hard_rule(constraint_type) -> Callable:
 
 
 class ConstraintContext:
-    """Shared, cached lookups handed to every validator."""
+    """Shared, cached lookups handed to every validator.
 
-    def __init__(self, db: Session, committed_slots: list):
+    ``settings`` and ``reserved`` are the college feature-flag singleton and
+    the per-resource cross-timetable reservations; structural validators read
+    them from here instead of threading extra arguments through the registry
+    signature. The lookup caches are keyed by id and are safe to reuse across
+    a whole solve because the referenced rows never change mid-run.
+    """
+
+    def __init__(
+        self,
+        db: Session,
+        committed_slots: list,
+        settings=None,
+        reserved: dict[str, set[tuple]] | None = None,
+    ):
         self.db = db
         self.committed_slots = committed_slots
+        self.settings = settings
+        self.reserved = reserved or {}
         self._group_cache: dict[int, Optional[StudentGroup]] = {}
+        self._subject_cache: dict[int, Optional[Subject]] = {}
+        self._room_cache: dict[int, Optional[Room]] = {}
+        self._faculty_cache: dict[int, Optional[Faculty]] = {}
+        self._unavailability_cache: dict[int, list] = {}
+        self._blackout_cache: dict[int, list] = {}
 
     def group(self, group_id: int) -> Optional[StudentGroup]:
         if group_id not in self._group_cache:
             self._group_cache[group_id] = self.db.get(StudentGroup, group_id)
         return self._group_cache[group_id]
+
+    def subject(self, subject_id: int) -> Optional[Subject]:
+        if subject_id not in self._subject_cache:
+            self._subject_cache[subject_id] = self.db.get(Subject, subject_id)
+        return self._subject_cache[subject_id]
+
+    def room(self, room_id: int) -> Optional[Room]:
+        if room_id not in self._room_cache:
+            self._room_cache[room_id] = self.db.get(Room, room_id)
+        return self._room_cache[room_id]
+
+    def faculty(self, faculty_id: int) -> Optional[Faculty]:
+        if faculty_id not in self._faculty_cache:
+            self._faculty_cache[faculty_id] = self.db.get(Faculty, faculty_id)
+        return self._faculty_cache[faculty_id]
+
+    def unavailability(self, faculty_id: int) -> list[FacultyAvailability]:
+        """All UNAVAILABLE rows for a faculty member (uncached per id)."""
+        if faculty_id not in self._unavailability_cache:
+            rows = self.db.scalars(
+                select(FacultyAvailability).where(
+                    FacultyAvailability.faculty_id == faculty_id,
+                    FacultyAvailability.availability == AvailabilityType.UNAVAILABLE,
+                )
+            ).all()
+            self._unavailability_cache[faculty_id] = rows
+        return self._unavailability_cache[faculty_id]
+
+    def blackouts(self, room_id: int) -> list[RoomBlackout]:
+        if room_id not in self._blackout_cache:
+            rows = self.db.scalars(
+                select(RoomBlackout).where(RoomBlackout.room_id == room_id)
+            ).all()
+            self._blackout_cache[room_id] = rows
+        return self._blackout_cache[room_id]
 
 
 def configured_block_length(subject_id: int, config: dict | None) -> int | None:
@@ -282,7 +370,270 @@ def _contiguous_lab_slots(candidate, committed, config, ctx) -> Optional[str]:
     return None
 
 
-# Register after definition so the functions read top-to-bottom.
+# ── structural (always-on) validators ─────────────────────────
+# The non-negotiable checks that used to live inline in ConstraintChecker.
+# They are registered here so every rule is a validator; the checker runs them
+# via STRUCTURAL_RULES on every candidate, so no profile row can switch one
+# off (a row of a structural type stays decorative).
+
+def _availability_window_applies(w, slot_date) -> bool:
+    """Whether an availability row is active for a candidate slot.
+
+    A window with no date bounds is timeless and always applies. One with
+    ``effective_from``/``effective_to`` only applies when the slot's
+    materialized calendar date falls inside them (inclusive; a missing bound
+    means "unbounded" on that side). Without a materialized date there is
+    nothing to compare, so a date-bounded window is treated as inert — the
+    same rule that governs date-specific room blackouts.
+    """
+    if w.effective_from is None and w.effective_to is None:
+        return True
+    if slot_date is None:
+        return False
+    if w.effective_from is not None and slot_date < w.effective_from:
+        return False
+    if w.effective_to is not None and slot_date > w.effective_to:
+        return False
+    return True
+
+
+@hard_rule("NO_TEACHER_DOUBLE_BOOK")
+def _no_teacher_double_book(candidate, committed, config, ctx) -> Optional[str]:
+    for s in committed:
+        if (
+            s.faculty_id == candidate.faculty_id
+            and s.day_of_week == candidate.day_of_week
+            and s.slot_number in candidate.slot_numbers
+        ):
+            return (
+                f"faculty {candidate.faculty_id} already assigned "
+                f"day {candidate.day_of_week} slot {s.slot_number}"
+            )
+    return None
+
+
+@hard_rule("NO_ROOM_DOUBLE_BOOK")
+def _no_room_double_book(candidate, committed, config, ctx) -> Optional[str]:
+    for s in committed:
+        if (
+            s.room_id == candidate.room_id
+            and s.day_of_week == candidate.day_of_week
+            and s.slot_number in candidate.slot_numbers
+        ):
+            return (
+                f"room {candidate.room_id} already booked "
+                f"day {candidate.day_of_week} slot {s.slot_number}"
+            )
+    return None
+
+
+@hard_rule("NO_GROUP_DOUBLE_BOOK")
+def _no_group_double_book(candidate, committed, config, ctx) -> Optional[str]:
+    for s in committed:
+        if (
+            s.student_group_id == candidate.student_group_id
+            and s.day_of_week == candidate.day_of_week
+            and s.slot_number in candidate.slot_numbers
+        ):
+            return (
+                f"group {candidate.student_group_id} already scheduled "
+                f"day {candidate.day_of_week} slot {s.slot_number}"
+            )
+    return None
+
+
+def _published_conflict_for(candidate, ctx, resource_key, attr, label) -> Optional[str]:
+    """Shared cross-timetable reservation check for one resource kind.
+
+    A teacher, room, or group booked at (day, slot) in any published instance
+    cannot be reused here, even if the other two dimensions differ. A multi-slot
+    block checks every slot it spans.
+    """
+    if not ctx.reserved:
+        return None
+    rid = getattr(candidate, attr)
+    for n in candidate.slot_numbers:
+        key = (candidate.day_of_week, n)
+        if (rid, *key) in ctx.reserved.get(resource_key, ()):
+            return (
+                f"{label} {rid} already booked in a published timetable "
+                f"on day {candidate.day_of_week} slot {n}"
+            )
+    return None
+
+
+@hard_rule("NO_CROSS_TIMETABLE_TEACHER_CONFLICT")
+def _no_cross_timetable_teacher_conflict(candidate, committed, config, ctx) -> Optional[str]:
+    return _published_conflict_for(candidate, ctx, "faculty", "faculty_id", "faculty")
+
+
+@hard_rule("NO_CROSS_TIMETABLE_ROOM_CONFLICT")
+def _no_cross_timetable_room_conflict(candidate, committed, config, ctx) -> Optional[str]:
+    return _published_conflict_for(candidate, ctx, "room", "room_id", "room")
+
+
+@hard_rule("NO_CROSS_TIMETABLE_GROUP_CONFLICT")
+def _no_cross_timetable_group_conflict(candidate, committed, config, ctx) -> Optional[str]:
+    return _published_conflict_for(candidate, ctx, "group", "student_group_id", "group")
+
+
+@hard_rule("ROOM_CAPACITY_SUFFICIENT")
+def _room_capacity_sufficient(candidate, committed, config, ctx) -> Optional[str]:
+    room = ctx.room(candidate.room_id)
+    group = ctx.group(candidate.student_group_id)
+    if room and group and room.capacity < group.strength:
+        return (
+            f"room {room.name} capacity {room.capacity} "
+            f"< group strength {group.strength}"
+        )
+    return None
+
+
+@hard_rule("ROOM_TYPE_MATCH")
+def _room_requirements_met(candidate, committed, config, ctx) -> Optional[str]:
+    """Reject a room that does not satisfy the subject's requirements.
+
+    Today this is the legacy ``requires_lab`` binary: a lab subject must land in
+    a LAB room. The generic resource-requirements lever replaces this check with
+    declared room requirements (type set, min capacity, features) matched against
+    room attributes — see app/engine/resource_requirements.py.
+    """
+    subject = ctx.subject(candidate.subject_id)
+    room = ctx.room(candidate.room_id)
+    if subject and room and subject.requires_lab and room.room_type.value != "LAB":
+        return (
+            f"subject {subject.name} requires lab but room {room.name} "
+            f"is {room.room_type.value}"
+        )
+    return None
+
+
+@hard_rule("RESPECT_TEACHER_UNAVAILABILITY")
+def _respect_teacher_unavailability(candidate, committed, config, ctx) -> Optional[str]:
+    for w in ctx.unavailability(candidate.faculty_id):
+        if w.day_of_week != candidate.day_of_week:
+            continue
+        if not _availability_window_applies(w, candidate.slot_date):
+            continue
+        if w.slot_start and w.slot_end:
+            if candidate.start_time < w.slot_end and candidate.end_time > w.slot_start:
+                return (
+                    f"faculty {candidate.faculty_id} unavailable "
+                    f"day {candidate.day_of_week} {w.slot_start}-{w.slot_end}"
+                )
+        else:
+            return (
+                f"faculty {candidate.faculty_id} unavailable "
+                f"all day {candidate.day_of_week}"
+            )
+    return None
+
+
+@hard_rule("FACULTY_MAX_HOURS_PER_DAY")
+def _faculty_max_hours_per_day(candidate, committed, config, ctx) -> Optional[str]:
+    """A teacher's ``max_hours_per_day``; a block counts as its full length."""
+    faculty = ctx.faculty(candidate.faculty_id)
+    if not faculty or not faculty.max_hours_per_day:
+        return None
+    day_count = sum(
+        1 for s in committed
+        if s.faculty_id == candidate.faculty_id
+        and s.day_of_week == candidate.day_of_week
+    ) + candidate.block_length
+    if day_count > faculty.max_hours_per_day:
+        return (
+            f"faculty {candidate.faculty_id} would exceed daily cap "
+            f"{faculty.max_hours_per_day} on day {candidate.day_of_week}"
+        )
+    return None
+
+
+@hard_rule("FACULTY_MAX_HOURS_PER_WEEK")
+def _faculty_max_hours_per_week(candidate, committed, config, ctx) -> Optional[str]:
+    """A teacher's ``max_hours_per_week``; a block counts as its full length."""
+    faculty = ctx.faculty(candidate.faculty_id)
+    if not faculty or not faculty.max_hours_per_week:
+        return None
+    week_count = sum(
+        1 for s in committed if s.faculty_id == candidate.faculty_id
+    ) + candidate.block_length
+    if week_count > faculty.max_hours_per_week:
+        return (
+            f"faculty {candidate.faculty_id} would exceed weekly cap "
+            f"{faculty.max_hours_per_week}"
+        )
+    return None
+
+
+@hard_rule("RESPECT_ROOM_BLACKOUT")
+def _respect_room_blackout(candidate, committed, config, ctx) -> Optional[str]:
+    for b in ctx.blackouts(candidate.room_id):
+        # A recurring blackout matches by weekday; a date-specific one only
+        # matches when the candidate carries an actual calendar date.
+        if b.day_of_week is not None:
+            applies = b.day_of_week == candidate.day_of_week
+            when = f"every weekday {b.day_of_week}"
+        elif b.date is not None:
+            applies = candidate.slot_date is not None and b.date == candidate.slot_date
+            when = f"on {b.date}"
+        else:
+            applies = False
+            when = ""
+        if not applies:
+            continue
+        if b.slot_start and b.slot_end:
+            if candidate.start_time < b.slot_end and candidate.end_time > b.slot_start:
+                return (
+                    f"room {candidate.room_id} blacked out "
+                    f"{b.slot_start}-{b.slot_end} {when}"
+                )
+        else:
+            return f"room {candidate.room_id} blacked out all day {when}"
+    return None
+
+
+@hard_rule("SAME_SUBJECT_SAME_DAY")
+def _same_subject_same_day(candidate, committed, config, ctx) -> Optional[str]:
+    for s in committed:
+        if (
+            s.subject_id == candidate.subject_id
+            and s.student_group_id == candidate.student_group_id
+            and s.day_of_week == candidate.day_of_week
+        ):
+            return (
+                f"subject {candidate.subject_id} already scheduled for group "
+                f"{candidate.student_group_id} on day {candidate.day_of_week}"
+            )
+    return None
+
+
+@hard_rule("CROSS_DEPT_DAILY_CAP")
+def _cross_dept_daily_cap(candidate, committed, config, ctx) -> Optional[str]:
+    """Optional hard rule driven by college feature flag.
+
+    If the college has ``max_cross_dept_per_day`` configured in its
+    ``config_json`` blob, refuse the placement when the same faculty would
+    teach more than N sessions on this day.
+    """
+    if not ctx.settings or not candidate.is_cross_department:
+        return None
+    cap = (ctx.settings.config_json or {}).get("max_cross_dept_per_day")
+    if cap is None:
+        return None
+    count = sum(
+        1 for s in committed
+        if s.faculty_id == candidate.faculty_id
+        and s.day_of_week == candidate.day_of_week
+    )
+    if count >= int(cap):
+        return (
+            f"faculty {candidate.faculty_id} already teaches {count} "
+            f"cross-dept sessions on day {candidate.day_of_week} (cap {cap})"
+        )
+    return None
+
+
+# Register the data-driven rules after definition so the functions read top-down.
 hard_rule("SUBJECT_TIME_PREFERENCE")(_subject_time_preference)
 hard_rule("MAX_CONSECUTIVE_SAME_TEACHER")(_max_consecutive_same_teacher)
 hard_rule("TEACHER_YEAR_RESTRICTION")(_teacher_year_restriction)

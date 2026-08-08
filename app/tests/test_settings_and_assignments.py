@@ -297,7 +297,7 @@ def _phase1_availability_dates(s):
     @test("_availability_window_applies semantics")
     def t_window_rule(client):
         from datetime import date
-        from app.engine.constraint_checker import ConstraintChecker
+        from app.engine.constraint_registry import _availability_window_applies
 
         class _W:
             def __init__(self, f, t):
@@ -305,17 +305,17 @@ def _phase1_availability_dates(s):
 
         d = date(2025, 1, 6)
         # No bounds -> timeless.
-        assert ConstraintChecker._availability_window_applies(_W(None, None), d) is True
+        assert _availability_window_applies(_W(None, None), d) is True
         # Inside the window.
-        assert ConstraintChecker._availability_window_applies(_W(d, date(2025, 1, 12)), d) is True
+        assert _availability_window_applies(_W(d, date(2025, 1, 12)), d) is True
         # Outside the window.
-        assert ConstraintChecker._availability_window_applies(
+        assert _availability_window_applies(
             _W(date(2025, 1, 13), date(2025, 1, 19)), d) is False
         # No materialized date -> a date-bounded window is inert.
-        assert ConstraintChecker._availability_window_applies(_W(d, date(2025, 1, 12)), None) is False
+        assert _availability_window_applies(_W(d, date(2025, 1, 12)), None) is False
         # Half-bounded windows are unbounded on the missing side.
-        assert ConstraintChecker._availability_window_applies(_W(d, None), date(2025, 6, 1)) is True
-        assert ConstraintChecker._availability_window_applies(
+        assert _availability_window_applies(_W(d, None), date(2025, 6, 1)) is True
+        assert _availability_window_applies(
             _W(None, date(2024, 12, 31)), d) is False
 
     return [t_crud_without_dates, t_date_window, t_timeless, t_window_rule]
