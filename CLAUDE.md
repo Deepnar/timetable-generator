@@ -89,9 +89,22 @@ on `get_current_admin`.
   (`app/database.py`) and use `mapped_column`; schemas split `Create`/`Update`/`Response`.
 - **Registering a new table:** define the model, export it from `app/models/__init__.py` (so
   `Base.metadata` and Alembic autogenerate see it), then create a migration. The Alembic history is a
-  single linear chain (`aeaadc4f2374 → e47081302c4e → 0d633dc08f98 → 0f8db8a263c5 → e5f8a91c0d4e`).
-- There are **21 tables** (older docs saying "18" predate `subject_assignments`/`college_settings`).
-- No linter/formatter is enforced; PEP 8, 4-space indent. Commits use imperative lowercase.
+  single linear chain (`aeaadc4f2374 → e47081302c4e → 0d633dc08f98 → 0f8db8a263c5 → e5f8a91c0d4e →
+  d3f5a7c9e1b2`).
+- There are **22 tables** (older docs saying "21" predate `audit_logs`).
+- No linter/formatter is enforced; PEP 8, 4-space indent. Commits follow the standing rules below.
+
+## Git & commits (standing rules)
+
+This repo is destined to become public, so the git log is part of the artifact — commit accordingly.
+
+1. **Impersonal, factual messages.** Describe what changed and why, in the repository's voice.
+   Never narrate the session — no "the user said…", "as requested…", "we decided…", "per our
+   discussion". Subject ≤ ~70 chars; body explains the *why*.
+2. **Many small, focused commits.** Split by concern, not by session — one logical change per
+   commit (migration / worker / docs / tests as separate commits). Never one massive end-of-session
+   commit. If a message needs bullets to list unrelated changes, it should have been several commits.
+3. **Stage in logical chunks** (`git add <specific paths>` per commit), not `git add -A` once.
 
 ## Reference docs
 
