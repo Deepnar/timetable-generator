@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Optional
 from ..database import get_db
-from ..models.constraints import HardConstraint, SoftConstraint, ConstraintType
+from ..models.constraints import (
+    HardConstraint, SoftConstraint, ConstraintType,
+    HARD_CONSTRAINT_TYPES, SOFT_CONSTRAINT_TYPES,
+)
 from ..models import Admin
 from ..schemas.constraints import (HardConstraintCreate, HardConstraintResponse,
                                       SoftConstraintCreate, SoftConstraintResponse)
@@ -136,23 +139,6 @@ def delete_soft_constraint(
 @router.get("/types")
 def get_constraint_types():
     return {
-        "hard": [
-            "NO_TEACHER_DOUBLE_BOOK",
-            "NO_ROOM_DOUBLE_BOOK",
-            "NO_GROUP_DOUBLE_BOOK",
-            "ROOM_CAPACITY_SUFFICIENT",
-            "ROOM_TYPE_MATCH",
-            "RESPECT_TEACHER_UNAVAILABILITY",
-            "RESPECT_ROOM_BLACKOUT",
-            "CONTIGUOUS_LAB_SLOTS",
-            "EXAM_DATE_SEPARATION"
-        ],
-        "soft": [
-            "TEACHER_PREFERS_MORNING",
-            "AVOID_CONSECUTIVE_SAME_SUBJECT",
-            "MINIMIZE_STUDENT_FREE_SLOTS",
-            "MINIMIZE_TEACHER_FREE_SLOTS",
-            "DISTRIBUTE_SUBJECTS_EVENLY",
-            "BALANCE_TEACHER_LOAD"
-        ]
+        "hard": [t.value for t in HARD_CONSTRAINT_TYPES],
+        "soft": [t.value for t in SOFT_CONSTRAINT_TYPES],
     }

@@ -34,6 +34,34 @@ class ConstraintType(str, enum.Enum):
     DISTRIBUTE_SUBJECTS_EVENLY = "DISTRIBUTE_SUBJECTS_EVENLY"
     BALANCE_TEACHER_LOAD = "BALANCE_TEACHER_LOAD"
 
+# The hard/soft split is a catalog concern; keeping it here, next to the enum,
+# means ``GET /constraints/types`` and any tooling always reflect exactly what
+# the Create schemas accept. Every member must appear in exactly one list.
+HARD_CONSTRAINT_TYPES = [
+    ConstraintType.NO_TEACHER_DOUBLE_BOOK,
+    ConstraintType.NO_ROOM_DOUBLE_BOOK,
+    ConstraintType.NO_GROUP_DOUBLE_BOOK,
+    ConstraintType.ROOM_CAPACITY_SUFFICIENT,
+    ConstraintType.ROOM_TYPE_MATCH,
+    ConstraintType.RESPECT_TEACHER_UNAVAILABILITY,
+    ConstraintType.RESPECT_ROOM_BLACKOUT,
+    ConstraintType.CONTIGUOUS_LAB_SLOTS,
+    ConstraintType.EXAM_DATE_SEPARATION,
+    ConstraintType.SUBJECT_TIME_PREFERENCE,
+    ConstraintType.MAX_CONSECUTIVE_SAME_TEACHER,
+    ConstraintType.TEACHER_YEAR_RESTRICTION,
+    ConstraintType.LAB_BATCH_ROTATION,
+]
+
+SOFT_CONSTRAINT_TYPES = [
+    ConstraintType.TEACHER_PREFERS_MORNING,
+    ConstraintType.AVOID_CONSECUTIVE_SAME_SUBJECT,
+    ConstraintType.MINIMIZE_STUDENT_FREE_SLOTS,
+    ConstraintType.MINIMIZE_TEACHER_FREE_SLOTS,
+    ConstraintType.DISTRIBUTE_SUBJECTS_EVENLY,
+    ConstraintType.BALANCE_TEACHER_LOAD,
+]
+
 class HardConstraint(Base):
     __tablename__ = "hard_constraints"
 
