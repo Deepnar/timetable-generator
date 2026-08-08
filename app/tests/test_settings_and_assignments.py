@@ -491,7 +491,108 @@ def _phase2_registry(s):
         assert v(cand, [], cfg, _Ctx(2)) is not None   # year 2 disallowed
         assert v(cand, [], cfg, _Ctx(3)) is None         # year 3 allowed
 
-    return [t_time_pref, t_consecutive, t_year]
+    @test("HOLIDAY_CALENDAR validator blocks listed dates only")
+    def t_holiday(client):
+        from datetime import time, date
+        from app.engine.constraint_registry import HARD_CONSTRAINT_REGISTRY
+        from app.engine.constraint_checker import SlotCandidate
+
+        v = HARD_CONSTRAINT_REGISTRY["HOLIDAY_CALENDAR"]
+        cfg = {"holidays": ["2025-01-26", "2025-02-10"]}
+
+        def _cand(day, slot_date=None):
+            return SlotCandidate(
+                instance_id=1, day_of_week=day, slot_number=1,
+                start_time=time(9), end_time=time(10), faculty_id=1, room_id=1,
+                student_group_id=1, subject_id=1, session_type="LECTURE",
+                slot_date=slot_date,
+            )
+
+        # 2025-01-26 is a Sunday; the candidate carries that materialized date.
+        assert v(_cand(6, date(2025, 1, 26)), [], cfg, None) is not None
+        # A date not in the list is fine.
+        assert v(_cand(0, date(2025, 1, 27)), [], cfg, None) is None
+        # A slot with no materialized date (no term_start anchor) is a no-op.
+        assert v(_cand(6, None), [], cfg, None) is None
+        # An empty config or empty holidays list is a no-op.
+        assert v(_cand(6, date(2025, 1, 26)), [], {}, None) is None
+
+    @test("HOLIDAY_CALENDAR blocks that weekday end-to-end (greedy)")
+    def t_holiday_e2e(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        # Anchor the weekly template to Mon 2025-01-06, so day 1 (Tuesday)
+        # materializes as 2025-01-07.
+        r = client.post(
+            f"/profiles/{ids['profile']}/parameters", headers=headers,
+            json={"param_key": "term_start", "param_value": "2025-01-06",
+                  "param_type": "STRING"},
+        )
+        assert r.status_code in (200, 201), r.text
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "HOLIDAY_CALENDAR",
+            "config_json": {"holidays": ["2025-01-07"]},
+        })
+        assert r.status_code == 201, r.text
+
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+        # Tuesday must be absent entirely.
+        assert all(sl["day_of_week"] != 1 for sl in slots), (
+            f"Tuesday 2025-01-07 is a holiday, got days "
+            f"{[sl['day_of_week'] for sl in slots]}"
+        )
+        # Every committed slot still carries a materialized date.
+        assert all(sl["slot_date"] is not None for sl in slots), slots
+
+    @test("HOLIDAY_CALENDAR ignores dates outside the term week")
+    def t_holiday_outside_term(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post(
+            f"/profiles/{ids['profile']}/parameters", headers=headers,
+            json={"param_key": "term_start", "param_value": "2025-01-06",
+                  "param_type": "STRING"},
+        )
+        assert r.status_code in (200, 201), r.text
+        # The holiday is in June; the January term week is unaffected.
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "HOLIDAY_CALENDAR",
+            "config_json": {"holidays": ["2025-06-10"]},
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+        # All three sessions still scheduled; no day is wholesale blocked.
+        assert len({sl["day_of_week"] for sl in slots}) == 3, (
+            [sl["day_of_week"] for sl in slots]
+        )
+
+    @test("HOLIDAY_CALENDAR is inert without a term_start anchor")
+    def t_holiday_no_anchor(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "HOLIDAY_CALENDAR",
+            "config_json": {"holidays": ["2025-01-07"]},
+        })
+        assert r.status_code == 201, r.text
+        # No term_start means every candidate carries slot_date=None, so the
+        # rule cannot match anything and the full week stays schedulable.
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+
+    return [t_time_pref, t_consecutive, t_year,
+            t_holiday, t_holiday_e2e, t_holiday_outside_term, t_holiday_no_anchor]
 
 
 @suite("Phase 3 — Soft-constraint scoring")
@@ -698,7 +799,34 @@ def _phase3_ortools(s):
         # And the post-hoc score confirms a fully-satisfied soft rule.
         assert inst["soft_score"] == 1.0, inst["soft_score"]
 
-    return [t_ortools_basic, t_ortools_registry, t_ortools_soft_objective]
+    @test("OR-Tools prunes holiday dates from the domain")
+    def t_ortools_holiday(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        # Anchor to Mon 2025-01-06 and declare Tuesday (day 1) a holiday.
+        r = client.post(
+            f"/profiles/{ids['profile']}/parameters", headers=headers,
+            json={"param_key": "term_start", "param_value": "2025-01-06",
+                  "param_type": "STRING"},
+        )
+        assert r.status_code in (200, 201), r.text
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "HOLIDAY_CALENDAR",
+            "config_json": {"holidays": ["2025-01-07"]},
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen(client, headers, ids["profile"], "OR_TOOLS")
+        assert len(slots) == 3, f"expected 3 sessions, got {len(slots)}"
+        assert all(sl["day_of_week"] != 1 for sl in slots), (
+            f"Tuesday 2025-01-07 is a holiday, got days "
+            f"{[sl['day_of_week'] for sl in slots]}"
+        )
+
+    return [t_ortools_basic, t_ortools_registry, t_ortools_soft_objective,
+            t_ortools_holiday]
 
 
 @suite("Phase 3 — Instance diversity")
