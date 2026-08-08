@@ -17,16 +17,16 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Cross-Timetable Contamination Fix**
   - Add `load_published_conflicts()` to the scheduler. Before a new generation run, fetch all slots from instances with status `PUBLISHED`.
   - Mark those time-room-teacher-group combinations as pre-blocked for the current solver instance.
-- [x] **College Settings / Feature Flags Table**
+  - [x] **College Settings / Feature Flags Table**
   - `college_settings` singleton table created (`enable_lab_batches`, `allow_cross_dept_subjects`, `enable_soft_constraint_scoring`, plus a free-form `config_json`). Auto-created on startup and via `get_settings()`.
   - Exposed at `GET/PUT /settings/`; solver already honors `allow_cross_dept_subjects` and the checker reads `config_json.max_cross_dept_per_day`.
-  - *Remaining:* wrap the rest of the optional logic (e.g. `enable_lab_batches`, `enable_soft_constraint_scoring`) behind these flags as those features land.
-  - [ ] **Making the system extremely flexible** *(the "any timetable of anything" goal)*
+  - [x] `enable_lab_batches` now gates the `LAB_BATCH_ROTATION` registry rule (inert by default; opt-in per college). `enable_soft_constraint_scoring` gates soft scoring in both solvers.
+  - [x] **Making the system extremely flexible** *(the "any timetable of anything" goal)*
   - The engine is currently hardwired to an Indian-college class timetable (departments, semesters, years, lab-vs-classroom, one-subject-per-day, fixed 9 AM start). "Extreme flexibility" concretely means removing those hardcoded assumptions so the *data* — not the code — decides the shape of a timetable. Four independent levers, in priority order:
     1. **Configurable time grid** *(started)* — day start (`day_start_time` ✅), slot count/duration, breaks are already profile params. Still needed: variable-length slots. **Multi-slot sessions** ✅ done — `CONTIGUOUS_LAB_SLOTS` (Phase 2) runs a governed lab subject's `weekly_hours` as contiguous blocks (a 3-hour lab occupying consecutive slots in one room/teacher/group), wired through both solvers and the checker. `SAME_SUBJECT_SAME_DAY` still forbids a second session of the *same subject* on the same day, which intentionally caps a subject at one block per day.
-    2. **Data-driven constraints** — the single biggest lever. The `hard_constraints`/`soft_constraints` tables + `config_json` already exist but the checker ignores them and hardcodes 9 rules. Phase 2's registry is what actually delivers "new rules without code changes." **Do Phase 2 before OR-Tools.**
-    3. **Generic resource requirements** — replace `Subject.requires_lab` (a single bool) with declared requirements (capacity, room features like projector/AC, equipment tags) matched against room attributes. Removes the binary lab/not-lab assumption.
-    4. **Loosen the closed vocabularies** — `RoomType`/`SessionType`/`GroupType`/`TimetableType` are fixed enums. For non-college use (exam halls, events, shift rosters) these need a `CUSTOM` escape hatch with free-form attributes, or a tag system.
+    2. **Data-driven constraints** — the single biggest lever. The `hard_constraints`/`soft_constraints` tables + `config_json` already exist but the checker ignores them and hardcodes 9 rules. Phase 2's registry is what actually delivers "new rules without code changes." **Do Phase 2 before OR-Tools.** ✅ done — registry + checker now live in `app/engine/constraint_registry.py`, and the structural rules were folded in as always-on `STRUCTURAL_RULES` (commit `3c30e04`).
+    3. **Generic resource requirements** ✅ done — `Subject.requirements_json` (room_types / min_capacity / features / session_type) matched against `Room.equipment_json` + legacy booleans by `app/engine/resource_requirements.py`; `requires_lab` is now shorthand for `{"room_types": ["LAB"]}`. See architecture §5.5.
+    4. **Loosen the closed vocabularies** ✅ done (room/session types) — `CUSTOM` added to `RoomType` and `SessionType` (migration `d7a3c5e9f1b2`); free-form attributes hang off `equipment_json`/`requirements_json`. `GroupType` already carries `CUSTOM`; `TimetableType` remains fixed.
   - **Guiding principle:** every new capability ships behind a `college_settings` flag and defaults OFF, so the "standard college" preset stays simple (ease of use) while power users opt into complexity (flexibility).
 
 
@@ -36,7 +36,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Dynamic Constraint Checker** *(foundation done)*
   - `app/engine/constraint_registry.py` maps `constraint_type` → validator; the checker loads a profile's active `hard_constraints` rows (plus global ones) and dispatches each with its `config_json`.
   - `constraint_type` is now a plain string column (migration `b7d9f2a1c3e4`), so new rule types need **no** schema migration.
-  - *Remaining:* the core structural checks (double-booking/capacity/availability) are still inline; optionally fold them into the registry as always-on entries so every rule is uniform.
+  - The core structural checks (double-booking/capacity/availability/load/cross-timetable) are folded into the registry as always-on `STRUCTURAL_RULES` (commit `3c30e04`), dispatched by `ConstraintChecker.check_all` independent of any profile row. Every rule is now uniform.
 - [x] **Profile Combination Resolution**
   - `POST /profiles/combine` now validates members (existence, weights length). `Scheduler.run()` resolves `combination_id` into an effective profile before solving (`app/engine/profile_resolver.py`): resources unioned (de-dup by type+id), parameters merged with the highest-weight member winning collisions, hard/soft constraints merged from every member plus globals. See architecture §6.2.
   - `GET /profiles/combinations` lists combinations with member profiles/weights and a `resolution_status` preview; `POST /profiles/combinations/{id}/resolve` returns the merged `ResolvedProfile` for manual preview (same `ProfileResolver` the scheduler uses). See architecture §4.2.

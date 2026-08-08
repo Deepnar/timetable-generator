@@ -61,7 +61,7 @@ Every generation run produces **multiple candidate timetables** (instances). The
 
 The backend uses SQLAlchemy 2.0 mapped-column models on PostgreSQL. This section lists every table the application defines, in the order they were added by Alembic. **The Alembic migrations are the source of truth** for column types — the snippets below are a human-readable guide, not a literal `CREATE TABLE` to copy.
 
-**Migration chain (single linear, head = `b4f1c9d3e7a2`):**
+**Migration chain (single linear, head = `d7a3c5e9f1b2`):**
 
 ```
 aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty_availability, room_blackouts)
@@ -74,6 +74,8 @@ aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty
    → d3f5a7c9e1b2   audit_logs
    → e9f4a2b6d8c0   faculty_availability effective dates nullable
    → b4f1c9d3e7a2   generation variation strategy column (variationmode)
+   → c2e8a4d6f0b1   subjects.requirements_json + rooms.equipment_json (generic room requirements)
+   → d7a3c5e9f1b2   CUSTOM added to roomtype + sessiontype enums
 ```
 
 There are **22 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, plus `audit_logs`.
@@ -110,6 +112,9 @@ CREATE TABLE subjects (
     semester        INTEGER NOT NULL,
     hours_per_week  INTEGER NOT NULL,
     requires_lab    BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Declarative room requirements (room_types / min_capacity / features /
+    -- session_type); overrides requires_lab when set. See §5.5.
+    requirements_json JSON,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -118,18 +123,20 @@ CREATE TABLE rooms (
     id              SERIAL PRIMARY KEY,
     name            VARCHAR(100) NOT NULL,               -- "Lab 3", "Seminar Hall A"
     room_code       VARCHAR(20) NOT NULL UNIQUE,
-    room_type       roomtype NOT NULL,                   -- CLASSROOM | LAB | SEMINAR_HALL | AUDITORIUM
+    room_type       roomtype NOT NULL,                   -- CLASSROOM | LAB | SEMINAR_HALL | AUDITORIUM | CUSTOM
     capacity        INTEGER NOT NULL,
     floor           INTEGER,
     building        VARCHAR(50),
     has_projector   BOOLEAN NOT NULL DEFAULT FALSE,
     has_ac          BOOLEAN NOT NULL DEFAULT FALSE,
-    -- NOTE: equipment_json is NOT in the current schema; that field is a future
-    -- extension tracked in plan.md under "Generic resource requirements".
+    -- Free-form equipment/feature tags (["projector", "whiteboard", ...]) that
+    -- subject room requirements match against. See §5.5.
+    equipment_json  JSON,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE
 );
 -- NOTE: the doc previously listed OPEN_SPACE / CONFERENCE room_type values; the
--- RoomType enum currently shipped only carries the four above.
+-- RoomType enum shipped only the four college kinds, then gained a CUSTOM
+-- escape hatch (migration d7a3c5e9f1b2) for exam halls / event spaces / etc.
 
 -- ROOM BLACKOUTS (maintenance, reserved dates)
 -- Either date-specific (`date` set — for the eventual date materialiser) or
@@ -335,7 +342,7 @@ rule can be added without a schema migration.
 | `NO_ROOM_DOUBLE_BOOK`             | `_check_room_double_book`                            |
 | `NO_GROUP_DOUBLE_BOOK`            | `_check_group_double_book`                           |
 | `ROOM_CAPACITY_SUFFICIENT`        | `_check_room_capacity`                               |
-| `ROOM_TYPE_MATCH`                 | `_check_room_type_match`                             |
+| `ROOM_REQUIREMENTS_MET`           | `_room_requirements_met` (matches declared requirements vs room attributes, §5.5) |
 | `RESPECT_TEACHER_UNAVAILABILITY`  | `_check_teacher_availability` (consults `effective_from`/`effective_to` vs the slot's materialized date) |
 | `RESPECT_ROOM_BLACKOUT`           | `_check_room_blackout` (recurring weekday always; date-specific only when the slot carries a materialized `slot_date`) |
 | `FACULTY_MAX_HOURS_PER_DAY`       | `_check_faculty_load`                                |
@@ -353,7 +360,7 @@ rule can be added without a schema migration.
 | `SUBJECT_TIME_PREFERENCE`         | `subject_id?`, `max_slot?`, `min_slot?`, `period?`, `boundary_slot?` | `_subject_time_preference`     |
 | `MAX_CONSECUTIVE_SAME_TEACHER`    | `max`, `faculty_id?`                                        | `_max_consecutive_same_teacher`    |
 | `TEACHER_YEAR_RESTRICTION`        | `faculty_id`, `allowed_years`                               | `_teacher_year_restriction`        |
-| `LAB_BATCH_ROTATION`              | `group_days: {"<group_id>": [day_of_week, ...]}`            | `_lab_batch_rotation`              |
+| `LAB_BATCH_ROTATION`              | `group_days: {"<group_id>": [day_of_week, ...]}`            | `_lab_batch_rotation` (inert unless the `enable_lab_batches` flag is on) |
 | `HOLIDAY_CALENDAR`                | `holidays: ["YYYY-MM-DD", ...]`                             | `_holiday_calendar`                |
 | `EXAM_DATE_SEPARATION`            | `min_days`, `group_id?`                                     | `_exam_date_separation`            |
 | `CONTIGUOUS_LAB_SLOTS`            | `block_lengths: {"<subject_id>": int}`, `default_block_length?: int` | `_contiguous_lab_slots`  |
@@ -375,7 +382,11 @@ rule can be added without a schema migration.
 
 > The catalog (`ConstraintType` enum) is the single source of truth for what the API surface accepts in `GET /constraints/types` — the endpoint derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the enum in `app/models/constraints.py`), so a new enum member can never drift from discovery.
 
-> Still hardcoded (structural) rather than registry-driven: the core double-booking / capacity / availability / faculty-load / cross-timetable checks. They could be moved into the registry as always-on entries later so *every* rule is uniform, but they are kept inline since they are non-negotiable and never per-profile.
+> Since the registry refactor (commit `3c30e04`) the structural checks live in
+> `app/engine/constraint_registry.py` too, as always-on entries (`STRUCTURAL_RULES`)
+> that `ConstraintChecker.check_all` dispatches on every candidate regardless of
+> the profile's `hard_constraints` rows. They remain non-negotiable and never
+> per-profile; rows of a structural type are decorative.
 
 #### Soft-Constraint Scoring (implemented — Phase 3)
 
@@ -437,7 +448,7 @@ CREATE TABLE timetable_slots (
     faculty_id        INTEGER REFERENCES faculty(id),
     room_id           INTEGER REFERENCES rooms(id),
     student_group_id  INTEGER REFERENCES student_groups(id),
-    session_type      sessiontype NOT NULL,                           -- LECTURE | LAB | TUTORIAL | SEMINAR | EVENT | EXAM | IP | FREE
+    session_type      sessiontype NOT NULL,                           -- LECTURE | LAB | TUTORIAL | SEMINAR | EVENT | EXAM | IP | FREE | CUSTOM
     is_manual_override BOOLEAN NOT NULL DEFAULT FALSE,
     override_reason   VARCHAR(300),
     external_speaker  VARCHAR(200),                                   -- guest lectures / IP
@@ -562,7 +573,7 @@ The route prefixes below match the `@router.prefix` declarations in the router f
 ```
 GET    /rooms                          List rooms (filter: room_type, min_capacity, building)
 GET    /rooms/{id}                     Get one room
-POST   /rooms                          Create room
+POST   /rooms                          Create room (accepts `room_type` incl. `CUSTOM` + `equipment_json`)
 PUT    /rooms/{id}                     Update room
 DELETE /rooms/{id}                     Soft delete (is_active=false)
 
@@ -574,7 +585,7 @@ DELETE /faculty/{id}                   Soft delete (is_active=false)
 
 GET    /subjects                       List subjects (filter: semester, department, requires_lab)
 GET    /subjects/{id}                  Get one subject
-POST   /subjects                       Create subject (subject_code unique)
+POST   /subjects                       Create subject (subject_code unique; accepts `requirements_json`)
 PUT    /subjects/{id}                  Update subject
 DELETE /subjects/{id}                  Soft delete (is_active=false)
 
@@ -617,10 +628,10 @@ PUT    /settings/                      Update one or more flags / config_json
 POST   /auth/register                  Create an admin (email + name unique)
 POST   /auth/login                     Returns {"access_token", "token_type": "bearer"}
 
-POST   /import/rooms                   Bulk import rooms via CSV (multipart file)
+POST   /import/rooms                   Bulk import rooms via CSV (multipart file; optional `equipment_json` JSON column)
 POST   /import/faculty                 Bulk import faculty via CSV
 POST   /import/groups                  Bulk import student groups via CSV
-POST   /import/subjects                Bulk import subjects via CSV
+POST   /import/subjects                Bulk import subjects via CSV (optional `requirements_json` JSON column)
                                         # All four are all-or-nothing: any invalid row rejects
                                         # the whole file (422, inserted=0) so the DB never ends
                                         # up holding rows the response didn't report. room_code /
@@ -803,7 +814,7 @@ Step-by-step:
     "group":   {(group_id,   day_of_week, slot_number), ...}}
    ```
    Splitting per resource (rather than a single 5-way tuple) means a published booking blocks the faculty, room, or group at that time slot REGARDLESS of the other dimensions. An **exam generation** passes `exempt_groups=` (the profile's own `STUDENT_GROUP` ids when the profile is in exam mode): those groups' published slots are skipped, so a branch on exams can reuse its suspended class slots while every other branch's active classes stay protected (§5.4).
-3. **Build Sessions to Schedule.** From `subject_assignments` rows, expand each `(subject, faculty, group, weekly_hours, load_share)` into `weekly_hours` `SessionToSchedule` objects. Each session carries `session_type` (`LECTURE` / `LAB` from `requires_lab`), an `is_cross_department` flag (`group.department != subject.department`), and is dropped if the `college_settings.allow_cross_dept_subjects` flag is off and the cross-dept flag is on. In **exam mode** (§5.4) each assignment instead becomes exactly ONE `SessionType.EXAM` session.
+3. **Build Sessions to Schedule.** From `subject_assignments` rows, expand each `(subject, faculty, group, weekly_hours, load_share)` into `weekly_hours` `SessionToSchedule` objects. Each session carries a `session_type` (derived via `subject_session_type` from the subject's declared `requirements_json.session_type`, falling back to `LAB`/`LECTURE` from `requires_lab`), the resolved room requirements (see §5.5), an `is_cross_department` flag (`group.department != subject.department`), and is dropped if the `college_settings.allow_cross_dept_subjects` flag is off and the cross-dept flag is on. In **exam mode** (§5.4) each assignment instead becomes exactly ONE `SessionType.EXAM` session.
 4. **Solver Runs N times for N candidate instances.** The run row records a `variation` strategy (from the request, default `random`) that shapes the seeded re-rolls (§5.3):
    - **Instance #1: seed = `None`** (deterministic baseline) unless `variation="best"`.
    - **Instance #i (i > 0): seed = `i * 100 + attempt`**; with `variation="best"`, instance #1 is seeded too (`0 * 100 + attempt`) so a genuine optimum can be found.
@@ -818,7 +829,7 @@ Step-by-step:
 
 - Industry-grade constraint satisfaction solver; select it with `algorithm="OR_TOOLS"` on `POST /generate` (greedy remains the default). Installed via `uv add ortools`.
 - `ORToolsSolver` subclasses `GreedySolver` and overrides `solve()`, reusing the same session-building helpers. Constraint handling is split to match the `ConstraintChecker`:
-  - **Per-candidate ("static") rules** — capacity, room type, recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `CONTIGUOUS_LAB_SLOTS`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
+  - **Per-candidate ("static") rules** — capacity, room requirements (§5.5), recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `CONTIGUOUS_LAB_SLOTS`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
   - **Relational rules** — no teacher/room/group double-book, one-subject-per-group-per-day, per-faculty daily/weekly load — are added as CP-SAT constraints (`model.Add(sum(vs) <= 1)`). A block session registers its variable in the double-book buckets for *every* slot it occupies, and contributes its full length to the load buckets, so CP-SAT treats a block as a contiguous booking.
 - Objective: `model.Maximize(PLACEMENT_WEIGHT * sum(x.values()) + Σ soft_terms + Σ variation_terms)` — maximise placed sessions first (`PLACEMENT_WEIGHT = 1000.0`), then optimise the active soft preferences via `app/engine/soft_objective.py` (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`; gated by `enable_soft_constraint_scoring`). Rules without a registered objective builder are skipped but still rank instances post-hoc. For a seeded instance whose run is `variation="minimize-teacher-gaps"` or `"minimize-student-gaps"`, `_build_variation_terms` additionally folds a small span term into the objective (§5.3) so the re-roll actively packs the teacher's / group's sessions instead of being a pure random seed. All secondary weights stay far below `PLACEMENT_WEIGHT`, so a soft preference or variation can only shape *which* equal-cardinality solution is returned — never trade away a placed session.
 - **`EXAM_DATE_SEPARATION` is modelled as a relational CP-SAT rule** (not just a domain-pruning rule): its registry validator reads committed slots, so it cannot fire during static pruning and would otherwise only shed placements in the final pass (letting CP-SAT pack a group's exams onto one day). `_add_exam_separation` adds, per group, "at most one exam per calendar date" plus "no exams on two dates closer than `min_days`", using the materialized dates from `term_start` (inert without an anchor).
@@ -935,6 +946,33 @@ Two pieces make that scenario work:
 2. **Examing groups exempt their own class slots** — `Scheduler._load_published_conflicts(exempt_groups=...)` skips published slots whose `student_group_id` is in the exam profile's group set. Those groups have suspended their classes, so their old class slots (teacher, room, group) are reusable for exams; every other branch's rooms and faculty stay reserved, so the exam timetable can never collide with the classes still running. The same exemption is applied in the manual-override re-validation path (`app/router/instances.py::_revalidate_slot`).
 
 Limitations: the engine is still a single-week template, so a group's exams share the one anchored week (a `min_days`-heavy schedule can leave some exams unplaced); and `EXAM_DATE_SEPARATION` is inert without `term_start`, mirroring `HOLIDAY_CALENDAR`.
+
+### 5.5 Generic room requirements (`requirements_json` / `equipment_json`)
+
+The engine replaces the binary `Subject.requires_lab` with a declarative requirements spec, so any "this subject needs a particular kind of room" is expressible without hardcoding lab/not-lab. The spec lives in `Subject.requirements_json` (`app/engine/resource_requirements.py`):
+
+```json
+{
+    "session_type": "LAB",                       // optional; overrides the derived session type
+    "room_types": ["LAB", "SEMINAR_HALL"],       // optional; absent/empty = any room type
+    "min_capacity": 40,                          // optional; absent/0 = any capacity
+    "features": ["projector", "ac"]              // optional; the room must satisfy every one
+}
+```
+
+Matching is done by `room_matches_requirements(room, reqs) -> (ok, reason)` against room attributes:
+
+- **`room_types`** — the room's `room_type` must be in the set.
+- **`min_capacity`** — `room.capacity >= min_capacity`.
+- **`features`** — each tag must appear in `Room.equipment_json`, or map onto a legacy boolean column (`"projector"` → `has_projector`, `"ac"` → `has_ac`). An unknown tag is unsatisfiable unless the room carries it in `equipment_json`.
+
+Resolution rules (`effective_requirements` / `subject_session_type`):
+
+- `requirements_json` wins when set (an **empty dict** means "no constraints", even with `requires_lab`).
+- Otherwise `requires_lab` is shorthand for `{"room_types": ["LAB"]}`.
+- `requirements_json.session_type` overrides the derived `LAB`/`LECTURE`, so a subject can produce `SEMINAR`, `TUTORIAL`, or `CUSTOM` sessions without an enum migration.
+
+Both solvers consume it: `GreedySolver._get_rooms(session.room_requirements)` filters the profile's rooms through `room_matches_requirements`, and the `ROOM_REQUIREMENTS_MET` structural rule (renamed from `ROOM_TYPE_MATCH`) re-validates every proposed candidate in the checker. A subject whose requirements match **no** room in the profile schedules zero sessions (the greedy solver warns and returns fewer slots) rather than silently using a wrong room.
 
 ---
 
@@ -1150,6 +1188,8 @@ These are not profile parameters in the key/value sense — they are constraints
 |------------------------------|--------|
 | `max_room_utilization_pct`   | ❌ not enforced — no utilisation cap in the engine |
 | `prefer_fixed_home_room`     | ❌ no "home room" concept; each assignment picks a fresh room |
+| `equipment_json` (on a room) | ✅ matched against a subject's `requirements_json.features` (§5.5) |
+| `requirements_json` (on a subject) | ✅ the solver's room-selection + session-type source (§5.5); overrides `requires_lab` |
 
 ### 8.5 Exam / Event / IP Specific — *NOT implemented*
 
@@ -1200,7 +1240,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### ✅ Shipped (matches the doc above)
 
-- **Schema (22 tables)** — Alembic chain `aeaadc4f2374 → … → b4f1c9d3e7a2`; latest migration is `b4f1c9d3e7a2` (generation `variation` column).
+- **Schema (22 tables)** — Alembic chain `aeaadc4f2374 → … → d7a3c5e9f1b2`; latest migration is `d7a3c5e9f1b2` (CUSTOM enum labels).
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — `POST /generate` with greedy (default) and OR-Tools CP-SAT, running synchronously by default or through a Celery worker when `ASYNC_GENERATION=true` (§7.1). `Scheduler` is split into `create_generation()` (PENDING row + run_id) and `solve_generation()` (worker entry point); failures flip the run to `FAILED` with `error_log`.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2). `GET /profiles/combinations` lists combinations with member names/weights and a `resolution_status` preview, and `POST /profiles/combinations/{id}/resolve` returns the merged `ResolvedProfile` for manual preview (§4.2).

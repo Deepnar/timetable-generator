@@ -48,11 +48,11 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **CORS Middleware**: Configured for frontend communication (localhost:3000).
 
 ### Resource Management (CRUD)
-- [x] **Rooms API**: Full CRUD, blackout window management, query param filtering (type, building, capacity).
+- [x] **Rooms API**: Full CRUD, blackout window management, query param filtering (type, building, capacity). Rooms carry `equipment_json` (free-form feature tags) and accept the `CUSTOM` room type.
 - [x] **Faculty API**: Full CRUD, availability windows, filtering.
 - [x] **Student Groups API**: Full CRUD, hierarchical grouping support, filtering.
-- [x] **Subjects API**: Full CRUD, subject-hours mapping, filtering.
-- [x] **CSV Bulk Import**: Robust parser for all 4 entities with validation. All-or-nothing (any bad row rejects the file with `422`, `inserted=0`).
+- [x] **Subjects API**: Full CRUD, subject-hours mapping, filtering. Subjects carry `requirements_json` (room_types / min_capacity / features / session_type) which replaces `requires_lab`.
+- [x] **CSV Bulk Import**: Robust parser for all 4 entities with validation. All-or-nothing (any bad row rejects the file with `422`, `inserted=0`). Rooms/subjects CSV accepts the new JSON columns.
 
 ### Profiles & Constraints
 - [x] **Profile System**: Create/edit profiles, link resources, set parameters.
@@ -86,10 +86,12 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 ### 🔴 Critical Missing (Blockers for Real Usage)
 - [x] **College Settings / Feature Flags Table** *(largely done)*
   - `college_settings` model, migration, `GET/PUT /settings/` endpoints, and the `get_settings()` singleton service are all in place; the solver honors `allow_cross_dept_subjects` and the checker reads `config_json.max_cross_dept_per_day`.
-  - *Remaining:* wire the remaining flags (`enable_lab_batches`, `enable_soft_constraint_scoring`) into their respective features as those land.
+  - ✅ `enable_lab_batches` now gates the `LAB_BATCH_ROTATION` registry rule (inert by default, opt-in per college). `enable_soft_constraint_scoring` gates soft scoring in both solvers (see §3.3).
 
 ### 🟠 Engine & Solver Improvements
-- [x] **Dynamic Constraint Checker** *(foundation)* — `app/engine/constraint_registry.py` dispatches profile `hard_constraints` (by `config_json`) to registered validators; `constraint_type` is now a plain string so new rules skip schema migrations. Core structural checks stay inline (see plan.md Phase 2).
+- [x] **Dynamic Constraint Checker** *(foundation)* — `app/engine/constraint_registry.py` dispatches profile `hard_constraints` (by `config_json`) to registered validators; `constraint_type` is now a plain string so new rules skip schema migrations. Core structural checks now live in the registry too as always-on `STRUCTURAL_RULES` (`ConstraintChecker.check_all` dispatches them on every candidate, independent of profile rows) — see plan.md Phase 2.
+- [x] **Generic room requirements** — `Subject.requirements_json` (room_types / min_capacity / features / session_type) matched against `Room.equipment_json` + legacy boolean columns by `app/engine/resource_requirements.py`. `requires_lab` is now shorthand for `{"room_types": ["LAB"]}`; the registry rule `ROOM_TYPE_MATCH` became `ROOM_REQUIREMENTS_MET`; both solvers pick rooms through the shared matcher. See architecture §5.5.
+- [x] **CUSTOM escape hatches** — `CUSTOM` added to `RoomType` and `SessionType` (migration `d7a3c5e9f1b2`); free-form attributes hang off `equipment_json`/`requirements_json`. `GroupType` already had `CUSTOM`.
 - [x] **New Constraint Types** *(7 of 7 done)*
   - Done: `SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION` (pins a group/lab-batch to weekdays via `config_json.group_days`), `HOLIDAY_CALENDAR` (blocks listed calendar dates via `config_json.holidays`, matched against each slot's materialized `slot_date` from `term_start`), `CONTIGUOUS_LAB_SLOTS` (multi-slot lab sessions: `config_json.block_lengths`/`default_block_length` expands a governed lab subject's `weekly_hours` into contiguous blocks; the checker's double-book/load/reservation checks and the OR-Tools model are block-aware), `EXAM_DATE_SEPARATION` (min days between a group's exams: a `session_type: EXAM` profile mode turns each assignment into one `SessionType.EXAM` session; the validator spaces exams by `slot_date`, OR-Tools models it as a relational rule, and the published-conflict loader exempts the examing groups' own class slots so one branch can sit exams while others teach — architecture §5.4).
 - [x] **Soft Constraint Scoring** — `app/engine/scorer.py` registry weights each instance's soft constraints into `instance.soft_score` / `generation.score_best_instance` (gated by `enable_soft_constraint_scoring`). Ships `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`.
