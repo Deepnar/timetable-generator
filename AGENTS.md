@@ -106,11 +106,29 @@ This repo is destined to become public, so the git log is part of the artifact �
    commit. If a message needs bullets to list unrelated changes, it should have been several commits.
 3. **Stage in logical chunks** (`git add <specific paths>` per commit), not `git add -A` once.
 
+## Session workflow
+
+Roadmap work runs in priority order (`documentation/progress.md` → "Newly Identified" and
+"Planned / Pending", plus the priorities in `documentation/HANDOFF.md`).
+
+1. **Work until a handoff point.** Pick up the highest-priority open item and carry it to a
+   natural completion. When the remaining work is substantial enough to be its own session
+   (a fresh feature, a design decision, a deep engine change), stop — don't half-start a big
+   item right at the end of a session.
+2. **Commit, then push.** One logical commit per concern (migration / engine / tests / docs),
+   per the standing rules above. Push at the end of the session.
+3. **Write the handoff.** Overwrite `documentation/HANDOFF.md` so the next session starts with
+   full context: what changed, what to read, and the next task. The git history preserves the
+   previous handoff.
+4. **Keep docs in sync.** Update `documentation/timetable-generator-architecture.md`,
+   `plan.md`, and `progress.md` with every change (mandatory, see below).
+
 ## Reference docs
 
 `documentation/` holds the deeper design material: `timetable-generator-architecture.md` (schema +
-endpoint + solver blueprint), `plan.md` (phased roadmap), `progress.md` (feature checklist), and
-`AGENTS.md` (contributor guide). `rough_plan.md` is a private, gitignored scratchpad
+endpoint + solver blueprint), `plan.md` (phased roadmap), `progress.md` (feature checklist),
+`AGENTS.md` (contributor guide), and `HANDOFF.md` (end-of-session context for the next session).
+`rough_plan.md` is a private, gitignored scratchpad
 kept locally only; it is not part of the repository. Treat the code as ground truth
 where these disagree.
 

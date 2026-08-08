@@ -370,7 +370,7 @@ rule can be added without a schema migration.
 - `CONTIGUOUS_LAB_SLOTS` (hard) — listed historically; no validator. Today every session occupies exactly one slot; multi-slot labs are a future lever (`plan.md`).
 - `TEACHER_SUBJECT_MATCH` (hard) — implicit, because the solver only generates sessions from `subject_assignments` rows, which already bind a faculty to a subject/group.
 
-> The catalog (`ConstraintType` enum) is the single source of truth for what the API surface accepts in `GET /constraints/types`. The hardcoded list in `app/router/constraints.py::get_constraint_types` is shorter than the registry and should be regenerated from the registry when that endpoint is re-implemented.
+> The catalog (`ConstraintType` enum) is the single source of truth for what the API surface accepts in `GET /constraints/types` — the endpoint derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the enum in `app/models/constraints.py`), so a new enum member can never drift from discovery.
 
 > Still hardcoded (structural) rather than registry-driven: the core double-booking / capacity / availability / faculty-load / cross-timetable checks. They could be moved into the registry as always-on entries later so *every* rule is uniform, but they are kept inline since they are non-negotiable and never per-profile.
 
@@ -614,6 +614,11 @@ POST   /import/rooms                   Bulk import rooms via CSV (multipart file
 POST   /import/faculty                 Bulk import faculty via CSV
 POST   /import/groups                  Bulk import student groups via CSV
 POST   /import/subjects                Bulk import subjects via CSV
+                                        # All four are all-or-nothing: any invalid row rejects
+                                        # the whole file (422, inserted=0) so the DB never ends
+                                        # up holding rows the response didn't report. room_code /
+                                        # email / subject_code are required and checked for
+                                        # duplicates within the file AND against the DB.
 
 GET    /health                         Liveness + DB reachability (for deploy monitors)
 ```
@@ -695,9 +700,10 @@ POST   /instances/{instance_id}/publish  Publish (status=PUBLISHED); archives pr
                                         # instances from other generations remain live and feed
                                         # cross-timetable reservations on the next run.
 PATCH  /instances/{instance_id}/slots/{slot_id}   Manual override of a slot
-                                        # Sets is_manual_override=true and override_reason;
-                                        # does NOT re-run the constraint checker (live
-                                        # re-validation is still TODO — tracked in plan.md).
+                                        # Sets is_manual_override=true and override_reason.
+                                        # The new position is re-validated by the constraint
+                                        # checker first — a conflict returns 409 and the slot
+                                        # is left untouched.
                                         # NOTE: there is no DELETE /instances/{id}/slots/{slot_id}
                                         # (no "remove slot, create FREE" endpoint yet), and no
                                         # /instances/{id}/conflicts, /instances/{id}/diff/{other},
@@ -951,14 +957,14 @@ The sets are split deliberately per resource type — a combined `(faculty, room
 
 There is **no `GET /instances/{id}/conflicts` endpoint** — once a candidate passes the checker, there is no concept of reporting residual conflicts to the admin. The check is a hard gate, not a report.
 
-### 7.3 Manual Override System — *implemented, but no re-validation*
+### 7.3 Manual Override System — *implemented, re-validated*
 
 - `PATCH /instances/{instance_id}/slots/{slot_id}` (`app/router/instances.py::override_slot`) lets an admin move a slot to a new `(day_of_week, slot_number, room_id)` and (optionally) swap to a different `faculty_id`. The request body is a `SlotOverride` (`app/schemas/generation.py`) and the endpoint:
   1. Loads the slot row scoped to that instance.
   2. Applies every supplied field via `setattr`.
-  3. Sets `is_manual_override = True` and stores `override_reason` (free-text audit trail).
+  3. Re-validates the new position with a full `ConstraintChecker` pass (`app/router/instances.py::_revalidate_slot`) against the instance's other slots, the profile's registry rules, and the cross-timetable published reservations; a violation returns `409` and the slot is left untouched.
+  4. Sets `is_manual_override = True` and stores `override_reason` (free-text audit trail).
 - The `timetable_slots` table **does carry `is_manual_override`** (`Mapped[bool] default=False` in `app/models/generation.py`) and `override_reason: Mapped[Optional[str]]`.
-- **Override is NOT re-validated** by the constraint checker. The doc's earlier claim "Override is validated by the backend (runs hard constraint check on the new slot)" is **aspirational** — `override_slot` writes directly with no `ConstraintChecker.is_valid()` call. Conscious choice (instant edits are the point) and tracked as a known TODO.
 - There is **no `DELETE /instances/{instance_id}/slots/{slot_id}`** endpoint (slot removal is not exposed).
 - There is **no `GET /instances/{id}/conflicts`** — the front-end is responsible for "did this break things?".
 
@@ -1109,21 +1115,21 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### ✅ Shipped (matches the doc above)
 
-- **Schema (21 tables)** — Alembic chain `aeaadc4f2374 → … → d3f5a7c9e1b2`; latest migration is `d3f5a7c9e1b2` (audit_logs).
+- **Schema (22 tables)** — Alembic chain `aeaadc4f2374 → … → e9f4a2b6d8c0`; latest migration is `e9f4a2b6d8c0` (faculty availability dates nullable).
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — synchronous `POST /generate` with greedy (default) and OR-Tools CP-SAT.
 - **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`).
 - **Soft scoring** — `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS` registered as post-hoc scorers **and** as CP-SAT objective builders (`soft_objective.py`); `AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD` catalogued only.
 - **Diversity filter** — seeded re-rolls, `_DIVERSITY_ATTEMPTS=6`, `_DIVERSITY_MIN_DISTANCE=1`.
 - **Instance lifecycle** — `DRAFT → SELECTED → PUBLISHED → ARCHIVED`; publishing auto-archives the previous `PUBLISHED` sibling of the same generation.
-- **Manual override** — `PATCH /instances/{instance_id}/slots/{slot_id}` sets `is_manual_override=true` and writes `override_reason`. No re-validation; tracked as TODO.
+- **Manual override** — `PATCH /instances/{instance_id}/slots/{slot_id}` sets `is_manual_override=true`, writes `override_reason`, and re-validates the new position with the full constraint checker (409 on conflict).
 - **Cross-timetable safety** — `Scheduler._load_published_conflicts()` + `ConstraintChecker._check_published_conflicts()` (per-resource split sets).
 - **Exports** — PDF, CSV, iCal (RFC 5545) via `/generate/export/{pdf|csv|ical}?...` with shared filter layer (`group_id`, `faculty_id`, `year`, `department`).
 - **History** — `POST /history` snapshots, `GET /history`, `GET /history/{id}`; no restore endpoint.
 - **Audit** — global HTTP middleware writes `audit_logs` for every `POST | PUT | PATCH | DELETE`; `GET /audit/` for admins.
 - **Settings** — `college_settings` singleton auto-created on startup; `GET/PUT /settings/`.
 - **Health** — `GET /health` with Postgres reachability check.
-- **CSV import** — `/import/{rooms|faculty|groups|subjects}` and `/import/assignments` (dry-run + commit).
+- **CSV import** — `/import/{rooms|faculty|groups|subjects}` and `/import/assignments` (dry-run + commit). All-or-nothing: any invalid row rejects the whole file (422, `inserted=0`).
 - **Reset** — `POST /reset/` (FULL_YEAR archives published + clears profiles; PROFILE_SPECIFIC clears only; SEMESTER no-op) plus `GET /reset/log`; `timetable_reset_log` row written for every reset.
 - **Pagination utility** — `app/utils/pagination.py` exposes `Pagination`, `pagination`, `paginate`; `GET /audit/` and several list endpoints use it.
 
@@ -1131,7 +1137,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 - **Profile scope** — `ScopeType` enum has six values (DEPARTMENT/YEAR/DIVISION/EVENT/EXAM/CUSTOM) but only DEPARTMENT/YEAR/DIVISION have distinct solver branches; EVENT/EXAM/CUSTOM run through the same DEPARTMENT path.
 - **Profile combine** — `profile_combinations` and `profile_combination_members` tables exist and `TimetableGeneration.combination_id` is a real FK, but the scheduler ignores `combination_id` and there is no `/profiles/combinations` router.
-- **Manual override** — no re-validation by the constraint checker; no `DELETE /instances/{id}/slots/{slot_id}`; no `GET /instances/{id}/conflicts`.
+- **Manual override** — re-validated by the constraint checker, but there is still no `DELETE /instances/{id}/slots/{slot_id}` and no `GET /instances/{id}/conflicts`.
 - **Export JSON** — there is no `/generate/export/json` route; consumers fetch slots via `GET /instances/{id}/slots` instead.
 - **Soft scoring in CP-SAT** — soft preferences are folded into the OR-Tools objective (`soft_objective.py`), but only the two shipped rules have builders; greedy still ignores soft preferences during placement (post-hoc scoring only).
 - **`SEMESTER` reset** — accepted by the schema (`ResetType` enum) but no branch handles it; falls through with the `reset_log` still written.

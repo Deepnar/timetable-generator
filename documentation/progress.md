@@ -28,10 +28,10 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 - ~~**Room blackout check is effectively dead**~~ — ✅ FIXED: `room_blackouts` now supports recurring **weekday** blackouts (`day_of_week`), which the checker enforces against the recurring templates. Date-specific blackouts still await calendar-date materialization.
 - ~~**Faculty availability date-range ignored**~~ — ✅ FIXED: `effective_from`/`effective_to` are now nullable (migration `e9f4a2b6d8c0`) so timeless windows can be created via CRUD/CSV, and the checker consults them against each slot's materialized date. The solver anchors the weekly template with the new **`term_start`** profile parameter (see architecture §8.8) and stamps `TimetableSlot.slot_date`; a date-bounded window only blocks the week it covers, and a window with no bounds stays timeless.
-- **CSV import is not atomic** — each row is `add()`ed and everything is `commit()`ed once at the end; a single integrity error at commit rolls back rows already reported as "inserted". Also `import_rooms` lets `room_code` be `None` against a `NOT NULL UNIQUE` column.
-- **Profile combinations are never resolved** — `/profiles/combine` stores members, but `Scheduler`/`GreedySolver` only read a single `profile_id`; generating from a `combination_id` fails. (Loosely Phase 4, but the endpoint currently misleads.)
-- **`GET /constraints/types` is a hardcoded string list** that can drift from the `ConstraintType` enum.
-- **Read-route auth is inconsistent** — `/settings` GET requires a token, most other GETs don't.
+- ~~**CSV import is not atomic**~~ — ✅ FIXED: `/import/{rooms,faculty,groups,subjects}` are now **all-or-nothing**. Every row is validated up front (required fields, duplicates within the file AND against the DB); any invalid row rejects the whole upload with `422` and `inserted=0`, so the DB never ends up holding rows the response didn't report. `import_rooms` also now requires a non-empty `room_code`.
+- **Profile combinations are never resolved** — `/profiles/combine` stores members, but `Scheduler`/`GreedySolver` only read a single `profile_id`; generating from a `combination_id` fails. (Loosely Phase 4, but the endpoint currently misleads.) → **NEXT TASK** (see `documentation/HANDOFF.md`).
+- ~~**`GET /constraints/types` is a hardcoded string list**~~ — ✅ FIXED: the endpoint now derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the `ConstraintType` enum), so discovery can never drift from what the Create schemas accept.
+- **Read-route auth is inconsistent** — `/settings` GET requires a token, most other GETs don't. (Direction is a product decision — see `documentation/HANDOFF.md`.)
 
 ---
 
@@ -52,7 +52,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Faculty API**: Full CRUD, availability windows, filtering.
 - [x] **Student Groups API**: Full CRUD, hierarchical grouping support, filtering.
 - [x] **Subjects API**: Full CRUD, subject-hours mapping, filtering.
-- [x] **CSV Bulk Import**: Robust parser for all 4 entities with validation.
+- [x] **CSV Bulk Import**: Robust parser for all 4 entities with validation. All-or-nothing (any bad row rejects the file with `422`, `inserted=0`).
 
 ### Profiles & Constraints
 - [x] **Profile System**: Create/edit profiles, link resources, set parameters.
@@ -68,7 +68,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 ### Generation Workflow & Instances
 - [x] **Generation Trigger**: `POST /generate` accepts profile/combination, runs solver synchronously.
 - [x] **Instance Management**: View generated instances, select a candidate, publish to live system.
-- [x] **Manual Slot Override**: Edit individual slots post-generation (`PATCH /instances/{id}/slots/{slot_id}`). ⚠️ *Note: the override is currently saved without re-running the constraint checker — live re-validation is still TODO (see Engine improvements below).*
+- [x] **Manual Slot Override**: Edit individual slots post-generation (`PATCH /instances/{id}/slots/{slot_id}`). ✅ Overrides are now re-validated by the full constraint checker before saving (a conflict returns 409 and leaves the slot untouched).
 
 ### Exports & History
 - [x] **PDF Export**: Full timetable grid generation using ReportLab.
