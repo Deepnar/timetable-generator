@@ -9,6 +9,7 @@ that any feature flag (e.g. ``allow_cross_dept_subjects``) actually affects
 which sessions are generated.
 """
 import random
+from collections import defaultdict
 from datetime import time, date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -20,7 +21,7 @@ from app.models.faculty import Faculty
 from app.models.groups import StudentGroup
 from app.models.subjects import Subject
 from app.models.subject_assignments import SubjectAssignment
-from app.models.generation import TimetableSlot, SessionType
+from app.models.generation import TimetableSlot, SessionType, VariationMode
 from app.models.settings import CollegeSettings
 from app.services.settings_service import get_settings
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
@@ -60,6 +61,7 @@ class GreedySolver:
         profile: ResolvedProfile,
         instance_id: int,
         seed: int | None = None,
+        variation: VariationMode = VariationMode.RANDOM,
     ):
         self.db = db
         # The resolved profile is the solver's entire input contract — either a
@@ -72,6 +74,12 @@ class GreedySolver:
         # genuinely different candidate instances (see the diversity filter).
         self.seed = seed
         self.rng = random.Random(seed) if seed is not None else None
+        # The instance strategy: "random" (seed-only diversity), "best", or a
+        # gap-minimising criterion ("minimize-teacher-gaps" /
+        # "minimize-student-gaps"). The criterion changes the search order of
+        # the seeded instances so later candidates actually pursue the goal
+        # instead of being random re-rolls.
+        self.variation = variation
         self.committed_slots: list[TimetableSlot] = []
         # Populated by the scheduler with PUBLISHED reservations, keyed by
         # resource ("faculty" / "room" / "group") -> {(id, day, slot)}.
@@ -307,6 +315,18 @@ class GreedySolver:
             0 if s.requires_lab else 1,
             0 if s.is_cross_department else 1,
         ))
+        # For a gap-minimising criterion, group each peer's sessions together
+        # (all of one teacher's / group's sessions in a row) so the adjacency
+        # scan in solve() can pack them into contiguous slots. Only the seeded
+        # instances pursue the criterion — instance #1 stays the deterministic
+        # baseline unless variation="best" is requested.
+        peer_attr = self._criterion_peer_attr()
+        if peer_attr and self.rng is not None:
+            sessions.sort(key=lambda s: (
+                0 if s.requires_lab else 1,
+                0 if s.is_cross_department else 1,
+                getattr(s, peer_attr),
+            ))
         return sessions
 
     def _get_rooms(self, requires_lab: bool) -> list[Room]:
@@ -317,6 +337,58 @@ class GreedySolver:
         return self.db.scalars(query).all()
 
     # ── main loop ────────────────────────────────────────────
+    def _criterion_peer_attr(self) -> str | None:
+        """The ``SessionToSchedule`` attribute a gap criterion peers by.
+
+        ``"minimize-teacher-gaps"`` clusters a faculty member's sessions,
+        ``"minimize-student-gaps"`` a group's. Any other variation returns
+        ``None`` (plain seed-based diversity).
+        """
+        if self.variation == VariationMode.MINIMIZE_TEACHER_GAPS:
+            return "faculty_id"
+        if self.variation == VariationMode.MINIMIZE_STUDENT_GAPS:
+            return "student_group_id"
+        return None
+
+    def _criterion_scan(
+        self, session, working_days: list[int], slot_times: list
+    ) -> list[tuple]:
+        """Order the (day, slot) scan for a gap-minimising criterion.
+
+        Days where the peer already teaches are scanned first, and within them
+        slots are ordered by distance to the peer's existing placements, so the
+        greedy solver fills around what is already there instead of starting
+        over at the earliest free slot. Every (day, slot) is still considered —
+        only the order changes, so the criterion can never make a session
+        unschedulable.
+        """
+        peer_attr = self._criterion_peer_attr()
+        # Instance #1 (seed=None) stays the deterministic baseline: the
+        # criterion only reshapes the *seeded* re-rolls.
+        if peer_attr is None or self.rng is None:
+            return [(d, st) for d in working_days for st in slot_times]
+
+        peer_id = getattr(session, peer_attr)
+        by_day: dict[int, list[int]] = defaultdict(list)
+        for s in self.committed_slots:
+            if (
+                s.day_of_week is not None
+                and getattr(s, peer_attr) == peer_id
+            ):
+                by_day[s.day_of_week].append(s.slot_number)
+
+        def key(item):
+            day, (sn, _st, _en) = item
+            same_day = by_day.get(day)
+            if same_day:
+                # 0 = the peer already teaches that day → fill beside it.
+                return (0, min(abs(sn - p) for p in same_day), sn)
+            return (1, sn)
+
+        return sorted(
+            ((d, st) for d in working_days for st in slot_times), key=key
+        )
+
     def solve(self) -> list[TimetableSlot]:
         checker = ConstraintChecker(
             self.db,
@@ -346,53 +418,54 @@ class GreedySolver:
                 rooms = list(rooms)
                 self.rng.shuffle(rooms)
 
-            for day in working_days:
+            # Seeded instances pursuing a gap criterion scan in adjacency order
+            # (days/slots closest to the peer's existing placements first);
+            # everything else keeps the plain day-then-slot order.
+            scan = self._criterion_scan(session, working_days, slot_times)
+            for day, (slot_number, _start_time, _end_time) in scan:
                 if placed:
                     break
-                for slot_number, _start_time, _end_time in slot_times:
-                    if placed:
+                end_slot = slot_number + session.block_length - 1
+                if end_slot > max_slot_number:
+                    continue
+                start_time = slot_lookup[slot_number][0]
+                end_time = slot_lookup[end_slot][1]
+                for room in rooms:
+                    candidate = SlotCandidate(
+                        instance_id=self.instance_id,
+                        day_of_week=day,
+                        slot_number=slot_number,
+                        start_time=start_time,
+                        end_time=end_time,
+                        faculty_id=session.faculty_id,
+                        room_id=room.id,
+                        student_group_id=session.student_group_id,
+                        subject_id=session.subject_id,
+                        session_type=session.session_type,
+                        slot_date=self._materialize_slot_date(day),
+                        is_cross_department=session.is_cross_department,
+                        block_length=session.block_length,
+                    )
+                    if checker.is_valid(candidate):
+                        slot_date = self._materialize_slot_date(day)
+                        for n in range(slot_number, end_slot + 1):
+                            n_start, n_end = slot_lookup[n]
+                            self.committed_slots.append(TimetableSlot(
+                                instance_id=self.instance_id,
+                                slot_date=slot_date,
+                                day_of_week=day,
+                                slot_number=n,
+                                start_time=n_start,
+                                end_time=n_end,
+                                faculty_id=session.faculty_id,
+                                room_id=room.id,
+                                student_group_id=session.student_group_id,
+                                subject_id=session.subject_id,
+                                session_type=session.session_type,
+                                is_manual_override=False,
+                            ))
+                        placed = True
                         break
-                    end_slot = slot_number + session.block_length - 1
-                    if end_slot > max_slot_number:
-                        continue
-                    start_time = slot_lookup[slot_number][0]
-                    end_time = slot_lookup[end_slot][1]
-                    for room in rooms:
-                        candidate = SlotCandidate(
-                            instance_id=self.instance_id,
-                            day_of_week=day,
-                            slot_number=slot_number,
-                            start_time=start_time,
-                            end_time=end_time,
-                            faculty_id=session.faculty_id,
-                            room_id=room.id,
-                            student_group_id=session.student_group_id,
-                            subject_id=session.subject_id,
-                            session_type=session.session_type,
-                            slot_date=self._materialize_slot_date(day),
-                            is_cross_department=session.is_cross_department,
-                            block_length=session.block_length,
-                        )
-                        if checker.is_valid(candidate):
-                            slot_date = self._materialize_slot_date(day)
-                            for n in range(slot_number, end_slot + 1):
-                                n_start, n_end = slot_lookup[n]
-                                self.committed_slots.append(TimetableSlot(
-                                    instance_id=self.instance_id,
-                                    slot_date=slot_date,
-                                    day_of_week=day,
-                                    slot_number=n,
-                                    start_time=n_start,
-                                    end_time=n_end,
-                                    faculty_id=session.faculty_id,
-                                    room_id=room.id,
-                                    student_group_id=session.student_group_id,
-                                    subject_id=session.subject_id,
-                                    session_type=session.session_type,
-                                    is_manual_override=False,
-                                ))
-                            placed = True
-                            break
             if not placed:
                 unscheduled.append(session)
 

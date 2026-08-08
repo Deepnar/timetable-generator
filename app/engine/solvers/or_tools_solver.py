@@ -25,12 +25,15 @@ from collections import defaultdict
 
 from app.models.faculty import Faculty
 from app.models.constraints import SoftConstraint
-from app.models.generation import TimetableSlot
+from app.models.generation import TimetableSlot, VariationMode
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.solvers.greedy_solver import GreedySolver
 from app.engine.soft_objective import (
     PLACEMENT_WEIGHT,
+    ObjectiveContext,
     build_soft_objective,
+    _minimize_teacher_free_slots,
+    _minimize_student_free_slots,
 )
 
 
@@ -147,6 +150,15 @@ class ORToolsSolver(GreedySolver):
                 model, x, sessions, self._load_soft_constraints(), len(slot_times)
             ):
                 objective += weight * expr
+        # Instance variation: for a seeded instance pursuing a gap criterion,
+        # add a small secondary objective term (teacher-gap / student-gap) so
+        # the re-rolled candidate is not just a random seed — it actively packs
+        # the requested peer's sessions. The weights stay far below
+        # PLACEMENT_WEIGHT so a placed session is never traded away.
+        for expr, weight in self._build_variation_terms(
+            model, x, sessions, len(slot_times)
+        ):
+            objective += weight * expr
         model.Maximize(objective)
 
         solver = cp_model.CpSolver()
@@ -243,3 +255,23 @@ class ORToolsSolver(GreedySolver):
     def _load_soft_constraints(self) -> list[SoftConstraint]:
         """Active soft rules for the resolved profile (global + per-member)."""
         return list(self.profile.soft_constraints)
+
+    def _build_variation_terms(self, model, x, sessions, slot_count) -> list:
+        """Secondary objective terms for a gap-minimising variation.
+
+        Only seeded instances pursue the criterion — instance #1 stays the
+        deterministic baseline unless ``variation="best"`` is requested (and
+        ``"best"`` itself is handled by the scheduler keeping the best-scoring
+        attempt, not by an extra objective term here). The builders return
+        ``(span, -1.0)`` pairs, so each placed term subtracts a peer's daily
+        span and the solver is pushed to pack sessions of the same teacher or
+        group into contiguous slots.
+        """
+        if self.seed is None:
+            return []
+        ctx = ObjectiveContext(model, x, sessions, slot_count)
+        if self.variation == VariationMode.MINIMIZE_TEACHER_GAPS:
+            return _minimize_teacher_free_slots(ctx, {})
+        if self.variation == VariationMode.MINIMIZE_STUDENT_GAPS:
+            return _minimize_student_free_slots(ctx, {})
+        return []

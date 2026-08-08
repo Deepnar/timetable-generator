@@ -108,5 +108,31 @@ def _minimize_student_free_slots(slots, config, ctx) -> float:
     return 1.0 - (total_gaps / total_span)
 
 
+def _minimize_teacher_free_slots(slots, config, ctx) -> float:
+    """Reward compact teacher days (few gaps between first and last slot).
+
+    The teacher-side mirror of :func:`_minimize_student_free_slots`: the span
+    of every (faculty, day) the teacher actually teaches, with holes inside it
+    counted as gaps. A day with no holes scores 1.0.
+    """
+    by_fac_day: dict[tuple, list[int]] = defaultdict(list)
+    for s in slots:
+        if s.faculty_id is not None and s.day_of_week is not None:
+            by_fac_day[(s.faculty_id, s.day_of_week)].append(s.slot_number)
+    if not by_fac_day:
+        return 1.0
+
+    total_span = 0
+    total_gaps = 0
+    for nums in by_fac_day.values():
+        span = max(nums) - min(nums) + 1
+        total_span += span
+        total_gaps += span - len(nums)
+    if total_span == 0:
+        return 1.0
+    return 1.0 - (total_gaps / total_span)
+
+
 soft_rule("TEACHER_PREFERS_MORNING")(_teacher_prefers_morning)
 soft_rule("MINIMIZE_STUDENT_FREE_SLOTS")(_minimize_student_free_slots)
+soft_rule("MINIMIZE_TEACHER_FREE_SLOTS")(_minimize_teacher_free_slots)

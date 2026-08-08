@@ -28,6 +28,7 @@ from app.models.generation import (
     GenerationStatus,
     InstanceStatus,
     AlgorithmType,
+    VariationMode,
 )
 from app.services.settings_service import get_settings
 from app.models.profiles import ResourceType
@@ -57,6 +58,7 @@ class Scheduler:
         algorithm: AlgorithmType,
         triggered_by: int,
         combination_id: int | None = None,
+        variation: VariationMode = VariationMode.RANDOM,
     ) -> TimetableGeneration:
         """Synchronous entry point: create the run and solve it in one call."""
         generation = self.create_generation(
@@ -68,6 +70,7 @@ class Scheduler:
             algorithm=algorithm,
             triggered_by=triggered_by,
             combination_id=combination_id,
+            variation=variation,
         )
         return self.solve_generation(generation.id)
 
@@ -81,6 +84,7 @@ class Scheduler:
         algorithm: AlgorithmType,
         triggered_by: int,
         combination_id: int | None = None,
+        variation: VariationMode = VariationMode.RANDOM,
     ) -> TimetableGeneration:
         """Validate the input contract and persist the PENDING run row.
 
@@ -105,6 +109,7 @@ class Scheduler:
             timetable_type=timetable_type,
             instances_requested=instances_requested,
             algorithm_used=algorithm,
+            variation=variation,
             triggered_by=triggered_by,
             generation_status=GenerationStatus.PENDING,
         )
@@ -178,6 +183,7 @@ class Scheduler:
         instances_created = 0
         best_score: float | None = None
         accepted_signatures: list[frozenset] = []
+        variation = generation.variation
         for i in range(generation.instances_requested):
             instance = TimetableInstance(
                 generation_id=generation.id,
@@ -191,30 +197,65 @@ class Scheduler:
             # same timetable. Seed each attempt differently and keep the first
             # one that differs from every already-accepted instance (falling
             # back to the last attempt if the problem is too small to vary).
-            slots: list[TimetableSlot] = []
-            signature: frozenset = frozenset()
+            # The instance strategy ("variation") shapes *how* the seeded
+            # attempts search: greedy re-orders by criterion and OR-Tools adds
+            # a secondary gap objective (minimize-teacher/student-gaps), while
+            # "best" keeps the highest-scoring distinct attempt so instance #1
+            # can be the best timetable instead of the plain deterministic
+            # baseline.
+            attempts: list[tuple[list, frozenset, float | None]] = []
             for attempt in range(self._DIVERSITY_ATTEMPTS):
-                # Instance 0 is the deterministic baseline (no seed); later
-                # instances are seeded to diverge from it.
-                seed = None if i == 0 else i * 100 + attempt
+                if variation == VariationMode.BEST:
+                    # "best" also seeds instance #1 so a genuine optimum can be
+                    # found (the baseline is just one point in the space).
+                    seed = i * 100 + attempt
+                else:
+                    # Instance #1 is the deterministic baseline (no seed);
+                    # later instances are seeded to diverge from it.
+                    seed = None if i == 0 else i * 100 + attempt
                 solver = self._make_solver(
-                    generation.algorithm_used, resolved, instance.id, seed=seed
+                    generation.algorithm_used, resolved, instance.id,
+                    seed=seed, variation=variation,
                 )
                 solver.reserved_conflicts = reserved_conflicts
-                slots = solver.solve()
-                signature = self._signature(slots)
+                candidate = solver.solve()
+                candidate_sig = self._signature(candidate)
+                score = (
+                    score_instance(candidate, soft_rules, scoring_ctx)
+                    if soft_rules else None
+                )
+                attempts.append((candidate, candidate_sig, score))
                 is_distinct = all(
-                    self._hamming(signature, prev) >= self._DIVERSITY_MIN_DISTANCE
+                    self._hamming(candidate_sig, prev)
+                    >= self._DIVERSITY_MIN_DISTANCE
                     for prev in accepted_signatures
                 )
-                if is_distinct:
+                if variation != VariationMode.BEST and is_distinct:
                     break
+
+            if variation == VariationMode.BEST:
+                distinct = [
+                    (c, sig, sc) for c, sig, sc in attempts
+                    if all(
+                        self._hamming(sig, prev) >= self._DIVERSITY_MIN_DISTANCE
+                        for prev in accepted_signatures
+                    )
+                ]
+                pool = distinct or attempts
+                if soft_rules:
+                    slots, signature, score = max(
+                        pool, key=lambda t: t[2]
+                    )
+                else:
+                    slots, signature, score = pool[0]
+            else:
+                slots, signature, score = attempts[-1]
+
             accepted_signatures.append(signature)
             for slot in slots:
                 self.db.add(slot)
 
-            if soft_rules:
-                score = score_instance(slots, soft_rules, scoring_ctx)
+            if score is not None:
                 instance.soft_score = score
                 best_score = score if best_score is None else max(best_score, score)
 
@@ -235,16 +276,19 @@ class Scheduler:
         profile,
         instance_id: int,
         seed: int | None = None,
+        variation: VariationMode = VariationMode.RANDOM,
     ):
         """Pick the solver for the requested algorithm (defaults to greedy)."""
         if algorithm == AlgorithmType.OR_TOOLS:
             # Lazy import so the heavy ortools dependency is only loaded when used.
             from app.engine.solvers.or_tools_solver import ORToolsSolver
             return ORToolsSolver(
-                db=self.db, profile=profile, instance_id=instance_id, seed=seed
+                db=self.db, profile=profile, instance_id=instance_id,
+                seed=seed, variation=variation,
             )
         return GreedySolver(
-            db=self.db, profile=profile, instance_id=instance_id, seed=seed
+            db=self.db, profile=profile, instance_id=instance_id,
+            seed=seed, variation=variation,
         )
 
     @staticmethod
