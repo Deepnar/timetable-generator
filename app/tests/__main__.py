@@ -4,6 +4,7 @@ from app.tests import test_settings_and_assignments  # noqa: F401  registers sui
 from app.tests import test_contiguous_lab_slots  # noqa: F401  registers suites
 from app.tests import test_exam_date_separation  # noqa: F401  registers suites
 from app.tests import test_async_generation  # noqa: F401  registers suites
+from app.tests import test_variation  # noqa: F401  registers suites
 
 if __name__ == "__main__":
     import sys
