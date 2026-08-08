@@ -400,7 +400,7 @@ CREATE TABLE timetable_generations (
     score_best_instance FLOAT,                                        -- best soft score; NULL when no soft rules
     instances_requested INTEGER NOT NULL DEFAULT 3,
     instances_produced  INTEGER NOT NULL DEFAULT 0,
-    run_duration_ms     INTEGER,                                      -- set by the router after the fact
+    run_duration_ms     INTEGER,                                      -- stamped by the scheduler (sync) or the worker (async)
     triggered_by        INTEGER NOT NULL REFERENCES admins(id),
     triggered_at        TIMESTAMP NOT NULL DEFAULT NOW(),
     completed_at        TIMESTAMP,
@@ -534,7 +534,9 @@ timetable-api/
 ├── services/
 │   ├── settings_service.py          # get_settings(), update_settings() — singleton helper
 │   └── export_service.py            # PDF (ReportLab), CSV, RFC 5545 iCal + get_filtered_slots
-├── tasks/                           # (placeholder; async generation is future work)
+├── tasks/
+│   └── generation.py                # run_generation Celery task + enqueue_generation()
+├── worker.py                        # Celery app (celery -A app.worker:celery_app worker)
 ├── tests/
 │   ├── conftest.py                  # FastAPI TestClient over in-memory SQLite
 │   ├── test_runner.py               # @suite / @test decorators, seed_minimal()
@@ -674,7 +676,7 @@ GET    /constraints/types              Discovery: hard + soft type catalogs
 #### Generation (Core)
 
 ```
-POST   /generate                       Trigger a generation run (synchronous)
+POST   /generate                       Trigger a generation run (synchronous or async — §7.1)
   Body: {
     profile_id OR combination_id,                  # combination merges members into an effective profile (§6.2)
     timetable_type,
@@ -684,7 +686,13 @@ POST   /generate                       Trigger a generation run (synchronous)
     algorithm: "OR_TOOLS" | "GREEDY",               # OR_TOOLS requires `uv add ortools`
     respect_existing_published: true                # always honoured: Scheduler._load_published_conflicts
   }
-  Response: 201 with the TimetableGeneration row (status=COMPLETED on success).
+  Response (sync, ASYNC_GENERATION=false): 201 with the TimetableGeneration row
+    (status=COMPLETED once the solver has run inline).
+  Response (async, ASYNC_GENERATION=true):  202 with the row snapshotted at
+    dispatch time (status=PENDING, run_id in `id`); the worker executes the run
+    in the background and the client polls the status endpoint. If the broker
+    is unreachable the router falls back to the synchronous path rather than
+    dropping the request.
 
 GET    /generate/{run_id}/status       Poll a run (PENDING/RUNNING/COMPLETED/FAILED)
                                         # NOTE: there is no GET /generate/{run_id}/instances
@@ -760,7 +768,11 @@ GET    /audit                          List most-recent-first audit entries
 
 ### 5.1 How It Works (High Level)
 
-`POST /generate` is **synchronous** — it returns when the solver finishes. The full flow lives in `Scheduler.run()` (`app/engine/scheduler.py`) plus a thin wrapper in `app/router/generate.py` that stamps `run_duration_ms` after the scheduler returns.
+`POST /generate` runs either **inline** (default, `ASYNC_GENERATION=false`) or through a **Celery worker** (`ASYNC_GENERATION=true`, §7.1). The run logic lives entirely in `Scheduler` (`app/engine/scheduler.py`), split into two entry points so the same code serves both modes:
+
+- `Scheduler.create_generation(...)` — resolves the input contract and persists the `PENDING` run row (raising 404 on a missing/inactive profile or combination up front).
+- `Scheduler.solve_generation(run_id)` — loads the run row, re-resolves the profile from it, solves, and flips the row to `COMPLETED` (or `FAILED` + `error_log`), stamping `run_duration_ms`. It is what the worker calls.
+- `Scheduler.run(...)` — `create_generation` + `solve_generation` in one call; the synchronous HTTP path.
 
 Step-by-step:
 
@@ -779,7 +791,7 @@ Step-by-step:
    - For each attempt (up to `_DIVERSITY_ATTEMPTS = 6`): greedy shuffles `working_days` / `slot_times` / `rooms`; OR-Tools varies `solver.parameters.random_seed`.
    - Keep the first fingerprint whose Hamming distance from every already-accepted instance is ≥ `_DIVERSITY_MIN_DISTANCE = 1`; otherwise try the next seed. If all 6 attempts collide, the **last attempt** is kept (so a tiny problem still produces a result rather than a duplicate).
 5. **Score & Rank.** If `enable_soft_constraint_scoring` is on AND there is at least one active soft rule, `score_instance(slots, soft_rules, ctx)` returns a weighted-mean satisfaction in `[0, 1]` and is stored on `instance.soft_score`; the best across instances is recorded on `generation.score_best_instance`. **With no soft rules at all**, `instance.soft_score` is left unset and `generation.score_best_instance` stays `NULL`. (For OR-Tools, the same soft rules are also folded into the CP-SAT objective — §5.2 — so the solver *pursues* them during search.)
-6. **Commit & Return.** Scheduler sets `generation.status=COMPLETED`, `instances_produced`, `completed_at` and `db.commit()`s. The router (`POST /generate`) then stamps `run_duration_ms` on the model and returns it as the 201 response. The scheduler itself does NOT populate `error_log` on failure — the router catches `Exception` and turns it into a 500.
+6. **Commit & Return.** Scheduler sets `generation.status=COMPLETED`, `instances_produced`, `score_best_instance`, `completed_at`, `run_duration_ms` and `db.commit()`s. The router returns the row as the 201 response (sync) or the 202 PENDING snapshot (async). On failure `solve_generation` rolls the run back and marks the row `FAILED` with `error_log` (and `completed_at`) before re-raising — the sync router turns the re-raised exception into a 500, while the worker swallows it because the run row already records the outcome.
 
 ### 5.2 Solver Strategy
 
@@ -964,21 +976,24 @@ A `timetable_reset_log` row is **always** written with `reset_type`, `academic_y
 
 ## 7. Enterprise-Level Features
 
-### 7.1 Async Generation with Job Queue — *NOT implemented*
+### 7.1 Async Generation with Job Queue — *implemented (opt-in)*
 
-Earlier planning called for Celery + Redis so the `POST /generate` request could return immediately and the long-running work (`Scheduler.run()` typically 1–10 seconds for moderate sizes, up to 30+ seconds for large departments) would be done by a worker.
-
-**Today the endpoint is synchronous.** It blocks the HTTP request, runs `Scheduler.run()` inline, and returns the resulting `TimetableGeneration` row plus its instances. The full status flow is just:
+`POST /generate` is **synchronous by default** — it blocks the HTTP request and returns a `COMPLETED` run. When the college opts in via `ASYNC_GENERATION=true` (`.env`), the router persists a `PENDING` run row and hands it to a Celery worker, returning **202 with the PENDING snapshot** immediately; the client polls `GET /generate/{run_id}/status`.
 
 ```
-POST /generate  →  generate router  →  Scheduler.run()  →  200 OK with full body
+ASYNC_GENERATION=false:  POST /generate → router → Scheduler.run()   → 201 COMPLETED
+ASYNC_GENERATION=true:   POST /generate → router → Scheduler.create_generation() → 202 PENDING
+                                   └→ enqueue_generation(run_id) → Celery worker
+                                          → Scheduler.solve_generation() → row COMPLETED/FAILED
+                        GET /generate/{run_id}/status → poll PENDING/RUNNING/COMPLETED/FAILED
 ```
 
-There is no `run_id` / `poll_url` / `PENDING` / `RUNNING` / `COMPLETED` status. If a future migration adds Celery, the expected shape is:
-
-- `app/tasks/celery_tasks.py` — `run_timetable_generation(run_id)` worker.
-- `app/router/generate.py` — `create_generation_run(db, request)` returning `PENDING` immediately, then `task.delay(...)`.
-- `GET /generate/{run_id}/status` poll endpoint, plus an optional WebSocket.
+- **Worker.** `app/worker.py` builds the Celery app from `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND`; start it with `uv run celery -A app.worker:celery_app worker --loglevel=info`. The generation task is `app/tasks/generation.py::run_generation` (`acks_late=True`, `worker_prefetch_multiplier=1` — one generation at a time, redelivery only on a worker crash). The task opens its own DB session, marks the run `RUNNING`, calls `solve_generation()`, and swallows failures because the scheduler already records them on the run row. `Scheduler.create_generation()` is split from `solve_generation()` precisely so the worker receives nothing but a `run_id` and still re-resolves everything from the run row.
+- **Failure handling lives in the scheduler.** `solve_generation()` rolls back a failed run and marks it `FAILED` with `error_log` + `completed_at`; the sync router surfaces the re-raised exception as a 500, the worker swallows it.
+- **Broker outage.** If `enqueue_generation()` cannot reach Redis, the router logs and falls back to solving synchronously — generation degrades to the old blocking behaviour instead of being dropped.
+- **Tests.** The SQLite suite has no Redis, so the worker task is exercised by calling `run_generation(run_id)` directly (it reads `app.database.SessionLocal` at call time, so the in-memory override applies) and the async HTTP branch is exercised with Celery's `task_always_eager=True`, which runs the task inline (`app/tests/test_async_generation.py`).
+- **Infra.** `docker/docker-compose.yml` now also runs a `redis:7-alpine` service on host port `6379` (the compose previously ran only Postgres).
+- **Not built (future):** WebSocket progress push, Celery retry/result inspection via the API, and using the same Redis for caching/rate-limiting (see progress.md "Redis Integration").
 
 ### 7.2 Conflict Detection (Cross-Timetable) — *implemented, but NOT in `conflict_detector.py`*
 
@@ -1156,7 +1171,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 - **Schema (22 tables)** — Alembic chain `aeaadc4f2374 → … → e9f4a2b6d8c0`; latest migration is `e9f4a2b6d8c0` (faculty availability dates nullable).
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
-- **Generation** — synchronous `POST /generate` with greedy (default) and OR-Tools CP-SAT.
+- **Generation** — `POST /generate` with greedy (default) and OR-Tools CP-SAT, running synchronously by default or through a Celery worker when `ASYNC_GENERATION=true` (§7.1). `Scheduler` is split into `create_generation()` (PENDING row + run_id) and `solve_generation()` (worker entry point); failures flip the run to `FAILED` with `error_log`.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2).
 - **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `EXAM_DATE_SEPARATION`).
 - **Exam scheduling** — `session_type: EXAM` profile mode turns each assignment into one `SessionType.EXAM` session; `EXAM_DATE_SEPARATION` spaces a group's exams by `min_days` (relational CP-SAT rule in OR-Tools); the published-conflict loader exempts the examing groups' own class slots so one branch can exam while others teach (§5.4).
@@ -1186,7 +1201,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### 🔴 Not implemented (planned, but no code)
 
-- **Async / Celery** — `POST /generate` is synchronous.
+- **Async / Celery generation** — opt-in via `ASYNC_GENERATION=true`; `POST /generate` returns 202 PENDING and a worker runs `solve_generation()`, flipping the run to COMPLETED/FAILED with `error_log` (§7.1). *Remaining:* WebSocket progress push, Celery result inspection via the API.
 - **Profile combine manual resolve endpoint** — `POST /profiles/combinations/{id}/resolve` does not exist; resolution happens automatically inside the scheduler instead.
 - **Profile shift** — front-end is on its own.
 - **RBAC** — single-role `Admin` model; HOD/Teacher/Student users don't exist.
@@ -1197,7 +1212,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### Recommended Order for Remaining Work
 
-1. **Async + WebSocket for generation** — biggest UX blocker today.
+1. **WebSocket progress push for generation** — the async worker (§7.1) already exposes PENDING/RUNNING/COMPLETED; push state changes instead of polling.
 2. **Wire `profile_parameters` to the engine** — most of §8 is in the table but not in the solver.
 3. ~~**Fold soft scoring into the CP-SAT objective**~~ — ✅ done (`soft_objective.py`; `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`).
 4. **Object-based instance variation** — replace seed-only diversity with "best / minimise teacher gaps / minimise student gaps / random".

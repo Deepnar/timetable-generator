@@ -272,10 +272,13 @@ curl -X POST http://localhost:8000/generate \
   }'
 ```
 
-**The endpoint is synchronous** — it returns when the solver finishes,
-with the generation row plus its candidate instances. Status polling lives
-at `GET /generate/{run_id}/status`. Async / Celery is on the roadmap
-(see [Architecture doc §7.1](documentation/timetable-generator-architecture.md)).
+**The endpoint is synchronous by default** — it returns when the solver finishes,
+with the generation row plus its candidate instances. To move long runs off the
+HTTP request, set `ASYNC_GENERATION=true` in `.env` (with Redis + a Celery worker
+running, see [Architecture doc §7.1](documentation/timetable-generator-architecture.md)):
+`POST /generate` then returns **202** with a `PENDING` run and the worker completes
+it in the background. Status polling lives at `GET /generate/{run_id}/status`
+(`PENDING`/`RUNNING`/`COMPLETED`/`FAILED`).
 
 ### Lifecycle endpoints
 

@@ -8,8 +8,8 @@ A standalone timetable-generation backend (FastAPI + SQLAlchemy 2.0 + PostgreSQL
 institutions. It manages schedulable resources, runs a constraint-driven solver to produce
 candidate timetables, and lets an admin select and publish one. It is the product itself, not a
 microservice for another ERP. Current checkpoint: greedy and OR-Tools (CP-SAT) solvers working,
-data-driven constraint registry, soft-constraint scoring; async generation and a frontend are
-planned (see `documentation/`).
+data-driven constraint registry, soft-constraint scoring, opt-in async generation (Celery/Redis);
+a frontend is planned (see `documentation/`).
 
 ## Environment & commands
 
@@ -18,9 +18,10 @@ the venv (`source .venv/bin/activate`) or prefix commands with `uv run`.
 
 ```bash
 uv sync                                              # install deps into managed .venv
-cd docker && docker compose up -d                    # start PostgreSQL 15 (see ports note below)
+cd docker && docker compose up -d                    # start PostgreSQL 15 + Redis (see ports note below)
 uv run alembic upgrade head                          # apply migrations
 uv run uvicorn app.main:app --reload --port 8000     # dev server → http://localhost:8000/docs
+uv run celery -A app.worker:celery_app worker        # async-generation worker (only when ASYNC_GENERATION=true)
 uv run alembic revision --autogenerate -m "message"  # new migration after model changes
 uv add <package>                                     # add a dependency
 ```
@@ -45,11 +46,16 @@ When adding a router that the SQLite tests touch, add its module to the patch lo
 
 ## Architecture (the parts that span files)
 
-**Generation pipeline.** `POST /generate` (`app/router/generate.py`) → `Scheduler.run()`
-(`app/engine/scheduler.py`) creates a `TimetableGeneration`, then for each requested instance runs
-`GreedySolver.solve()` (`app/engine/solvers/greedy_solver.py`), which proposes `SlotCandidate`s that
-`ConstraintChecker` (`app/engine/constraint_checker.py`) validates before commit. Generation is
-**synchronous** — it blocks the HTTP request (async/Celery is a future phase).
+**Generation pipeline.** `POST /generate` (`app/router/generate.py`) → `Scheduler`
+(`app/engine/scheduler.py`). `Scheduler.create_generation()` validates the input contract and
+persists a `PENDING` run row; `Scheduler.solve_generation(run_id)` re-resolves the profile from the
+row, then for each requested instance runs `GreedySolver.solve()`
+(`app/engine/solvers/greedy_solver.py`), which proposes `SlotCandidate`s that `ConstraintChecker`
+(`app/engine/constraint_checker.py`) validates before commit. Generation is **synchronous by
+default** and **optionally async**: with `ASYNC_GENERATION=true` the router returns 202 PENDING and
+a Celery worker (`app/worker.py`, task in `app/tasks/generation.py`) runs `solve_generation()`,
+flipping the run to COMPLETED or FAILED (`error_log`). `Scheduler` stamps `run_duration_ms` itself
+in both modes.
 
 **Profiles are the solver's input contract.** A `TimetableProfile` bundles resources
 (`profile_resources`: rooms/faculty/groups/subjects), typed parameters (`profile_parameters`, stored

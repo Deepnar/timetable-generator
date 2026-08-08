@@ -52,18 +52,19 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 ## Phase 3: Advanced Solvers & Async Infrastructure
 *Goal: Handle large departments without blocking HTTP requests.*
 
-- [ ] **Infrastructure Setup**
+- [x] **Infrastructure Setup**
   - Install and configure **Redis** for caching frequent GET queries, rate limiting, and generation conflict locking.
   - Set up **Celery + Redis** task queue for background processing.
+  - `docker/docker-compose.yml` now also runs a `redis:7-alpine` service; the Celery app lives in `app/worker.py` (`uv run celery -A app.worker:celery_app worker`). *Remaining:* using the same Redis for caching/rate-limiting (the task queue itself is wired below).
 - [x] **Soft Constraint Scoring** *(done, solver-independent)*
   - `app/engine/scorer.py` registry scores each instance's soft constraints (weighted mean → `instance.soft_score`, best → `generation.score_best_instance`), gated by `enable_soft_constraint_scoring`. Ships `TEACHER_PREFERS_MORNING` and `MINIMIZE_STUDENT_FREE_SLOTS`. This is the objective function OR-Tools reuses.
 - [x] **OR-Tools CP-SAT Solver** *(integrated)*
   - `app/engine/solvers/or_tools_solver.py` — select via `algorithm="OR_TOOLS"`. Static rules prune the CP-SAT domain (shared `ConstraintChecker`), relational rules are CP-SAT constraints, objective maximises placements (strictly primary via `PLACEMENT_WEIGHT`) and then optimises the active soft preferences. Greedy stays the default/preview solver.
   - Soft rules with an objective builder in `app/engine/soft_objective.py` (`SOFT_OBJECTIVE_REGISTRY`) are folded into the CP-SAT objective, so OR-Tools *pursues* preferences (gated by `enable_soft_constraint_scoring`); unscored rules still rank instances post-hoc.
 - [x] **Diversity Filter**: Instance #1 is a deterministic baseline; later instances are re-seeded (greedy randomises search order, OR-Tools varies `random_seed`) and kept only if their Hamming distance from accepted instances clears a threshold, retrying otherwise. *(Future: objective-based variation — minimise teacher vs. student gaps per instance.)*
-- [ ] **Async Generation Pipeline**
-  - Move `POST /generate` to fire a Celery task and immediately return `{status: "PENDING", run_id: X}`.
-  - Implement `GET /generate/{run_id}/status` for polling (future: WebSocket upgrades).
+- [x] **Async Generation Pipeline**
+  - `POST /generate` fires a Celery task and immediately returns `{status: "PENDING", run_id}` when `ASYNC_GENERATION=true` (202); otherwise it stays synchronous (201). `Scheduler` splits into `create_generation()` (persists the PENDING row) and `solve_generation()` (worker entry point, flips to COMPLETED/FAILED with `error_log`, stamps `run_duration_ms`). See architecture §7.1.
+  - `GET /generate/{run_id}/status` for polling (future: WebSocket upgrades).
 
 ## Phase 4: Full Stack Integration & Frontend Development
 *Goal: Provide a complete user experience within this single application.*

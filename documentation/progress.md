@@ -2,7 +2,7 @@
 
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
-**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring; async generation and a frontend are planned.
+**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, opt-in async generation (Celery/Redis); a frontend is planned.
 **Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, PostgreSQL database via Docker, and will soon integrate a frontend interface for college admins.
 
 ---
@@ -66,7 +66,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Cross-Timetable Contamination Fix**: Scheduler now fetches all `PUBLISHED` slots before running a new generation, preventing double-bookings across separate timetable runs.
 
 ### Generation Workflow & Instances
-- [x] **Generation Trigger**: `POST /generate` accepts profile/combination, runs solver synchronously.
+- [x] **Generation Trigger**: `POST /generate` accepts profile/combination, runs solver synchronously (default) or asynchronously via Celery/Redis when `ASYNC_GENERATION=true` (returns 202 PENDING; see "Async Generation" below).
 - [x] **Instance Management**: View generated instances, select a candidate, publish to live system.
 - [x] **Manual Slot Override**: Edit individual slots post-generation (`PATCH /instances/{id}/slots/{slot_id}`). ✅ Overrides are now re-validated by the full constraint checker before saving (a conflict returns 409 and leaves the slot untouched).
 
@@ -103,9 +103,9 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [ ] **Email Notifications on Publish**
   - SMTP setup, trigger emails to faculty (personal PDF), HOD (summary), and class incharges.
 - [ ] **Redis Integration**
-  - Cache frequent queries, rate limiting, session management, and generation conflict locking.
-- [ ] **Async Generation (Celery)**
-  - Move long-running solver tasks out of the HTTP request cycle.
+  - Cache frequent queries, rate limiting, session management, and generation conflict locking. *(Redis itself is now running in `docker/docker-compose.yml` and used as the Celery broker/backend — the caching/rate-limit usage is still open.)*
+- [x] **Async Generation (Celery)**
+  - Move long-running solver tasks out of the HTTP request cycle. `ASYNC_GENERATION=true` makes `POST /generate` return **202 PENDING** (with `run_id`) and enqueue `app/tasks/generation.py::run_generation`; the worker (`app/worker.py`) runs `Scheduler.solve_generation()`, which flips the run to COMPLETED (or FAILED with `error_log`) and stamps `run_duration_ms`. `GET /generate/{run_id}/status` polls PENDING/RUNNING/COMPLETED/FAILED. Default remains synchronous (`ASYNC_GENERATION=false`) so the SQLite test suite needs no Redis. See architecture §7.1.
 - [ ] **API Polish**
   - Pagination (`page/limit`), global error middleware, request logging/audit trail, `GET /health`, API versioning (`/api/v1/`).
 
