@@ -134,6 +134,8 @@ class ORToolsSolver(GreedySolver):
             if fac and fac.max_hours_per_week:
                 model.Add(sum(vs) <= fac.max_hours_per_week)
 
+        self._add_exam_separation(model, x, sessions)
+
         # Soft preferences (gated by the college scoring flag): fold active
         # soft constraints into the objective so the solver pursues them,
         # not just the placement count. Placements stay strictly primary via
@@ -199,6 +201,44 @@ class ORToolsSolver(GreedySolver):
         if faculty_id not in self._fac_cache:
             self._fac_cache[faculty_id] = self.db.get(Faculty, faculty_id)
         return self._fac_cache[faculty_id]
+
+    def _add_exam_separation(self, model, x, sessions):
+        """Model EXAM_DATE_SEPARATION as a relational CP-SAT rule.
+
+        The registry validator reads committed slots, so it cannot fire during
+        the static domain-pruning pass (the committed set is empty there) and
+        would only be caught by the final pass — which would *drop* placements,
+        letting CP-SAT pack a group's exams onto one day and shed the rest. To
+        avoid that, the rule is also modelled here directly: for each group,
+        at most one exam per calendar date, and no exam on two dates closer
+        than ``min_days``. Without a ``term_start`` anchor the dates are
+        unknown and the rule stays inert, matching the validator.
+        """
+        exam_sep: int | None = None
+        for rule in self._load_hard_constraints():
+            rule_type = getattr(rule.constraint_type, "value", rule.constraint_type)
+            if rule_type != "EXAM_DATE_SEPARATION":
+                continue
+            min_days = (getattr(rule, "config_json", None) or {}).get("min_days")
+            if min_days:
+                exam_sep = int(min_days)
+                break
+        if not exam_sep:
+            return
+
+        by_group_date: dict[int, dict] = defaultdict(lambda: defaultdict(list))
+        for (si, day, _sn, _room_id), var in x.items():
+            d = self._materialize_slot_date(day)
+            if d is not None:
+                by_group_date[sessions[si].student_group_id][d].append(var)
+        for by_date in by_group_date.values():
+            for vs in by_date.values():
+                model.Add(sum(vs) <= 1)  # one exam per group per date
+            dates = sorted(by_date)
+            for i in range(len(dates)):
+                for j in range(i + 1, len(dates)):
+                    if (dates[j] - dates[i]).days < exam_sep:
+                        model.Add(sum(by_date[dates[i]]) + sum(by_date[dates[j]]) <= 1)
 
     def _load_soft_constraints(self) -> list[SoftConstraint]:
         """Active soft rules for the resolved profile (global + per-member)."""

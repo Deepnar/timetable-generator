@@ -21,6 +21,7 @@ from app.models.generation import (
     AlgorithmType,
 )
 from app.services.settings_service import get_settings
+from app.models.profiles import ResourceType
 from app.engine.profile_resolver import ProfileResolver
 from app.engine.solvers.greedy_solver import GreedySolver
 from app.engine.scorer import score_instance, ScoringContext
@@ -69,8 +70,17 @@ class Scheduler:
         self.db.flush()
 
         # Pre-load slots from every PUBLISHED instance, so the solver
-        # can never double-book an already-live timetable.
-        reserved_conflicts = self._load_published_conflicts()
+        # can never double-book an already-live timetable. For an exam
+        # generation, the examing groups suspend their own classes, so
+        # their published CLASS reservations are exempted (their slots are
+        # reusable for exams) while every other group's rooms/faculty stay
+        # protected — that is how one branch exams while the rest teaches.
+        reserved_conflicts = self._load_published_conflicts(
+            exempt_groups=(
+                resolved.resource_ids(ResourceType.STUDENT_GROUP)
+                if resolved.params.get("session_type") == "EXAM" else None
+            )
+        )
 
         # Soft-constraint scoring (opt-in per college). When enabled, each
         # instance is scored so the admin can rank the candidates.
@@ -169,7 +179,9 @@ class Scheduler:
         """Number of placements that differ between two instances."""
         return len(a ^ b)
 
-    def _load_published_conflicts(self) -> dict[str, set[tuple]]:
+    def _load_published_conflicts(
+        self, exempt_groups: set[int] | None = None
+    ) -> dict[str, set[tuple]]:
         """Fetch every slot of every PUBLISHED instance.
 
         Returns resource-level reservations keyed by dimension::
@@ -183,12 +195,19 @@ class Scheduler:
         Splitting per resource lets the constraint checker block a teacher,
         room, or group at a given time slot independently — a published
         booking conflicts no matter what the other two dimensions are.
+
+        ``exempt_groups``: groups whose published slots are NOT reserved. An
+        exam generation passes its own groups here — a branch on exams has
+        suspended its classes, so its published class slots (teacher, room,
+        group) are free for the exam to reuse, while every other branch's
+        active classes stay protected.
         """
         reserved: dict[str, set[tuple]] = {
             "faculty": set(),
             "room": set(),
             "group": set(),
         }
+        exempt = set(exempt_groups or ())
         published_ids = self.db.scalars(
             select(TimetableInstance.id).where(
                 TimetableInstance.status == InstanceStatus.PUBLISHED
@@ -204,6 +223,8 @@ class Scheduler:
         ).all()
 
         for slot in published_slots:
+            if slot.student_group_id is not None and slot.student_group_id in exempt:
+                continue
             key = (slot.day_of_week, slot.slot_number)
             if slot.faculty_id is not None:
                 reserved["faculty"].add((slot.faculty_id, *key))

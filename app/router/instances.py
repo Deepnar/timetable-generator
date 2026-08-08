@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.admin import Admin
 from app.models.generation import (TimetableInstance, TimetableSlot,
                                     InstanceStatus, TimetableGeneration)
+from app.models.profiles import ResourceType
 from app.schemas.generation import InstanceResponse, SlotResponse, SlotOverride
 from app.utils.auth import get_current_admin
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
@@ -171,15 +172,22 @@ def _revalidate_slot(db: Session, slot: TimetableSlot, instance_id: int):
         if instance else None
 
     hard_constraints = []
+    exempt_groups = None
     if generation and (generation.profile_id or generation.combination_id):
         # Resolve the same effective profile the scheduler used: for a
         # combination the member profiles' rules are merged. require_active is
         # off so an override still works if the source profile was archived.
-        hard_constraints = ProfileResolver(db).resolve(
+        resolved = ProfileResolver(db).resolve(
             profile_id=generation.profile_id,
             combination_id=generation.combination_id,
             require_active=False,
-        ).hard_constraints
+        )
+        hard_constraints = resolved.hard_constraints
+        # Mirror the scheduler's exam-mode exemption: an exam generation's own
+        # groups have suspended their classes, so their published class slots
+        # are reusable for the exam being edited.
+        if resolved.params.get("session_type") == "EXAM":
+            exempt_groups = set(resolved.resource_ids(ResourceType.STUDENT_GROUP))
 
     candidate = SlotCandidate(
         instance_id=instance_id,
@@ -197,7 +205,7 @@ def _revalidate_slot(db: Session, slot: TimetableSlot, instance_id: int):
     checker = ConstraintChecker(
         db, other_slots,
         settings=get_settings(db),
-        reserved=Scheduler(db)._load_published_conflicts(),
+        reserved=Scheduler(db)._load_published_conflicts(exempt_groups=exempt_groups),
         hard_constraints=hard_constraints,
     )
     violations = checker.check_all(candidate)

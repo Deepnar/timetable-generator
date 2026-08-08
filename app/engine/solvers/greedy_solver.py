@@ -159,6 +159,18 @@ class GreedySolver:
         """Active hard rules for the resolved profile (global + per-member)."""
         return list(self.profile.hard_constraints)
 
+    def _is_exam_mode(self) -> bool:
+        """Whether this profile schedules EXAM sessions instead of classes.
+
+        A ``session_type`` parameter of ``"EXAM"`` switches the engine into
+        exam mode: every subject-assignment becomes exactly one exam session,
+        placed like any other slot but carrying ``SessionType.EXAM`` so
+        exam-specific rules (e.g. ``EXAM_DATE_SEPARATION``) can act on it. The
+        profile holds the groups taking exams, so one branch/year can run an
+        exam timetable while the others keep their published class timetable.
+        """
+        return self._get_param("session_type", None) == "EXAM"
+
     def _lab_block_lengths(self) -> dict[int, int]:
         """Map subject_id -> contiguous-block length from CONTIGUOUS_LAB_SLOTS.
 
@@ -240,6 +252,18 @@ class GreedySolver:
             # The "extreme flexibility" feature flag: if the college
             # has NOT opted in, we simply skip cross-department sessions.
             if is_cross_dept and not self.settings.allow_cross_dept_subjects:
+                continue
+
+            # Exam mode: one exam per subject-group, not weekly_hours copies.
+            if self._is_exam_mode():
+                sessions.append(SessionToSchedule(
+                    subject_id=subject.id,
+                    faculty_id=assignment.faculty_id,
+                    student_group_id=assignment.group_id,
+                    session_type=SessionType.EXAM,
+                    requires_lab=False,
+                    is_cross_department=is_cross_dept,
+                ))
                 continue
 
             session_type = (

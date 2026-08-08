@@ -216,6 +216,44 @@ def _holiday_calendar(candidate, committed, config, ctx) -> Optional[str]:
     return None
 
 
+def _exam_date_separation(candidate, committed, config, ctx) -> Optional[str]:
+    """Require a minimum number of days between a group's exams.
+
+    config: ``{"min_days": int, "group_id"?: int}``. Only applies to ``EXAM``
+    sessions that carry a materialized ``slot_date`` (derived from
+    ``day_of_week`` relative to the profile's ``term_start``); a candidate with
+    no date is a no-op, mirroring ``HOLIDAY_CALENDAR``. Two exams for the same
+    group closer than ``min_days`` calendar days apart are rejected, which
+    keeps one branch/year's exams spaced out while other branches run normal
+    classes.
+    """
+    config = config or {}
+    min_days = config.get("min_days")
+    if not min_days:
+        return None
+    group_id = config.get("group_id")
+    if group_id is not None and candidate.student_group_id != group_id:
+        return None
+    if candidate.session_type != "EXAM" or candidate.slot_date is None:
+        return None
+    for s in committed:
+        if (
+            s.session_type != "EXAM"
+            or s.student_group_id != candidate.student_group_id
+        ):
+            continue
+        if s.slot_date is None:
+            continue
+        gap = abs((candidate.slot_date - s.slot_date).days)
+        if gap < min_days:
+            return (
+                f"group {candidate.student_group_id} exams must be at least "
+                f"{min_days} days apart ({candidate.slot_date.isoformat()} is "
+                f"{gap} day(s) from {s.slot_date.isoformat()})"
+            )
+    return None
+
+
 def _contiguous_lab_slots(candidate, committed, config, ctx) -> Optional[str]:
     """Require lab blocks to span exactly the configured number of slots.
 
@@ -250,4 +288,5 @@ hard_rule("MAX_CONSECUTIVE_SAME_TEACHER")(_max_consecutive_same_teacher)
 hard_rule("TEACHER_YEAR_RESTRICTION")(_teacher_year_restriction)
 hard_rule("LAB_BATCH_ROTATION")(_lab_batch_rotation)
 hard_rule("HOLIDAY_CALENDAR")(_holiday_calendar)
+hard_rule("EXAM_DATE_SEPARATION")(_exam_date_separation)
 hard_rule("CONTIGUOUS_LAB_SLOTS")(_contiguous_lab_slots)
