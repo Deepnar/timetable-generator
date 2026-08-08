@@ -283,11 +283,12 @@ CREATE TABLE profile_parameters (
 | `day_start_time`           | STRING  | `"09:00"` (first slot start, "HH:MM") |
 | `working_days`             | JSON    | `["MON","TUE","WED","THU","FRI"]` |
 | `term_start`               | STRING  | `"2025-01-06"` (anchor for calendar-date rules, see §8.8) |
+| `session_type`             | STRING  | `"EXAM"` (exam mode: each assignment becomes one `SessionType.EXAM` session, see §5.4) |
 | `lunch_break_after_slot`   | INT     | 3                       |
 | `lunch_break_duration_minutes` | INT | 60                      |
 | `max_consecutive_lectures` | INT     | 3                       |
 | `max_daily_load_teacher`   | INT     | 5                       |
-| `min_gap_between_exams`    | INT     | 1 (days)                |
+| `min_gap_between_exams`    | INT     | 1 (days) — legacy; superseded by the `EXAM_DATE_SEPARATION` rule's `config_json.min_days` (§5.4) |
 | `lab_slot_duration_minutes`| INT     | 120                     |
 | `allow_saturday`           | BOOLEAN | false                   |
 | `buffer_slots_per_day`     | INT     | 1                       |
@@ -353,6 +354,7 @@ rule can be added without a schema migration.
 | `TEACHER_YEAR_RESTRICTION`        | `faculty_id`, `allowed_years`                               | `_teacher_year_restriction`        |
 | `LAB_BATCH_ROTATION`              | `group_days: {"<group_id>": [day_of_week, ...]}`            | `_lab_batch_rotation`              |
 | `HOLIDAY_CALENDAR`                | `holidays: ["YYYY-MM-DD", ...]`                             | `_holiday_calendar`                |
+| `EXAM_DATE_SEPARATION`            | `min_days`, `group_id?`                                     | `_exam_date_separation`            |
 | `CONTIGUOUS_LAB_SLOTS`            | `block_lengths: {"<subject_id>": int}`, `default_block_length?: int` | `_contiguous_lab_slots`  |
 
 **Soft (scorers in `app/engine/scorer.py`; CP-SAT objective builders in `app/engine/soft_objective.py`):**
@@ -368,7 +370,6 @@ rule can be added without a schema migration.
 
 **Not implemented (catalogued but with no validator / scorer):**
 
-- `EXAM_DATE_SEPARATION` (hard) — listed historically; no validator.
 - `TEACHER_SUBJECT_MATCH` (hard) — implicit, because the solver only generates sessions from `subject_assignments` rows, which already bind a faculty to a subject/group.
 
 > The catalog (`ConstraintType` enum) is the single source of truth for what the API surface accepts in `GET /constraints/types` — the endpoint derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the enum in `app/models/constraints.py`), so a new enum member can never drift from discovery.
@@ -770,8 +771,8 @@ Step-by-step:
     "room":    {(room_id,    day_of_week, slot_number), ...},
     "group":   {(group_id,   day_of_week, slot_number), ...}}
    ```
-   Splitting per resource (rather than a single 5-way tuple) means a published booking blocks the faculty, room, or group at that time slot REGARDLESS of the other dimensions.
-3. **Build Sessions to Schedule.** From `subject_assignments` rows, expand each `(subject, faculty, group, weekly_hours, load_share)` into `weekly_hours` `SessionToSchedule` objects. Each session carries `session_type` (`LECTURE` / `LAB` from `requires_lab`), an `is_cross_department` flag (`group.department != subject.department`), and is dropped if the `college_settings.allow_cross_dept_subjects` flag is off and the cross-dept flag is on.
+   Splitting per resource (rather than a single 5-way tuple) means a published booking blocks the faculty, room, or group at that time slot REGARDLESS of the other dimensions. An **exam generation** passes `exempt_groups=` (the profile's own `STUDENT_GROUP` ids when the profile is in exam mode): those groups' published slots are skipped, so a branch on exams can reuse its suspended class slots while every other branch's active classes stay protected (§5.4).
+3. **Build Sessions to Schedule.** From `subject_assignments` rows, expand each `(subject, faculty, group, weekly_hours, load_share)` into `weekly_hours` `SessionToSchedule` objects. Each session carries `session_type` (`LECTURE` / `LAB` from `requires_lab`), an `is_cross_department` flag (`group.department != subject.department`), and is dropped if the `college_settings.allow_cross_dept_subjects` flag is off and the cross-dept flag is on. In **exam mode** (§5.4) each assignment instead becomes exactly ONE `SessionType.EXAM` session.
 4. **Solver Runs N times for N candidate instances.**
    - Instance #1: seed = `None` (deterministic baseline).
    - Instance #i (i > 0): seed = `i * 100 + attempt`.
@@ -789,6 +790,7 @@ Step-by-step:
   - **Per-candidate ("static") rules** — capacity, room type, recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `CONTIGUOUS_LAB_SLOTS`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
   - **Relational rules** — no teacher/room/group double-book, one-subject-per-group-per-day, per-faculty daily/weekly load — are added as CP-SAT constraints (`model.Add(sum(vs) <= 1)`). A block session registers its variable in the double-book buckets for *every* slot it occupies, and contributes its full length to the load buckets, so CP-SAT treats a block as a contiguous booking.
 - Objective: `model.Maximize(PLACEMENT_WEIGHT * sum(x.values()) + Σ soft_terms)` — maximise placed sessions first (`PLACEMENT_WEIGHT = 1000.0`), then optimise the active soft preferences via `app/engine/soft_objective.py` (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`; gated by `enable_soft_constraint_scoring`). Rules without a registered objective builder are skipped but still rank instances post-hoc.
+- **`EXAM_DATE_SEPARATION` is modelled as a relational CP-SAT rule** (not just a domain-pruning rule): its registry validator reads committed slots, so it cannot fire during static pruning and would otherwise only shed placements in the final pass (letting CP-SAT pack a group's exams onto one day). `_add_exam_separation` adds, per group, "at most one exam per calendar date" plus "no exams on two dates closer than `min_days`", using the materialized dates from `term_start` (inert without an anchor).
 - A final pass through the full checker (with the populated committed_slots) catches committed-dependent registry rules like `MAX_CONSECUTIVE_SAME_TEACHER` and `TEACHER_YEAR_RESTRICTION` that CP-SAT does not model. Such rules can only *drop* a placement; they cannot produce an invalid one.
 - **Hard timeout: `ORToolsSolver.max_time_seconds = 5.0`** (class constant). There is **no `solver_timeout_seconds` profile parameter** — the 30-second value in older docs is illustrative only.
 
@@ -883,6 +885,17 @@ The diversity filter compares fingerprints. For each instance:
 4. If no attempt clears the threshold, the **last attempt** is kept (so a tiny problem still produces a result rather than an empty or duplicated instance).
 
 > **Objective-based variation** (Instance #1 = best soft score, #2 = minimise teacher gaps, #3 = minimise student gaps, #4+ = random restarts) is **NOT implemented** — only the seed-driven diversity filter is. This is tracked as a future refinement in `plan.md`.
+
+### 5.4 Exam scheduling (`EXAM_DATE_SEPARATION` + exam mode)
+
+Exams reuse the weekly-template engine rather than a dedicated table. A profile whose **`session_type` parameter is `"EXAM"`** runs in *exam mode*: `GreedySolver._build_sessions` expands each `subject_assignments` row into exactly **one** `SessionType.EXAM` session (not `weekly_hours` copies), placed like any other slot but exempt from the lab-room restriction. The generation is a separate run over the examing groups' profile — so one branch/year can sit exams while the others keep their published class timetable.
+
+Two pieces make that scenario work:
+
+1. **`EXAM_DATE_SEPARATION`** (`_exam_date_separation` in `app/engine/constraint_registry.py`) — config `{"min_days": int, "group_id"?: int}`. Only EXAM-session candidates with a materialized `slot_date` (i.e. a `term_start` anchor, §8.8) are governed; it rejects any placement whose date is closer than `min_days` calendar days to another committed exam of the same group. Greedy enforces it inline via the growing committed set; OR-Tools models it as a relational CP-SAT rule (§5.2) so it cannot pack exams and shed them.
+2. **Examing groups exempt their own class slots** — `Scheduler._load_published_conflicts(exempt_groups=...)` skips published slots whose `student_group_id` is in the exam profile's group set. Those groups have suspended their classes, so their old class slots (teacher, room, group) are reusable for exams; every other branch's rooms and faculty stay reserved, so the exam timetable can never collide with the classes still running. The same exemption is applied in the manual-override re-validation path (`app/router/instances.py::_revalidate_slot`).
+
+Limitations: the engine is still a single-week template, so a group's exams share the one anchored week (a `min_days`-heavy schedule can leave some exams unplaced); and `EXAM_DATE_SEPARATION` is inert without `term_start`, mirroring `HOLIDAY_CALENDAR`.
 
 ---
 
@@ -1131,6 +1144,7 @@ The solver is a **weekly template** — a timetable describes one repeating week
 - `_check_teacher_availability` treats an availability row with no date bounds as **timeless** (applies every week); one with bounds applies only when `effective_from <= slot_date <= effective_to` (a missing bound is unbounded on that side). Without a `term_start` anchor there is no `slot_date`, so a date-bounded window is **inert** — the same rule that governs date-specific `room_blackouts`.
 - This is the same anchor the iCal export already uses for its `RRULE FREQ=WEEKLY` events, so exports and the checker stay consistent.
 - `HOLIDAY_CALENDAR` (registry rule) reuses this mechanism: its validator (`_holiday_calendar` in `app/engine/constraint_registry.py`) refuses any candidate whose materialized `slot_date` appears in `config_json.holidays` (`["YYYY-MM-DD", ...]`), and is a **no-op** when the slot carries no date — so a profile without `term_start` cannot accidentally blank out every week.
+- `EXAM_DATE_SEPARATION` (registry rule, §5.4) uses the same dates: it rejects an exam candidate placed closer than `min_days` to another exam of the same group, and is a no-op when the slot carries no date.
 
 ---
 
@@ -1144,7 +1158,8 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — synchronous `POST /generate` with greedy (default) and OR-Tools CP-SAT.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2).
-- **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`).
+- **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `EXAM_DATE_SEPARATION`).
+- **Exam scheduling** — `session_type: EXAM` profile mode turns each assignment into one `SessionType.EXAM` session; `EXAM_DATE_SEPARATION` spaces a group's exams by `min_days` (relational CP-SAT rule in OR-Tools); the published-conflict loader exempts the examing groups' own class slots so one branch can exam while others teach (§5.4).
 - **Multi-slot lab sessions** — `CONTIGUOUS_LAB_SLOTS` registry rule: `_build_sessions` expands governed lab subjects into contiguous blocks, the checker double-booking/load/reservation checks are block-aware via `SlotCandidate.block_length`, and OR-Tools models blocks per start slot with per-sub-slot exclusivity (§5.2).
 - **Soft scoring** — `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS` registered as post-hoc scorers **and** as CP-SAT objective builders (`soft_objective.py`); `AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD` catalogued only.
 - **Diversity filter** — seeded re-rolls, `_DIVERSITY_ATTEMPTS=6`, `_DIVERSITY_MIN_DISTANCE=1`.

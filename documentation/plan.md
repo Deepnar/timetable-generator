@@ -40,13 +40,14 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Profile Combination Resolution**
   - `POST /profiles/combine` now validates members (existence, weights length). `Scheduler.run()` resolves `combination_id` into an effective profile before solving (`app/engine/profile_resolver.py`): resources unioned (de-dup by type+id), parameters merged with the highest-weight member winning collisions, hard/soft constraints merged from every member plus globals. See architecture §6.2.
   - *Remaining:* a `/profiles/combinations` router (list / explicit `resolve` endpoint) for discoverability and manual preview.
-- [ ] **Implement New Constraint Types** *(6 of 7 done)*
+- [x] **Implement New Constraint Types** *(7 of 7 done)*
   - [x] `TEACHER_YEAR_RESTRICTION`: Prevent assigning teachers outside their allowed years.
   - [x] `SUBJECT_TIME_PREFERENCE`: Confine a subject to a slot window (e.g., Maths always AM).
   - [x] `MAX_CONSECUTIVE_SAME_TEACHER`: Limit back-to-back slots for a single faculty member.
   - [x] `LAB_BATCH_ROTATION`: Pin a group/lab-batch to specific weekdays (A1 Mon, A2 Tue) — `config_json.group_days`.
   - [x] `HOLIDAY_CALENDAR`: Blackout specific calendar dates via `config_json.holidays` (`["YYYY-MM-DD", ...]`). The validator matches each candidate's materialized `slot_date` (anchored by the profile's `term_start`, §8.8) and is a no-op when the slot has no date. Wired into both solvers through the shared registry.
-  - [x] `CONTIGUOUS_LAB_SLOTS`: Multi-slot lab sessions. `config_json.block_lengths` (`{"<subject_id>": int}`) + optional `default_block_length`; a governed lab subject's `weekly_hours` expands into contiguous blocks (remainder stays single-slot). Block-aware checker (double-book/load/reservations) and OR-Tools modeling (per-start-slot variables with per-sub-slot exclusivity); `SUBJECT_TIME_PREFERENCE` and `MAX_CONSECUTIVE_SAME_TEACHER` understand blocks. *(Pending separately: `EXAM_DATE_SEPARATION`.)*
+  - [x] `CONTIGUOUS_LAB_SLOTS`: Multi-slot lab sessions. `config_json.block_lengths` (`{"<subject_id>": int}`) + optional `default_block_length`; a governed lab subject's `weekly_hours` expands into contiguous blocks (remainder stays single-slot). Block-aware checker (double-book/load/reservations) and OR-Tools modeling (per-start-slot variables with per-sub-slot exclusivity); `SUBJECT_TIME_PREFERENCE` and `MAX_CONSECUTIVE_SAME_TEACHER` understand blocks.
+  - [x] `EXAM_DATE_SEPARATION`: Minimum days between a group's exams. Driven by a `session_type: EXAM` profile mode (each assignment becomes one `SessionType.EXAM` session) + `config_json.min_days`; the validator spaces exams by their materialized `slot_date`, OR-Tools models it as a relational CP-SAT rule, and the published-conflict loader exempts the examing groups' own class slots so one branch/year can sit exams while the others keep teaching (see architecture §5.4).
 
 ## Phase 3: Advanced Solvers & Async Infrastructure
 *Goal: Handle large departments without blocking HTTP requests.*
