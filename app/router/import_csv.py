@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -93,6 +94,7 @@ def import_rooms(
             floor=int(row["floor"]) if row.get("floor") else None,
             has_projector=row.get("has_projector", "false").lower() == "true",
             has_ac=row.get("has_ac", "false").lower() == "true",
+            equipment_json=_optional_json(row, "equipment_json"),
         )
 
     return _atomic_import(db, rows, build)
@@ -180,6 +182,20 @@ def import_subjects(
             semester=int(row["semester"]),
             hours_per_week=int(row["hours_per_week"]),
             requires_lab=row.get("requires_lab", "false").lower() == "true",
+            requirements_json=_optional_json(row, "requirements_json"),
         )
 
     return _atomic_import(db, rows, build)
+
+
+def _optional_json(row: dict, key: str):
+    """Parse an optional CSV cell holding a JSON document.
+
+    A blank/absent cell yields ``None``; a malformed document raises a
+    ``ValueError`` (JSONDecodeError subclasses it) which the atomic importer
+    turns into a per-row 422.
+    """
+    raw = (row.get(key) or "").strip()
+    if not raw:
+        return None
+    return json.loads(raw)

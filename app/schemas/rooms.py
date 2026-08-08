@@ -13,6 +13,8 @@ class RoomCreate(BaseModel):
     floor: Optional[int] = None
     has_projector: bool = False
     has_ac: bool = False
+    # Free-form equipment/feature tags (e.g. ["projector", "whiteboard"]).
+    equipment_json: Optional[list] = None
 
 class RoomResponse(BaseModel):
     id: int
@@ -24,6 +26,7 @@ class RoomResponse(BaseModel):
     floor: Optional[int] = None
     has_projector: bool
     has_ac: bool
+    equipment_json: Optional[list] = None
     is_active: bool
 
     class Config:

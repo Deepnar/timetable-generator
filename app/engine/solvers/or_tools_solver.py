@@ -67,7 +67,7 @@ class ORToolsSolver(GreedySolver):
         model = cp_model.CpModel()
         x: dict[tuple, object] = {}
         for si, session in enumerate(sessions):
-            rooms = self._get_rooms(session.requires_lab)
+            rooms = self._get_rooms(session.room_requirements)
             for day in working_days:
                 for sn, _st, _en in slot_times:
                     end_slot = sn + session.block_length - 1

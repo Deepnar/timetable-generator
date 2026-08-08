@@ -48,7 +48,7 @@ STRUCTURAL_RULES: tuple[str, ...] = (
     "NO_CROSS_TIMETABLE_ROOM_CONFLICT",
     "NO_CROSS_TIMETABLE_GROUP_CONFLICT",
     "ROOM_CAPACITY_SUFFICIENT",
-    "ROOM_TYPE_MATCH",
+    "ROOM_REQUIREMENTS_MET",
     "RESPECT_TEACHER_UNAVAILABILITY",
     "FACULTY_MAX_HOURS_PER_DAY",
     "FACULTY_MAX_HOURS_PER_WEEK",
@@ -489,21 +489,28 @@ def _room_capacity_sufficient(candidate, committed, config, ctx) -> Optional[str
     return None
 
 
-@hard_rule("ROOM_TYPE_MATCH")
+@hard_rule("ROOM_REQUIREMENTS_MET")
 def _room_requirements_met(candidate, committed, config, ctx) -> Optional[str]:
     """Reject a room that does not satisfy the subject's requirements.
 
-    Today this is the legacy ``requires_lab`` binary: a lab subject must land in
-    a LAB room. The generic resource-requirements lever replaces this check with
-    declared room requirements (type set, min capacity, features) matched against
-    room attributes — see app/engine/resource_requirements.py.
+    Generic resource requirements (app/engine/resource_requirements.py):
+    ``requirements_json.session_type``/``room_types``/``min_capacity``/``features``
+    are matched against the room's attributes; the legacy ``requires_lab``
+    boolean is just shorthand for ``{"room_types": ["LAB"]}``.
     """
+    from app.engine.resource_requirements import (
+        effective_requirements, room_matches_requirements,
+    )
     subject = ctx.subject(candidate.subject_id)
     room = ctx.room(candidate.room_id)
-    if subject and room and subject.requires_lab and room.room_type.value != "LAB":
+    if subject is None or room is None:
+        return None
+    ok, reason = room_matches_requirements(
+        room, effective_requirements(subject))
+    if not ok:
         return (
-            f"subject {subject.name} requires lab but room {room.name} "
-            f"is {room.room_type.value}"
+            f"subject {subject.name} requires {reason}; "
+            f"room {room.name} does not match"
         )
     return None
 

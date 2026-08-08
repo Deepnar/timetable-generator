@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean
+from sqlalchemy import String, Boolean, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -13,4 +13,8 @@ class Subject(Base):
     semester: Mapped[int]
     hours_per_week: Mapped[int]
     requires_lab: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Declarative room requirements (room_types / min_capacity / features /
+    # session_type); overrides requires_lab when set. See
+    # app/engine/resource_requirements.py for the match semantics.
+    requirements_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

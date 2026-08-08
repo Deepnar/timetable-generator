@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from app.models.profiles import ResourceType
 from app.models.constraints import HardConstraint
-from app.models.rooms import Room, RoomType
+from app.models.rooms import Room
 from app.models.faculty import Faculty
 from app.models.groups import StudentGroup
 from app.models.subjects import Subject
@@ -26,6 +26,11 @@ from app.models.settings import CollegeSettings
 from app.services.settings_service import get_settings
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.profile_resolver import ResolvedProfile
+from app.engine.resource_requirements import (
+    effective_requirements,
+    subject_session_type,
+    room_matches_requirements,
+)
 
 
 class SessionToSchedule:
@@ -40,6 +45,7 @@ class SessionToSchedule:
         requires_lab: bool,
         is_cross_department: bool = False,
         block_length: int = 1,
+        room_requirements: dict | None = None,
     ):
         self.subject_id = subject_id
         self.faculty_id = faculty_id
@@ -50,6 +56,9 @@ class SessionToSchedule:
         # A lab block occupies ``block_length`` consecutive slots on one day
         # (1 == a single-slot session, the historical default).
         self.block_length = block_length
+        # Declared room requirements (room_types/min_capacity/features); the
+        # solver picks rooms that satisfy them. Empty = any active room.
+        self.room_requirements = room_requirements or {}
 
 
 class GreedySolver:
@@ -271,13 +280,16 @@ class GreedySolver:
                     session_type=SessionType.EXAM,
                     requires_lab=False,
                     is_cross_department=is_cross_dept,
+                    room_requirements=effective_requirements(subject),
                 ))
                 continue
 
-            session_type = (
-                SessionType.LAB if subject.requires_lab else SessionType.LECTURE
+            reqs = effective_requirements(subject)
+            session_type = subject_session_type(subject)
+            block_length = (
+                block_lengths.get(subject.id)
+                if session_type == SessionType.LAB else None
             )
-            block_length = block_lengths.get(subject.id) if subject.requires_lab else None
             if block_length and block_length >= 2:
                 full_blocks, remainder = divmod(assignment.weekly_hours, block_length)
                 for _ in range(full_blocks):
@@ -289,6 +301,7 @@ class GreedySolver:
                         requires_lab=subject.requires_lab,
                         is_cross_department=is_cross_dept,
                         block_length=block_length,
+                        room_requirements=reqs,
                     ))
                 for _ in range(remainder):
                     sessions.append(SessionToSchedule(
@@ -298,6 +311,7 @@ class GreedySolver:
                         session_type=session_type,
                         requires_lab=subject.requires_lab,
                         is_cross_department=is_cross_dept,
+                        room_requirements=reqs,
                     ))
             else:
                 for _ in range(assignment.weekly_hours):
@@ -308,11 +322,12 @@ class GreedySolver:
                         session_type=session_type,
                         requires_lab=subject.requires_lab,
                         is_cross_department=is_cross_dept,
+                        room_requirements=reqs,
                     ))
 
         # most constrained first
         sessions.sort(key=lambda s: (
-            0 if s.requires_lab else 1,
+            0 if s.session_type == SessionType.LAB else 1,
             0 if s.is_cross_department else 1,
         ))
         # For a gap-minimising criterion, group each peer's sessions together
@@ -323,18 +338,18 @@ class GreedySolver:
         peer_attr = self._criterion_peer_attr()
         if peer_attr and self.rng is not None:
             sessions.sort(key=lambda s: (
-                0 if s.requires_lab else 1,
+                0 if s.session_type == SessionType.LAB else 1,
                 0 if s.is_cross_department else 1,
                 getattr(s, peer_attr),
             ))
         return sessions
 
-    def _get_rooms(self, requires_lab: bool) -> list[Room]:
+    def _get_rooms(self, requirements: dict) -> list[Room]:
         room_ids = self._get_profile_resources(ResourceType.ROOM)
-        query = select(Room).where(Room.id.in_(room_ids), Room.is_active == True)
-        if requires_lab:
-            query = query.where(Room.room_type == RoomType.LAB)
-        return self.db.scalars(query).all()
+        rooms = self.db.scalars(
+            select(Room).where(Room.id.in_(room_ids), Room.is_active == True)
+        ).all()
+        return [r for r in rooms if room_matches_requirements(r, requirements)[0]]
 
     # ── main loop ────────────────────────────────────────────
     def _criterion_peer_attr(self) -> str | None:
@@ -413,7 +428,7 @@ class GreedySolver:
 
         for session in sessions:
             placed = False
-            rooms = self._get_rooms(session.requires_lab)
+            rooms = self._get_rooms(session.room_requirements)
             if self.rng is not None:
                 rooms = list(rooms)
                 self.rng.shuffle(rooms)

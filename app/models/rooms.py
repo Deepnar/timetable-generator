@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import String, Boolean, Enum, ForeignKey, Date
+from sqlalchemy import String, Boolean, Enum, ForeignKey, Date, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import time, date
 
@@ -24,6 +24,10 @@ class Room(Base):
     floor: Mapped[int | None]
     has_projector: Mapped[bool] = mapped_column(Boolean, default=False)
     has_ac: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Free-form equipment/feature tags (["projector", "whiteboard", ...]) that
+    # subject room requirements match against (see
+    # app/engine/resource_requirements.py).
+    equipment_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 class RoomBlackout(Base):
