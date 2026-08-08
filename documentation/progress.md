@@ -27,7 +27,7 @@ New engine capabilities added in the same pass (with tests):
 Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 - ~~**Room blackout check is effectively dead**~~ — ✅ FIXED: `room_blackouts` now supports recurring **weekday** blackouts (`day_of_week`), which the checker enforces against the recurring templates. Date-specific blackouts still await calendar-date materialization.
-- **Faculty availability date-range ignored** — `effective_from`/`effective_to` are never consulted, and they are typed `date | None` yet marked `nullable=False` (contradiction that also breaks CRUD/CSV that omit them).
+- ~~**Faculty availability date-range ignored**~~ — ✅ FIXED: `effective_from`/`effective_to` are now nullable (migration `e9f4a2b6d8c0`) so timeless windows can be created via CRUD/CSV, and the checker consults them against each slot's materialized date. The solver anchors the weekly template with the new **`term_start`** profile parameter (see architecture §8.8) and stamps `TimetableSlot.slot_date`; a date-bounded window only blocks the week it covers, and a window with no bounds stays timeless.
 - **CSV import is not atomic** — each row is `add()`ed and everything is `commit()`ed once at the end; a single integrity error at commit rolls back rows already reported as "inserted". Also `import_rooms` lets `room_code` be `None` against a `NOT NULL UNIQUE` column.
 - **Profile combinations are never resolved** — `/profiles/combine` stores members, but `Scheduler`/`GreedySolver` only read a single `profile_id`; generating from a `combination_id` fails. (Loosely Phase 4, but the endpoint currently misleads.)
 - **`GET /constraints/types` is a hardcoded string list** that can drift from the `ConstraintType` enum.

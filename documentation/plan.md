@@ -42,7 +42,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - [x] `SUBJECT_TIME_PREFERENCE`: Confine a subject to a slot window (e.g., Maths always AM).
   - [x] `MAX_CONSECUTIVE_SAME_TEACHER`: Limit back-to-back slots for a single faculty member.
   - [x] `LAB_BATCH_ROTATION`: Pin a group/lab-batch to specific weekdays (A1 Mon, A2 Tue) — `config_json.group_days`.
-  - [ ] `HOLIDAY_CALENDAR`: *Date-based* global blackout dates still need calendar-date materialization (see below); recurring **weekday** blackouts now work via `room_blackouts.day_of_week`.
+  - [ ] `HOLIDAY_CALENDAR`: *Date-based* global blackout dates still need calendar-date materialization; recurring **weekday** blackouts now work via `room_blackouts.day_of_week`. *(Foundation landed: the `term_start` profile-parameter anchor now materializes `slot_date` in both solvers and the availability checker consults date windows — see architecture §8.8. Holiday blackouts just need a date-matching validator.)*
 
 ## Phase 3: Advanced Solvers & Async Infrastructure
 *Goal: Handle large departments without blocking HTTP requests.*

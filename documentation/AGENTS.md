@@ -90,7 +90,7 @@ on `get_current_admin`.
 - **Registering a new table:** define the model, export it from `app/models/__init__.py` (so
   `Base.metadata` and Alembic autogenerate see it), then create a migration. The Alembic history is a
   single linear chain (`aeaadc4f2374 → e47081302c4e → 0d633dc08f98 → 0f8db8a263c5 → e5f8a91c0d4e →
-  d3f5a7c9e1b2`).
+  b7d9f2a1c3e4 → c8e1a4b6d2f7 → d3f5a7c9e1b2 → e9f4a2b6d8c0`).
 - There are **22 tables** (older docs saying "21" predate `audit_logs`).
 - No linter/formatter is enforced; PEP 8, 4-space indent. Commits follow the standing rules below.
 

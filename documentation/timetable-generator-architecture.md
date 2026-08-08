@@ -61,7 +61,7 @@ Every generation run produces **multiple candidate timetables** (instances). The
 
 The backend uses SQLAlchemy 2.0 mapped-column models on PostgreSQL. This section lists every table the application defines, in the order they were added by Alembic. **The Alembic migrations are the source of truth** for column types — the snippets below are a human-readable guide, not a literal `CREATE TABLE` to copy.
 
-**Migration chain (single linear, head = `d3f5a7c9e1b2`):**
+**Migration chain (single linear, head = `e9f4a2b6d8c0`):**
 
 ```
 aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty_availability, room_blackouts)
@@ -72,9 +72,10 @@ aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty
    → b7d9f2a1c3e4   constraint_type → VARCHAR(100) (no longer a native enum)
    → c8e1a4b6d2f7   room_blackouts.day_of_week (recurring blackouts)
    → d3f5a7c9e1b2   audit_logs
+   → e9f4a2b6d8c0   faculty_availability effective dates nullable
 ```
 
-There are **21 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, plus `audit_logs`.
+There are **22 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, plus `audit_logs`.
 
 ### 3.1 Resource & Auth Tables
 
@@ -145,6 +146,9 @@ CREATE TABLE room_blackouts (
 );
 
 -- FACULTY AVAILABILITY & PREFERENCES
+-- A row is a *timeless* weekday rule when effective_from/effective_to are
+-- NULL; with date bounds it only applies to the week anchored by the profile's
+-- `term_start` parameter (see §8.8). The checker consults both.
 CREATE TABLE faculty_availability (
     id              SERIAL PRIMARY KEY,
     faculty_id      INTEGER NOT NULL REFERENCES faculty(id) ON DELETE CASCADE,
@@ -153,11 +157,9 @@ CREATE TABLE faculty_availability (
     slot_end        TIME,
     availability    availabilitytype NOT NULL,           -- AVAILABLE | UNAVAILABLE | PREFFERED  (sic — enum spelling)
     reason          VARCHAR(255),
-    effective_from  DATE NOT NULL,                       -- currently ignored by the checker
-    effective_to    DATE NOT NULL                        -- currently ignored by the checker
+    effective_from  DATE,                                -- NULL = unbounded / timeless
+    effective_to    DATE
 );
--- The checker matches by `day_of_week` + UNAVAILABLE only; effective_from / to
--- are stored but not consulted. Tracked under "Newly Identified" in progress.md.
 
 -- STUDENT GROUPS (divisions, batches, years)
 CREATE TABLE student_groups (
@@ -280,6 +282,7 @@ CREATE TABLE profile_parameters (
 | `slots_per_day`            | INT     | 7                       |
 | `day_start_time`           | STRING  | `"09:00"` (first slot start, "HH:MM") |
 | `working_days`             | JSON    | `["MON","TUE","WED","THU","FRI"]` |
+| `term_start`               | STRING  | `"2025-01-06"` (anchor for calendar-date rules, see §8.8) |
 | `lunch_break_after_slot`   | INT     | 3                       |
 | `lunch_break_duration_minutes` | INT | 60                      |
 | `max_consecutive_lectures` | INT     | 3                       |
@@ -331,8 +334,8 @@ rule can be added without a schema migration.
 | `NO_GROUP_DOUBLE_BOOK`            | `_check_group_double_book`                           |
 | `ROOM_CAPACITY_SUFFICIENT`        | `_check_room_capacity`                               |
 | `ROOM_TYPE_MATCH`                 | `_check_room_type_match`                             |
-| `RESPECT_TEACHER_UNAVAILABILITY`  | `_check_teacher_availability`                        |
-| `RESPECT_ROOM_BLACKOUT`           | `_check_room_blackout` (matches recurring weekday only) |
+| `RESPECT_TEACHER_UNAVAILABILITY`  | `_check_teacher_availability` (consults `effective_from`/`effective_to` vs the slot's materialized date) |
+| `RESPECT_ROOM_BLACKOUT`           | `_check_room_blackout` (recurring weekday always; date-specific only when the slot carries a materialized `slot_date`) |
 | `FACULTY_MAX_HOURS_PER_DAY`       | `_check_faculty_load`                                |
 | `FACULTY_MAX_HOURS_PER_WEEK`      | `_check_faculty_load`                                |
 | `NO_CROSS_TIMETABLE_TEACHER_CONFLICT` | `_check_published_conflicts`                     |
@@ -1087,6 +1090,16 @@ Two soft scorers are implemented (`app/engine/scorer.py` — `SOFT_CONSTRAINT_RE
 - `MINIMIZE_STUDENT_FREE_SLOTS` — penalises gaps between a group's first and last scheduled slot in a day.
 
 Other soft candidates from the registry (`AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD`) are **catalogued** but their scorers/objective builders are not registered — enabling them in `constraint_rules` has no effect on `instance.soft_score`.
+
+### 8.8 Calendar-date anchoring (`term_start`)
+
+The solver is a **weekly template** — a timetable describes one repeating week, and slots carry only `day_of_week`/`slot_number` (plus a nullable `slot_date`). To let date-based rules (availability windows, holiday blackouts) participate, the profile can set a **`term_start`** parameter (`"YYYY-MM-DD"`, STRING):
+
+- `GreedySolver._parse_term_start()` reads it once per run; `_materialize_slot_date(day)` maps each weekday to the first occurrence on/after `term_start`.
+- That date is stamped on every `SlotCandidate.slot_date` and persisted on `TimetableSlot.slot_date`.
+- `_check_teacher_availability` treats an availability row with no date bounds as **timeless** (applies every week); one with bounds applies only when `effective_from <= slot_date <= effective_to` (a missing bound is unbounded on that side). Without a `term_start` anchor there is no `slot_date`, so a date-bounded window is **inert** — the same rule that governs date-specific `room_blackouts`.
+- This is the same anchor the iCal export already uses for its `RRULE FREQ=WEEKLY` events, so exports and the checker stay consistent.
+- Future date-based rules (`HOLIDAY_CALENDAR`) will reuse this mechanism.
 
 ---
 
