@@ -117,10 +117,14 @@ def seed_minimal(
     cross_dept: bool = False,
     faculty_max_per_week: int | None = None,
     faculty_max_per_day: int | None = None,
+    requires_lab: bool = False,
+    weekly_hours: int = 3,
 ):
     """Insert one of each resource and a subject assignment.
 
-    Returns a dict of IDs so the test can build more on top.
+    ``requires_lab`` marks the subject as a lab (so generation uses the lab
+    room and lab block rules can apply); ``weekly_hours`` controls the
+    assignment's load. Returns a dict of IDs so the test can build more on top.
     """
     reset_db()
     ensure_settings({
@@ -152,10 +156,11 @@ def seed_minimal(
         db.add(fac); db.flush()
         # For a genuine cross-department scenario the group and the subject must
         # live in DIFFERENT departments. Keep the group in CS and (below) move
-        # only the subject to MATH when cross_dept is requested.
+        # only the subject to MATH when cross_dept is requested. A lab subject
+        # must fit the lab room's capacity, so the group is sized accordingly.
         grp = StudentGroup(
             name="CS-A", group_type=GroupType.DIVISION,
-            department="CS", year=2, semester=3, strength=60,
+            department="CS", year=2, semester=3, strength=40 if requires_lab else 60,
         )
         db.add(grp); db.flush()
         classroom = Room(
@@ -170,7 +175,7 @@ def seed_minimal(
         subj = Subject(
             name="Maths", subject_code="M101",
             department="MATH" if cross_dept else "CS",
-            semester=3, hours_per_week=3, requires_lab=False,
+            semester=3, hours_per_week=weekly_hours, requires_lab=requires_lab,
         )
         db.add(subj); db.flush()
 
@@ -211,7 +216,7 @@ def seed_minimal(
 
         db.add(SubjectAssignment(
             subject_id=subj.id, faculty_id=fac.id, group_id=grp.id,
-            weekly_hours=3, load_share=1.0,
+            weekly_hours=weekly_hours, load_share=1.0,
         ))
         db.commit()
         return {
