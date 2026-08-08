@@ -1,10 +1,19 @@
 """FastAPI entry point for the Enterprise Timetable Management System."""
-from fastapi import FastAPI
+import logging
+import time
+import uuid
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from jose import jwt
 from sqlalchemy import text
 
-from .database import engine
+from .config import settings as app_settings
+from .database import engine, SessionLocal
 from . import models
+from .models.audit import AuditLog
 from .router import (
     auth,
     rooms,
@@ -23,12 +32,93 @@ from .router import (
     export,
     settings,
     assignments,
+    audit,
 )
 from .services.settings_service import get_settings
-from .database import SessionLocal
 
-app = FastAPI(title="Timetable Generator API")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("timetable")
 
+_MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Ensure the college-settings singleton row exists on startup."""
+    db = SessionLocal()
+    try:
+        get_settings(db)
+    finally:
+        db.close()
+    yield
+
+
+app = FastAPI(title="Timetable Generator API", lifespan=lifespan)
+
+
+# ── Observability: request logging, global error handling, audit ──────
+def _admin_id_from_request(request: Request) -> int | None:
+    """Best-effort admin id from the bearer token (for the audit trail)."""
+    header = request.headers.get("authorization", "")
+    if not header.lower().startswith("bearer "):
+        return None
+    try:
+        payload = jwt.decode(
+            header[7:], app_settings.SECRET_KEY, algorithms=[app_settings.ALGORITHM]
+        )
+        return payload.get("admin_id")
+    except Exception:
+        return None
+
+
+def _write_audit(request: Request, status_code: int, request_id: str) -> None:
+    db = SessionLocal()
+    try:
+        db.add(AuditLog(
+            method=request.method,
+            path=request.url.path,
+            status_code=status_code,
+            admin_id=_admin_id_from_request(request),
+            request_id=request_id,
+        ))
+        db.commit()
+    except Exception:  # never let auditing break the request
+        db.rollback()
+        logger.exception("Failed to write audit log")
+    finally:
+        db.close()
+
+
+@app.middleware("http")
+async def observability(request: Request, call_next):
+    request_id = uuid.uuid4().hex[:8]
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "Unhandled error: %s %s [%s]",
+            request.method, request.url.path, request_id,
+        )
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error", "request_id": request_id},
+        )
+    duration_ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "%s %s -> %d (%.1f ms) [%s]",
+        request.method, request.url.path, response.status_code, duration_ms, request_id,
+    )
+    if request.method in _MUTATING_METHODS:
+        _write_audit(request, response.status_code, request_id)
+    return response
+
+
+# CORS is registered last so it wraps everything (headers on error responses too).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -55,17 +145,7 @@ app.include_router(reset.router)
 app.include_router(export.router)
 app.include_router(settings.router)
 app.include_router(assignments.router)
-
-
-# ── Health & Settings bootstrap ────────────────────────────────
-@app.on_event("startup")
-def _bootstrap_college_settings() -> None:
-    """Make sure the settings singleton row exists."""
-    db = SessionLocal()
-    try:
-        get_settings(db)
-    finally:
-        db.close()
+app.include_router(audit.router)
 
 
 @app.get("/health", tags=["Health"])

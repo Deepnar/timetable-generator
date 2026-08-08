@@ -70,6 +70,7 @@ for module_name in (
     "app.router.reset",
     "app.router.settings",
     "app.router.assignments",
+    "app.router.audit",
     "app.router.rooms",
     "app.router.faculty",
     "app.router.groups",

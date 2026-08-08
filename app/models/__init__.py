@@ -14,3 +14,4 @@ from .generation import (TimetableGeneration, TimetableInstance,
                                     TimetableSlot, GenerationStatus,
                                     TimetableType, InstanceStatus, SessionType)
 from .history import TimetableHistory, TimetableResetLog
+from .audit import AuditLog
