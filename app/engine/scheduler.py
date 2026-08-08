@@ -7,7 +7,16 @@ Flow:
 3. Load cross-timetable conflicts from any PUBLISHED instance.
 4. Run the solver N times for N candidate instances.
 5. Save all slots and mark the run COMPLETED.
+
+The run is split into two entry points so it can be executed either inline
+(``run()`` — the synchronous HTTP path) or by a background worker:
+
+* ``create_generation()`` — validate the input contract and persist the
+  PENDING run row so the API can return a ``run_id`` immediately.
+* ``solve_generation()`` — load a run by id, solve it, and flip the row to
+  COMPLETED (or FAILED with ``error_log``), stamping ``run_duration_ms``.
 """
+import time
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -49,6 +58,39 @@ class Scheduler:
         triggered_by: int,
         combination_id: int | None = None,
     ) -> TimetableGeneration:
+        """Synchronous entry point: create the run and solve it in one call."""
+        generation = self.create_generation(
+            profile_id=profile_id,
+            timetable_type=timetable_type,
+            academic_year=academic_year,
+            semester=semester,
+            instances_requested=instances_requested,
+            algorithm=algorithm,
+            triggered_by=triggered_by,
+            combination_id=combination_id,
+        )
+        return self.solve_generation(generation.id)
+
+    def create_generation(
+        self,
+        profile_id: int | None,
+        timetable_type: str,
+        academic_year: str,
+        semester: int | None,
+        instances_requested: int,
+        algorithm: AlgorithmType,
+        triggered_by: int,
+        combination_id: int | None = None,
+    ) -> TimetableGeneration:
+        """Validate the input contract and persist the PENDING run row.
+
+        Raising on a missing/inactive profile/combination up front means the
+        API can reject a bad request immediately (404) instead of waiting for
+        the worker to discover it. The solver input is resolved once here and
+        again in :meth:`solve_generation`, which re-resolves from the run row
+        (``profile_id`` / ``combination_id``) so a worker that only receives a
+        ``run_id`` needs nothing else.
+        """
         # Resolve the input contract once: a single profile, or a combination
         # merged into an effective profile (see app/engine/profile_resolver.py).
         # The generation row keeps profile_id/combination_id as the user asked
@@ -67,6 +109,47 @@ class Scheduler:
             generation_status=GenerationStatus.PENDING,
         )
         self.db.add(generation)
+        self.db.flush()
+        return generation
+
+    def solve_generation(self, generation_id: int) -> TimetableGeneration:
+        """Solve a run row and flip it to COMPLETED (or FAILED).
+
+        Re-resolves the profile from the run row so a worker holding only the
+        ``run_id`` can run the full pipeline. On any exception the row is
+        marked ``FAILED`` with ``error_log`` and the exception is re-raised
+        (the synchronous router turns it into a 500; the Celery task swallows
+        it because the row already records the failure).
+        """
+        start = time.time()
+        generation = self.db.get(TimetableGeneration, generation_id)
+        if generation is None:
+            raise ValueError(f"Generation run {generation_id} not found")
+
+        try:
+            return self._solve(generation, start)
+        except Exception as exc:
+            self.db.rollback()
+            failed = self.db.get(TimetableGeneration, generation_id)
+            if failed is not None:
+                failed.generation_status = GenerationStatus.FAILED
+                failed.error_log = str(exc)
+                failed.completed_at = datetime.utcnow()
+                failed.run_duration_ms = int((time.time() - start) * 1000)
+                self.db.commit()
+            raise
+
+    def _solve(
+        self, generation: TimetableGeneration, start: float
+    ) -> TimetableGeneration:
+        # Re-resolve the input contract from the run row so a worker holding
+        # only the run_id can run the full pipeline (profile_id for a single
+        # profile, combination_id for a merged combination).
+        resolved = ProfileResolver(self.db).resolve(
+            generation.profile_id, generation.combination_id
+        )
+
+        generation.generation_status = GenerationStatus.RUNNING
         self.db.flush()
 
         # Pre-load slots from every PUBLISHED instance, so the solver
@@ -92,13 +175,10 @@ class Scheduler:
         )
         scoring_ctx = ScoringContext(self.db)
 
-        generation.generation_status = GenerationStatus.RUNNING
-        self.db.flush()
-
         instances_created = 0
         best_score: float | None = None
         accepted_signatures: list[frozenset] = []
-        for i in range(instances_requested):
+        for i in range(generation.instances_requested):
             instance = TimetableInstance(
                 generation_id=generation.id,
                 instance_number=i + 1,
@@ -118,7 +198,7 @@ class Scheduler:
                 # instances are seeded to diverge from it.
                 seed = None if i == 0 else i * 100 + attempt
                 solver = self._make_solver(
-                    algorithm, resolved, instance.id, seed=seed
+                    generation.algorithm_used, resolved, instance.id, seed=seed
                 )
                 solver.reserved_conflicts = reserved_conflicts
                 slots = solver.solve()
@@ -144,6 +224,7 @@ class Scheduler:
         generation.instances_produced = instances_created
         generation.score_best_instance = best_score
         generation.completed_at = datetime.utcnow()
+        generation.run_duration_ms = int((time.time() - start) * 1000)
         self.db.commit()
 
         return generation
