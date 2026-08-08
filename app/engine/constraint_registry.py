@@ -166,8 +166,29 @@ def _teacher_year_restriction(candidate, committed, config, ctx) -> Optional[str
     return None
 
 
+def _holiday_calendar(candidate, committed, config, ctx) -> Optional[str]:
+    """Refuse placements on configured holiday dates.
+
+    config: ``{"holidays": ["YYYY-MM-DD", ...]}`` — a list of ISO date
+    strings. A candidate whose materialized ``slot_date`` (derived from
+    ``day_of_week`` relative to the profile's ``term_start``) falls on a
+    listed holiday is rejected; a candidate carrying no materialized date
+    (no ``term_start`` anchor) is a no-op, mirroring the availability-window
+    rule for date-bounded rows.
+    """
+    config = config or {}
+    holidays = config.get("holidays") or []
+    if not holidays or candidate.slot_date is None:
+        return None
+    key = candidate.slot_date.isoformat()
+    if key in holidays:
+        return f"{key} is a holiday; no sessions scheduled"
+    return None
+
+
 # Register after definition so the functions read top-to-bottom.
 hard_rule("SUBJECT_TIME_PREFERENCE")(_subject_time_preference)
 hard_rule("MAX_CONSECUTIVE_SAME_TEACHER")(_max_consecutive_same_teacher)
 hard_rule("TEACHER_YEAR_RESTRICTION")(_teacher_year_restriction)
 hard_rule("LAB_BATCH_ROTATION")(_lab_batch_rotation)
+hard_rule("HOLIDAY_CALENDAR")(_holiday_calendar)
