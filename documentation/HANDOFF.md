@@ -6,95 +6,96 @@ history preserves older handoffs.
 
 ## Session summary (committed & pushed)
 
-State at handoff: **74/74 tests passing** (`uv run python -m app.tests`), tree clean.
+State at handoff: **82/82 tests passing** (`uv run python -m app.tests`), tree clean.
 
-This session implemented the **`CONTIGUOUS_LAB_SLOTS` registry rule** (the "NEXT TASK" from
-the previous handoff, also `documentation/plan.md` Phase 2 / `progress.md` → registry rules).
-This was a *deep engine change* — the first time a session occupies more than one slot.
+This session implemented **`EXAM_DATE_SEPARATION`** — the last pending `ConstraintType`
+catalog member (the "NEXT TASK" from the previous handoff, also `plan.md` Phase 2). The
+handoff demanded a *domain decision first*; the decision (informed by the product intent
+that branches/years sit exams at different times — "one may have now and the rest do
+normal college things") was to **reuse the weekly-template engine** rather than add an
+exam table. Exams are just `SessionType.EXAM` sessions in a separate generation run.
 
-1. **Representation** — `SessionToSchedule.block_length` (default 1) and
-   `SlotCandidate.block_length` + a `slot_numbers` range. A block spans
-   `slot_number .. slot_number + k - 1` in the same room/teacher/group on one day and is
-   committed as `k` `TimetableSlot`s.
-2. **Config shape** — `config_json`: `{"block_lengths": {"<subject_id>": int}, "default_block_length"?: int}`.
-   `block_lengths` pins specific lab subjects to a block size (JSON keys are strings; int
-   ids also match); `default_block_length` applies to every lab subject not listed. The
-   single resolver `configured_block_length()` lives in `app/engine/constraint_registry.py`
-   and is shared by the expansion and the validator. Restrictive: it only applies to
-   `requires_lab` subjects.
-3. **Expansion** — `GreedySolver._lab_block_lengths()` reads the rule off the resolved
-   profile; `_build_sessions()` splits a governed lab assignment's `weekly_hours` into
-   full blocks (`// length`) plus a single-slot remainder, so 4 hours at length 3 becomes
-   one 3-slot block + one single session. OR-Tools reuses the same `_build_sessions`.
-4. **Checker** — teacher/room/group double-book and `_check_published_conflicts` now fire
-   if *any* sub-slot collides (`s.slot_number in c.slot_numbers`); `_check_faculty_load`
-   counts the block's full length. Time-window rules (unavailability, room blackout)
-   already overlap-check the whole span via start/end time, so they needed no change.
-   `SAME_SUBJECT_SAME_DAY` naturally allows one block per subject per group per day.
-5. **Registry rules made block-aware** — `SUBJECT_TIME_PREFERENCE` bounds the block's
-   *last* slot by `max_slot` and first by `min_slot`; `MAX_CONSECUTIVE_SAME_TEACHER`
-   counts the block as one contiguous run (committed ∪ block range, walk left/right).
-   `_contiguous_lab_slots` itself is a consistency guard (a block candidate must match its
-   explicitly-configured size; `default_block_length` subjects are not validated — the
-   solver always forms default-sized blocks anyway).
-6. **OR-Tools** — block sessions get variables keyed by their **start** slot
-   (`x[si, day, start, room]`, domain-pruned by the static checker with the full block
-   span), register in the double-book buckets for *every* occupied slot, contribute
-   `block_length`× to the daily/weekly load buckets, and are committed only if the
-   committed-aware final pass validates the whole block. `by_group_subject_day` stays
-   one-registration so CP-SAT matches greedy's one-block-per-subject-per-day.
-7. **Tests** — 11 new (63 → 74): config resolution, size-guard validator, block-aware
-   `SUBJECT_TIME_PREFERENCE`/`MAX_CONSECUTIVE`, greedy blocks (contiguous / remainder /
-   `default_block_length` / no-rule fallback), checker block overlap, and OR-Tools
-   block production. `seed_minimal` gained `requires_lab` and `weekly_hours` options and
-   sizes the group to fit the lab room (strength 40) so lab sessions are schedulable.
+1. **Exam mode** — a profile whose `session_type` param is `"EXAM"` makes
+   `GreedySolver._build_sessions()` expand each `subject_assignments` row into exactly
+   **one** `SessionType.EXAM` session (not `weekly_hours` copies), `requires_lab=False`
+   so any room qualifies. Shared by both solvers.
+2. **Rule** — `_exam_date_separation` (`app/engine/constraint_registry.py`),
+   config `{"min_days": int, "group_id"?: int}`. Only governs EXAM candidates carrying a
+   materialized `slot_date` (from `term_start`); rejects any placement closer than
+   `min_days` days to another committed exam of the same group. Inert without an anchor
+   (mirrors `HOLIDAY_CALENDAR`).
+3. **Branch coexistence** — `Scheduler._load_published_conflicts()` gained
+   `exempt_groups`; the scheduler passes the resolved profile's `STUDENT_GROUP` ids in
+   exam mode. The examing groups' own published class slots are skipped (their classes
+   are suspended during exams, so their teacher/room/group are reusable), while every
+   other branch's rooms/faculty stay reserved — an exam timetable can never steal a
+   still-teaching branch's room or teacher. The manual-override re-validation in
+   `app/router/instances.py::_revalidate_slot` mirrors the exemption.
+4. **OR-Tools** — `_add_exam_separation` models the rule as a **relational** CP-SAT
+   constraint (per group: ≤1 exam per calendar date, and no exams on two dates closer
+   than `min_days`). This was necessary because the registry validator is
+   committed-dependent, so the static domain pass can't prune it and the final pass alone
+   would pack all of a group's exams onto one day and shed the rest.
+5. **Tests** — 8 new (74 → 82): validator gap math + scoping, greedy exam mode (one exam
+   per subject), greedy spacing (`min_days=2` → 3 of 5 in a Mon–Fri week), inert without
+   `term_start`, OR-Tools exam mode (4 spaced exams), the `exempt_groups` loader unit
+   test, and an end-to-end mixed scenario (publish a two-branch CLASS timetable, then an
+   EXAM generation for branch A that must not reuse branch B's published room/teacher).
 
-Commits (pushed to `main`): `7a2503c` (engine), `2bd3179` (tests), `9315ddc` (docs).
-No migration was needed — `CONTIGUOUS_LAB_SLOTS` was already in the `ConstraintType`
-catalog and the constraint table is string-typed.
+Commits (pushed to `main`): `94d7f85` (engine), `66b2773` (tests), `6c30f03` (docs).
+No migration was needed — `EXAM_DATE_SEPARATION` was already in the `ConstraintType`
+catalog and the constraint table is string-typed. Alembic head unchanged
+(`e9f4a2b6d8c0`), still 22 tables.
 
 ## Context to read before starting
 
 - `AGENTS.md` (repo root) — environment, tests, architecture notes, commit rules.
-- `documentation/timetable-generator-architecture.md` — §3.3 (registry table incl.
-  `CONTIGUOUS_LAB_SLOTS`), §5.2 (new "Multi-slot lab sessions (`CONTIGUOUS_LAB_SLOTS`)"
-  subsection, plus the updated static/relational split), §8.2 (hard-constraint reference),
-  §8.8 (calendar-date anchoring), §6.2 (combination merge semantics), §4.2 / §7.4 (auth
-  posture).
-- `documentation/plan.md` and `documentation/progress.md` — "New Constraint Types" now reads
-  "6 of 7 done"; `EXAM_DATE_SEPARATION` remains the only pending catalog member.
+- `documentation/timetable-generator-architecture.md` — §3.3 (registry table now includes
+  `EXAM_DATE_SEPARATION`), §5.1 (the `exempt_groups` loader step), §5.2 (the relational
+  CP-SAT exam rule), **§5.4 (new "Exam scheduling" subsection)** — read this first, §8
+  (params: new `session_type`; `min_gap_between_exams` marked legacy), §8.8 (date
+  anchoring), §6.2 (combination merge semantics), §4.2 / §7.4 (auth posture).
+- `documentation/plan.md` and `documentation/progress.md` — "New Constraint Types" now
+  reads **"7 of 7 done"**; the registry catalog is complete.
 - Registry rules pattern: `app/engine/constraint_registry.py` (`hard_rule` decorator +
   `HARD_CONSTRAINT_REGISTRY`), validator signature `(candidate, committed, config, ctx)
-  -> str | None`, `configured_block_length()` helper, and `ConstraintChecker._check_configured`
-  dispatch.
-- Block-aware engine: `SessionToSchedule.block_length` / `_lab_block_lengths` /
-  `_build_sessions` / `solve()` (`app/engine/solvers/greedy_solver.py`),
-  `SlotCandidate.block_length` / `slot_numbers` and the block-aware double-book /
-  published-conflict / load checks (`app/engine/constraint_checker.py`), and the
-  start-slot-keyed variables + per-sub-slot buckets (`app/engine/solvers/or_tools_solver.py`).
-- Tests: `app/tests/test_contiguous_lab_slots.py` (new Phase 2 suite, registered in
-  `app/tests/__main__.py`), `app/tests/test_settings_and_assignments.py` (registry /
-  OR-Tools suites), `app/tests/test_runner.py` (`seed_minimal` with `requires_lab` /
-  `weekly_hours`), `app/tests/conftest.py`.
+  -> str | None`, `ConstraintChecker._check_configured` dispatch.
+- Exam plumbing: `GreedySolver._is_exam_mode` / the exam branch in `_build_sessions`
+  (`app/engine/solvers/greedy_solver.py`), `Scheduler._load_published_conflicts(
+  exempt_groups=...)` (`app/engine/scheduler.py`), `ORToolsSolver._add_exam_separation`
+  (`app/engine/solvers/or_tools_solver.py`).
+- Tests: `app/tests/test_exam_date_separation.py` (new Phase 2 suite, registered in
+  `app/tests/__main__.py`), `app/tests/test_runner.py`, `app/tests/conftest.py`.
+  The exam suite's `_seed_exam_subjects(n, term_start=...)` builds N-subject exam
+  profiles directly in the DB; `t_mixed_branches` seeds the two-branch scenario inline.
 
-## NEXT TASK — `EXAM_DATE_SEPARATION` registry rule (exam domain)
+## NEXT TASK — Async generation pipeline (Plan Phase 3)
 
-`CONTIGUOUS_LAB_SLOTS` was the last of the pending *engine-shaped* rules; the only
-remaining catalog member needs a domain decision first:
+With the registry catalog complete, the top of the roadmap is **`plan.md` Phase 3 /
+`progress.md` 🟠 Async Generation (Celery)**. The engine and API are already shaped for
+it (`GET /generate/{run_id}/status` exists; generation rows carry `GenerationStatus`
+`PENDING/RUNNING/COMPLETED/FAILED`), but `POST /generate` still blocks the HTTP request
+while `Scheduler.run()` solves synchronously.
 
-- **`EXAM_DATE_SEPARATION`** — a minimum number of days between two exams for the same
-  group. Today there is **no exam table or exam-domain notion** in the engine: slots are
-  weekly-template recurring (`day_of_week`/`slot_number`) and `SessionType.EXAM` exists
-  only as an enum value. This rule likely needs a **model decision first** — e.g. a
-  dedicated exam-scheduling path (concrete dates, per-group exam slots) or reusing the
-  existing `TimetableSlot.slot_date` for one-off date-based placements. Decide the data
-  shape before writing the validator; both solvers' weekly-template assumptions will
-  need revisiting.
+- **Scope:** Redis + Celery worker; `POST /generate` enqueues and returns
+  `{status: "PENDING", run_id}` immediately; the worker runs `Scheduler.run()` and
+  flips `generation_status` on completion/failure (fill `error_log` on failure — today
+  the router catches exceptions into a 500, so the worker must own error handling).
+- **Watch out:** the Scheduler currently commits the whole run in one transaction and the
+  router stamps `run_duration_ms` afterwards; the worker version needs to set
+  `run_duration_ms` itself. The SQLite test suite (`uv run python -m app.tests`) has no
+  Celery/Redis, so keep `Scheduler.run()` runnable synchronously for tests (e.g. a
+  `run_async` toggle or a thin enqueue wrapper the router chooses). Diversity filter,
+  scoring, and cross-timetable safety all live inside `Scheduler.run()` already.
+- Alternatively, the next-highest open items are **OR-Tools objective-based diversity**
+  (best / minimize-teacher-gaps / minimize-student-gaps), the **flexibility roadmap**
+  (fold structural checks into the registry, generic resource requirements, `CUSTOM`
+  enum escape hatches, wire `enable_lab_batches`), the **`/profiles/combinations`
+  router**, and the **frontend + full-stack Dockerization**.
 
 ## Remaining known items (see `documentation/progress.md`)
 
-- **Registry rules** — `EXAM_DATE_SEPARATION` (next, above; needs a model decision first).
-- **Async generation** — Celery/Redis; `GET /generate/{id}/status` already exists.
+- **Async generation** — Celery/Redis (next, above).
 - **OR-Tools diversity** — objective-based variation (best / minimize-teacher-gaps /
   minimize-student-gaps).
 - **Flexibility roadmap** — fold structural checks into the registry, generic resource
@@ -116,16 +117,15 @@ remaining catalog member needs a domain decision first:
 - The solver constructors take a `ResolvedProfile`, not `profile_id` — build one via
   `ProfileResolver(db).resolve(profile_id, combination_id)` if you construct solvers
   directly outside the scheduler.
-- Registry validators are static per-candidate in OR-Tools only if they don't read
-  `committed_slots`; committed-dependent rules (like `MAX_CONSECUTIVE_SAME_TEACHER`) are
-  only enforced by the final full-checker pass and can drop placements. Blocks inherit this
-  caveat.
-- Block-specific limitations to remember: `_check_cross_dept_cap` still counts committed
-  *slots* (a committed block contributes its length to the per-day cross-dept tally), and
-  the CP-SAT soft objective builders (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`)
-  key placements by a block's **start slot** only.
-- A lab block counts as `block_length` hours against `max_hours_per_day`/`max_hours_per_week`,
-  so a block larger than a teacher's remaining daily cap is correctly unschedulable.
+- **Exam specifics:** `EXAM_DATE_SEPARATION` only matters with `term_start` (no anchor →
+  inert, like `HOLIDAY_CALENDAR`); the single-week template means a heavy `min_days`
+  schedule can leave exams unplaced (a 5-day week holds at most 3 exams at `min_days=2`);
+  OR-Tools models the rule as a relational constraint (see §5.2), and the final full-checker
+  pass remains the safety net for *other* committed-dependent registry rules (e.g.
+  `MAX_CONSECUTIVE_SAME_TEACHER`) and can still drop placements.
+- `_check_cross_dept_cap` counts committed *slots* (a committed lab block contributes its
+  length); the CP-SAT soft objective builders key placements by a block's **start slot**
+  only. A lab block counts as `block_length` hours against daily/weekly caps.
 - Keeping `documentation/timetable-generator-architecture.md` in sync is mandatory (schema §3,
-  endpoints §4, engine §5, parameters §8).
+  endpoints §4, engine §5, parameters §8). Also update `plan.md`/`progress.md` checkboxes.
 - Alembic head: `e9f4a2b6d8c0`. 22 tables. No migration was needed this session.
