@@ -550,7 +550,36 @@ def _phase3_ortools(s):
         assert slots, "expected slots"
         assert all(sl["slot_number"] <= 1 for sl in slots), [sl["slot_number"] for sl in slots]
 
-    return [t_ortools_basic, t_ortools_registry]
+    @test("OR-Tools pursues the TEACHER_PREFERS_MORNING soft objective")
+    def t_ortools_soft_objective(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/soft", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "TEACHER_PREFERS_MORNING",
+            "config_json": {"boundary_slot": 1},
+            "weight": 1.0,
+        })
+        assert r.status_code == 201, r.text
+        gen = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "OR_TOOLS",
+        })
+        assert gen.status_code == 201, gen.text
+        gen_id = gen.json()["id"]
+        inst = client.get(f"/instances/{gen_id}", headers=headers).json()[0]
+        slots = client.get(f"/instances/{inst['id']}/slots", headers=headers).json()
+        assert slots, "expected slots"
+        # The morning preference should pin every session to slot 1.
+        assert all(sl["slot_number"] == 1 for sl in slots), (
+            [sl["slot_number"] for sl in slots]
+        )
+        # And the post-hoc score confirms a fully-satisfied soft rule.
+        assert inst["soft_score"] == 1.0, inst["soft_score"]
+
+    return [t_ortools_basic, t_ortools_registry, t_ortools_soft_objective]
 
 
 @suite("Phase 3 — Instance diversity")
@@ -690,3 +719,51 @@ def _phase5_exports(s):
         assert r.content[:4] == b"%PDF"
 
     return [t_csv_full, t_csv_group, t_csv_year, t_csv_faculty, t_empty, t_ical, t_pdf]
+
+
+@suite("Phase 5 — API polish (pagination & audit)")
+def _phase5_polish(s):
+    def _fresh(client):
+        from app.tests.test_runner import (
+            reset_db, create_admin, login_token, auth_headers,
+        )
+        reset_db(); create_admin()
+        return auth_headers(login_token(client))
+
+    def _make_room(client, headers, i):
+        return client.post("/rooms/", headers=headers, json={
+            "name": f"R{i}", "room_code": f"RC{i}", "room_type": "CLASSROOM",
+            "capacity": 40, "building": "A",
+        })
+
+    @test("list endpoints paginate and report X-Total-Count")
+    def t_pagination(client):
+        headers = _fresh(client)
+        for i in range(3):
+            assert _make_room(client, headers, i).status_code == 201
+        r = client.get("/rooms/?limit=2", headers=headers)
+        assert r.status_code == 200, r.text
+        assert len(r.json()) == 2
+        assert r.headers.get("x-total-count") == "3", dict(r.headers)
+        r2 = client.get("/rooms/?skip=2&limit=2", headers=headers)
+        assert len(r2.json()) == 1
+
+    @test("pagination limits are validated")
+    def t_limit_validation(client):
+        headers = _fresh(client)
+        assert client.get("/rooms/?limit=0", headers=headers).status_code == 422
+        assert client.get("/rooms/?limit=9999", headers=headers).status_code == 422
+
+    @test("mutations are recorded in the audit trail with a request id")
+    def t_audit(client):
+        headers = _fresh(client)
+        r = _make_room(client, headers, 0)
+        assert r.status_code == 201, r.text
+        assert r.headers.get("x-request-id"), dict(r.headers)
+        entries = client.get("/audit/", headers=headers).json()
+        assert any(
+            e["method"] == "POST" and e["path"] == "/rooms/" and e["status_code"] == 201
+            for e in entries
+        ), entries
+
+    return [t_pagination, t_limit_validation, t_audit]
