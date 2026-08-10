@@ -23,3 +23,4 @@ class StudentGroup(Base):
     semester: Mapped[int | None]
     strength: Mapped[int]
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    incharge_email: Mapped[str | None] = mapped_column(String(100), nullable=True)
