@@ -47,6 +47,11 @@ app_db.SessionLocal = TestingSessionLocal
 from app.config import settings as _app_settings  # noqa: E402
 _app_settings.REDIS_ENABLED = False
 
+# The suite has no SMTP server: force the mailer off so publish never attempts
+# a network send. Tests that exercise the mailer enable it and substitute a
+# fake delivery layer (see test_email_notifications.py).
+_app_settings.EMAIL_ENABLED = False
+
 
 def _get_db_override() -> Iterator:
     db = TestingSessionLocal()
