@@ -55,7 +55,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Infrastructure Setup**
   - Install and configure **Redis** for caching frequent GET queries, rate limiting, and generation conflict locking.
   - Set up **Celery + Redis** task queue for background processing.
-  - `docker/docker-compose.yml` now also runs a `redis:7-alpine` service; the Celery app lives in `app/worker.py` (`uv run celery -A app.worker:celery_app worker`). *Remaining:* using the same Redis for caching/rate-limiting (the task queue itself is wired below).
+  - `docker/docker-compose.yml` now also runs a `redis:7-alpine` service; the Celery app lives in `app/worker.py` (`uv run celery -A app.worker:celery_app worker`). The same Redis also powers generation-conflict locking, response caching (rooms/subjects/profiles/settings, busted on write), and auth rate limiting through `app/services/redis_client.py` (opt-in via `REDIS_ENABLED`, gracefully degrades when Redis is down — architecture §7.9).
 - [x] **Soft Constraint Scoring** *(done, solver-independent)*
   - `app/engine/scorer.py` registry scores each instance's soft constraints (weighted mean → `instance.soft_score`, best → `generation.score_best_instance`), gated by `enable_soft_constraint_scoring`. Ships `TEACHER_PREFERS_MORNING` and `MINIMIZE_STUDENT_FREE_SLOTS`. This is the objective function OR-Tools reuses.
 - [x] **OR-Tools CP-SAT Solver** *(integrated)*

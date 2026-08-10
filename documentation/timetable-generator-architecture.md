@@ -622,11 +622,14 @@ POST   /assignments                    Create mapping (validates subject/faculty
 PUT    /assignments/{id}               Update faculty / weekly_hours / load_share
 DELETE /assignments/{id}               Hard delete
 
-GET    /settings/                      Read the college feature-flag singleton (auto-creates row id=1)
+GET    /settings/                      Read the college feature-flag singleton (auto-creates row id=1;
+                                        # cached ~60s in Redis, busted on PUT — §7.4)
 PUT    /settings/                      Update one or more flags / config_json
 
-POST   /auth/register                  Create an admin (email + name unique)
-POST   /auth/login                     Returns {"access_token", "token_type": "bearer"}
+POST   /auth/register                  Create an admin (email + name unique); rate-limited to
+                                        # 3 requests / 60s per IP → 429 (inert without Redis, §7.4)
+POST   /auth/login                     Returns {"access_token", "token_type": "bearer"}; rate-limited
+                                        # to 5 requests / 60s per IP → 429 (inert without Redis, §7.4)
 
 POST   /import/rooms                   Bulk import rooms via CSV (multipart file; optional `equipment_json` JSON column)
 POST   /import/faculty                 Bulk import faculty via CSV
@@ -723,6 +726,8 @@ POST   /generate                       Trigger a generation run (synchronous or 
     in the background and the client polls the status endpoint. If the broker
     is unreachable the router falls back to the synchronous path rather than
     dropping the request.
+  Response when the run's resources are locked by a concurrent generation
+    (§7.4): 409, and the run row is marked FAILED with error_log.
 
 GET    /generate/{run_id}/status       Poll a run (PENDING/RUNNING/COMPLETED/FAILED)
                                         # NOTE: there is no GET /generate/{run_id}/instances
@@ -1058,7 +1063,8 @@ ASYNC_GENERATION=true:   POST /generate → router → Scheduler.create_generati
 - **Broker outage.** If `enqueue_generation()` cannot reach Redis, the router logs and falls back to solving synchronously — generation degrades to the old blocking behaviour instead of being dropped.
 - **Tests.** The SQLite suite has no Redis, so the worker task is exercised by calling `run_generation(run_id)` directly (it reads `app.database.SessionLocal` at call time, so the in-memory override applies) and the async HTTP branch is exercised with Celery's `task_always_eager=True`, which runs the task inline (`app/tests/test_async_generation.py`).
 - **Infra.** `docker/docker-compose.yml` now also runs a `redis:7-alpine` service on host port `6379` (the compose previously ran only Postgres).
-- **Not built (future):** WebSocket progress push, Celery retry/result inspection via the API, and using the same Redis for caching/rate-limiting (see progress.md "Redis Integration").
+- **Concurrency safety.** `Scheduler.solve_generation()` acquires a Redis lock keyed by the union of the run's resource ids before solving, so two concurrent runs over the same faculty/room/group cannot double-book (§7.4).
+- **Not built (future):** WebSocket progress push and Celery retry/result inspection via the API.
 
 ### 7.2 Conflict Detection (Cross-Timetable) — *implemented, but NOT in `conflict_detector.py`*
 
@@ -1126,6 +1132,14 @@ Every published timetable is versioned. When `POST /instances/{id}/publish` is c
 
 - "Undo" is possible by selecting a different `SELECTED` instance and publishing it (re-archives the current one).
 - There is **no `POST /history/{id}/restore`** — the only operation on history is GET (list and per-row detail).
+
+### 7.9 Redis-Backed Infrastructure — *implemented (opt-in)*
+
+Beyond being the Celery broker/backend, the same Redis (`.env` `REDIS_URL`, default `redis://localhost:6379/0`; toggled off with `REDIS_ENABLED=false`) powers three app-level features through one optional client, `app/services/redis_client.py`. Every call degrades gracefully when Redis is disabled or unreachable — a missing broker means "no caching, no rate limiting, concurrent generations run unlocked", never a 500. The SQLite test suite forces `REDIS_ENABLED=false` and substitutes a dict-backed fake for the client (`app/tests/test_redis_integration.py`).
+
+- **Generation-conflict locking.** `Scheduler.solve_generation()` acquires `timetable:lock:generate:<sorted resource ids>` (the union of the resolved profile/combination's room/faculty/group/subject ids) before solving, keyed so two concurrent runs over the same resources cannot double-book (each would otherwise compute its own empty published-reservation set). `acquire_lock` returns the lock, `False` (busy — the run is marked `FAILED` with `error_log` and the sync router returns **409**), or `None` (Redis down — run unlocked). The lock auto-expires (`DEFAULT_LOCK_TIMEOUT=600s`) and `release_lock` is a Lua compare-and-delete so a stale/re-acquired key is never clobbered.
+- **Response caching.** The hot list endpoints — `GET /rooms/`, `GET /subjects/`, `GET /profiles/`, `GET /settings/` — cache their serialized JSON under `timetable:cache:<collection>:<query params>` for 60s. Cache hits restore the `X-Total-Count` header for paginated lists. Every matching write (POST/PUT/DELETE on rooms/subjects/profiles; PUT on settings) busts the whole collection prefix with a `scan_iter` + delete. Because the cache is keyed by query params, filter variations don't collide.
+- **Auth rate limiting.** `POST /auth/login` (5/min) and `POST /auth/register` (3/min) run a fixed-window counter per client IP (`timetable:ratelimit:<scope>:<ip>:<window>`); exceeding the limit returns **429**. Redis-down returns `None` → always allowed, so a broker outage can never lock admins out.
 
 ---
 
@@ -1260,6 +1274,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **CSV import** — `/import/{rooms|faculty|groups|subjects}` and `/import/assignments` (dry-run + commit). All-or-nothing: any invalid row rejects the whole file (422, `inserted=0`).
 - **Reset** — `POST /reset/` (FULL_YEAR archives published + clears profiles; PROFILE_SPECIFIC clears only; SEMESTER no-op) plus `GET /reset/log`; `timetable_reset_log` row written for every reset.
 - **Pagination utility** — `app/utils/pagination.py` exposes `Pagination`, `pagination`, `paginate`; `GET /audit/` and several list endpoints use it.
+- **Redis integration** — optional client (`app/services/redis_client.py`) with graceful degradation: generation-conflict locking (`409` on a busy run), response caching for rooms/subjects/profiles/settings (busted on write), and IP rate limiting on `/auth/login` + `/auth/register` (`429`). Gated by `REDIS_ENABLED` (§7.9).
 
 ### 🟡 Partial — *working, but with documented gaps*
 
