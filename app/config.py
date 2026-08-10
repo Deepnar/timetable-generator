@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     REDIS_ENABLED: bool = True
     ASYNC_GENERATION: bool = False
+    EMAIL_ENABLED: bool = True
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
