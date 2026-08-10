@@ -9,6 +9,7 @@ from app.tests import test_combinations  # noqa: F401  registers suites
 from app.tests import test_flexibility  # noqa: F401  registers suites
 from app.tests import test_redis_integration  # noqa: F401  registers suites
 from app.tests import test_email_notifications  # noqa: F401  registers suites
+from app.tests import test_api_polish  # noqa: F401  registers suites
 
 if __name__ == "__main__":
     import sys
