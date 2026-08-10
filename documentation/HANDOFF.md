@@ -9,46 +9,42 @@ here). The OPEN items below are copied from it; resolve them and mark them done 
 
 ## Session summary (committed & pushed)
 
-State at handoff: **147/147 tests passing** (`uv run python -m app.tests`), tree clean.
+State at handoff: **152/152 tests passing** (`uv run python -m app.tests`), frontend builds
+(`npm run build`), tree clean. Commits in order:
 
-Shipped this session: **API Polish** (the NEXT TASK from the previous handoff). Three
-commits of code + tests + docs + handoff:
-
-1. **Pagination completeness** (commit `9c4436a`) — every top-level list endpoint now
-   paginates through `app/utils/pagination.py` (`?skip=`/`?limit=`, `X-Total-Count`
-   header). The gaps were `GET /profiles/`, `GET /constraints/hard`, `GET /constraints/soft`,
-   `GET /history/`, `GET /blackouts/`, `GET /faculty_availability/`. `GET /profiles/` folds
-   the page window into its Redis cache key and restores the total header on cache hits.
-   Sub-resource lists (`/instances/{id}/slots`, `/profiles/{id}/resources`,
-   `/profiles/{id}/parameters`, `/profiles/combinations`) intentionally stay unpaginated —
-   they're bounded by one parent row.
-2. **Global JSON error envelope** (commit `4120d73`) — every error returns the
-   FastAPI-default `{"detail": ...}` shape. Two global handlers registered in `app/main.py`
-   lock it and add `request_id`: `RequestValidationError` → 422 with `{"detail": errors,
-   "request_id"}`, generic `Exception` → 500 with `{"detail": "Internal server error",
-   "request_id"}`. HTTPException keeps the default body. The observability middleware stores
-   the id on `request.state.request_id` so handlers can echo it; the middleware stays the
-   safety net for exceptions raised outside the routing layer.
-3. **`/api/v1` versioning** (commit `4120d73`) — one `APIRouter(prefix="/api/v1")`
-   aggregator in `app/main.py` includes every router except `auth`. Unversioned routes stay
-   live (existing clients + `/docs` keep working); `/health` + `/auth/*` remain root-only
-   (the auth-exempt paths); both prefixes sit behind the global auth gate. Audit logs record
-   the versioned path for versioned mutations.
-4. **Tests** (commit `43a6e16`) — new `app/tests/test_api_polish.py`, 13 tests (134 → 147):
-   each newly paginated list asserts `limit` + `X-Total-Count` (+ skip page); the error
-   envelope suite uses a throwaway `/__test_unhandled__` route (added then removed) to prove
-   the 500 shape, plus validation-422 and HTTPException/404/401 shapes; the versioning suite
-   proves the versioned routes serve the same data behind auth, that `/api/v1` is **not**
-   auth-exempt, that `/health` stays root-only, and that a versioned mutation is audited.
-5. **Docs** (commit `96fc9cb`) — architecture §4.2 intro now documents versioning + the
-   error envelope and marks the paginated lists; new §7.10 "API versioning & the JSON error
-   envelope"; §9 shipped list updated. `plan.md`/`progress.md` check the API Polish box.
-   `design-decisions.md` records **DD-014** (error envelope + rejected `{"error": ...}`),
-   **DD-015** (`/api/v1` aggregator + rejected per-router prefix / `v2` param / dropping
-   unversioned), **DD-016** (paginate top-level lists, keep sub-resource lists bounded).
-
-**Commits (in order):** `9c4436a` (pagination), `4120d73` (error envelope + versioning),
-`43a6e16` (tests), `96fc9cb` (docs), <handoff commit>.
+1. **`GET /generate` list endpoint** (commit `41eca0e`) — the dashboard needs a recent-runs
+   view but only `POST /generate` and `GET /generate/{id}/status` existed. Added `GET /generate/`
+   (newest first, `X-Total-Count` pagination via the shared `paginate()`), covered in the API
+   polish suite (148 → 152 tests with the group suite below).
+2. **`PUT /groups/{id}`** (commit `2747eeb`) — groups were the only resource without update
+   (rooms/faculty/subjects all have PUT). Full CRUD parity so the frontend tables can offer
+   edit on every entity. Reuses `StudentGroupCreate`, soft-deletes unchanged. New 4-test
+   "Phase 6 — Student group CRUD" suite.
+3. **Frontend scaffold** (commit `478f9c3`) — hand-rolled Next.js 14 App Router + TypeScript +
+   Tailwind in `frontend/` (no create-next-app). `src/lib/api.ts` fetch client: `NEXT_PUBLIC_API_URL`
+   base, Bearer JWT from localStorage, `X-Total-Count` for lists, 401 → redirect to `/login`.
+   `AuthProvider`/`useAuth`, `Modal`, `DataTable`, and config-driven `ResourceTable` components.
+4. **Frontend pages** (commit `5f864eb`) — `/login` (posts to `/auth/login`), `/dashboard`
+   (resource counts from `X-Total-Count`, recent runs from `GET /generate`, quick-action cards),
+   and `/rooms`, `/faculty`, `/groups`, `/subjects` as thin configs over `ResourceTable`
+   (server pagination + filters + create/edit/delete modals). All client components behind
+   `ProtectedShell`.
+5. **Dockerization** (commit `41cc564`) — root `Dockerfile` (official `uv` image, syncs
+   `pyproject.toml`+`uv.lock`, entrypoint runs `alembic upgrade head` then uvicorn),
+   `frontend/Dockerfile` (multi-stage, Next standalone output, `NEXT_PUBLIC_API_URL` build arg),
+   `.dockerignore`s, and a top-level `docker-compose.yml` running App + Frontend + PostgreSQL +
+   Redis with healthchecks. `docker/docker-compose.yml` stays the backend-only dev infra.
+   Verified live: both images build; the containerized API+Postgres+Redis stack served
+   register → login → versioned list/create with Redis caching active; the frontend image
+   served the login page on an alternate port (host :3000 was occupied by an unrelated
+   open-webui container, not a compose fault).
+6. **Docs** (commit `0da83cd`) — architecture §4.1 (`frontend/` tree + Dockerfile/compose),
+   §4.2 (`GET /generate`, `PUT /groups/{id}`, frontend consumption note), §9 (frontend first
+   slice + Dockerization → Shipped; pagination list + `generate`); `plan.md` Phase 4/6
+   checkboxes; `progress.md` 🟢/🔵 checkboxes + Current State; `README.md` frontend setup +
+   full-stack docker + tech-stack/layout/roadmap. ADR log: **DD-017** (Next.js 14 admin app),
+   **DD-018** (top-level compose = full stack; `docker/` stays backend-only dev infra),
+   **DD-019** (browser calls the API directly via `NEXT_PUBLIC_API_URL`, no Next rewrite proxy).
 
 ## Open design decisions (from `documentation/design-decisions.md` — resolve these)
 
@@ -59,37 +55,46 @@ commits of code + tests + docs + handoff:
 3. **DD-001 follow-up** — when RBAC lands, replace `config_json["notification_emails"]` with
    real HOD entities.
 4. **Verification debt** — the async/Celery and Redis paths are tested with
-   fakes/`task_always_eager`; a live Redis + live Postgres smoke test (`python run_tests.py`)
-   has not been run recently. Decide a cadence for the live smoke test.
+   fakes/`task_always_eager`; the SQLite suite forces `REDIS_ENABLED=false`. The dockerized
+   stack does exercise **real Redis** (caching keys observed), but a live `python run_tests.py`
+   against the dockerized app is still worth running. Decide a cadence for the live smoke test.
+5. **DD-018 follow-up** — the four-service `docker compose up` could not bind host port 3000 on
+   this dev machine (occupied by an unrelated container); the frontend image itself was verified
+   on an alternate port. Next session: run the full `docker compose up` on a free 3000 and
+   confirm login → dashboard in a browser, then mark DD-018 `Live-verified`.
 
 ## Context to read before starting
 
 - `AGENTS.md` (repo root) — environment, tests, commit rules, and the **Design decisions** rule.
-- `documentation/design-decisions.md` — DD-014/DD-015/DD-016 are this session's entries.
-- `app/main.py` — the `/api/v1` aggregator, the two global exception handlers, and the
-  `request.state.request_id` handoff in the observability middleware.
-- `app/utils/pagination.py` — the shared `Pagination`/`pagination`/`paginate` used everywhere.
-- `app/router/profiles.py::get_profiles` — the pattern for caching + pagination together.
-- `app/tests/test_api_polish.py` — the pagination / error-envelope / versioning suites,
-  including the throwaway-route 500 test (add then remove from `app.router.routes`).
-- Architecture doc **§4.2** (endpoint listing + versioning/error notes) and **§7.10**.
+- `documentation/design-decisions.md` — DD-017/018/019 are this session's entries; DD-018 has an
+  open follow-up (see above).
+- `frontend/src/lib/api.ts` — the fetch client (base URL, JWT, `X-Total-Count`, 401 redirect).
+- `frontend/src/components/ResourceTable.tsx` — the config-driven CRUD table the four resource
+  pages are built on (fields/filters/columns config).
+- `frontend/src/app/dashboard/page.tsx` — counts via `limit=1` + `X-Total-Count`, recent runs
+  via `GET /api/v1/generate/`.
+- `docker-compose.yml` + `Dockerfile` + `docker/entrypoint.sh` + `frontend/Dockerfile` — the
+  full-stack bring-up.
+- Architecture doc **§4.1** (project tree incl. `frontend/`), **§4.2** (endpoint list incl.
+  `GET /generate` + `PUT /groups/{id}`), **§9** (roadmap).
 
-## NEXT TASK — API Polish is DONE. Next up: **Frontend (Next.js/React) + full-stack Dockerization**
+## NEXT TASK — Frontend first slice is DONE. Next up: **README/final polish (Phase 6)**
 
 The remaining roadmap items in priority order (details in `documentation/progress.md`):
 
-1. **Frontend (Next.js/React) + full-stack Dockerization** — the planned UI
-   (`documentation/plan.md` Phase 4 + progress.md 🟢) plus a top-level compose running
-   App + Frontend + PostgreSQL + Redis.
-2. **Final polish** — README/setup guide, historical data import, ML preference learning
-   (Phase 2, from manual overrides).
-3. **Notification extras** (already shipped email path, §7.7) — `/notifications` admin
-   endpoint, per-recipient opt-out, retry queue, WebSocket/SSE push.
+1. **README & final polish** — README/setup guide is largely drafted this session; finish it,
+   plus code cleanup / docstrings. Also the **rest of the frontend** (Phase 4): CSV upload
+   modals, the Master Assignment Grid, profile/constraint builder, and the generation/instance
+   viewer with slot overrides.
+2. **Historical data import** and **ML preference learning** (Phase 2, from manual overrides).
+3. **Notification extras** — `/notifications` admin endpoint, per-recipient opt-out, retry queue,
+   WebSocket/SSE push.
 
 ## Remaining known items (see `documentation/progress.md`)
 
-- **Frontend + full-stack Dockerization** — Next.js app + top-level compose
-  (currently `docker/docker-compose.yml` runs only Postgres).
+- **Frontend depth** — shipped: Auth + Dashboard + Resource CRUD. Remaining (plan.md Phase 4):
+  CSV upload modals, Master Assignment Grid, Profile & Constraint Builder, Generation Viewer
+  (side-by-side grid + progress), Instance Editor (slot override UI).
 - **README & Docs, Historical Data Import, ML Preference Learning**.
 - **Notification service extras** — no `/notifications` endpoint, no per-recipient opt-out,
   no retry queue, no WebSocket/SSE push.
@@ -97,32 +102,33 @@ The remaining roadmap items in priority order (details in `documentation/progres
   solver path; `SEMESTER` reset is accepted but a no-op; no `DELETE /instances/{id}/slots/...`,
   no `GET /instances/{id}/conflicts`; WebSocket progress push for async runs.
 
-## MINI-PLAN for the next session (Frontend + Dockerization)
+## MINI-PLAN for the next session (Frontend depth or README/final polish)
 
-Follow exactly; commit per concern (frontend scaffold / app pages / compose / docs separate).
+Follow the repo's standing workflow (commit per concern; docs in sync; record ADR entries).
 
-1. **Scope it.** Read `documentation/plan.md` Phase 4 and the 🟢 Frontend section of
-   `progress.md`. Decide the stack: **Next.js 14+ App Router + TypeScript + Tailwind**, using
-   `fetch` against the versioned API (`/api/v1`, JWT Bearer from `/auth/login`). The API has
-   no CORS limit beyond `http://localhost:3000` (see `CORSMiddleware` in `app/main.py`). Pick
-   the first slice (Auth + Dashboard + Resource tables) — not the whole grid builder.
-2. **Scaffold.** Create `frontend/` in the repo with `npx create-next-app` (or a hand-rolled
-   minimal app if that's cleaner for the monorepo), a `.env` for `NEXT_PUBLIC_API_URL`, and a
-   small API client module that attaches the JWT. Keep it runnable with `npm run dev`.
-3. **Dockerization.** A **top-level** `docker-compose.yml` (or extend `docker/docker-compose.yml`)
-   that runs App + Frontend + PostgreSQL + Redis together; `frontend/Dockerfile` + the app's
-   Dockerfile. Wire the ports so `docker compose up` gives a working login → dashboard.
-   **Decide and record in `design-decisions.md`:** dev-vs-prod compose split, and whether the
-   frontend proxies `/api` to the backend (Next rewrites) or calls the backend directly.
-4. **Tests.** The SQLite suite is backend-only — the frontend needs no entry in
-   `app/tests/`. If you add any Python (e.g. a serve-static or a smoke helper), keep the suite
-   green (`uv run python -m app.tests`, currently 147). A smoke test for the full stack can
-   live in `run_tests.py` (live server) rather than the SQLite suite.
-5. **Docs.** Architecture §4.1 (project structure — add the `frontend/` tree) and §9
-   (roadmap checkboxes); `plan.md`/`progress.md` for the shipped slices. Update OPEN items in
-   `design-decisions.md` if any get settled.
+If picking up **the next frontend slice** (Generation Viewer is the highest-value missing UI):
+1. **Scope it.** Read `documentation/plan.md` Phase 4 and the 🟢 remaining frontend items in
+   `progress.md`. The natural next slice is the **Generation & Instance Viewer**: a "trigger
+   generation" form (profile/combination select, timetable_type, instances, algorithm,
+   variation) posting to `POST /api/v1/generate/`, then listing instances via
+   `GET /api/v1/instances/{generation_id}` and slots via `GET /api/v1/instances/{instance_id}/slots`
+   in a grid. Poll `GET /api/v1/generate/{id}/status` for async runs.
+2. **Follow the existing patterns.** Reuse `ResourceTable`/`DataTable`/`Modal`; add a page under
+   `src/app/(protected)/` — there is no route group today, pages each wrap themselves in
+   `ProtectedShell`. New API types go in `src/lib/types.ts`; new client helpers in `src/lib/api.ts`.
+3. **Backend gaps, if any.** The viewer may need `GET /instances/{id}/slots` (exists) and
+   instance selection (`POST /instances/{id}/select` exists). Avoid new backend surface unless
+   the UI genuinely needs it — add + test + document it in the same change if so.
+4. **Keep the suite green** (`uv run python -m app.tests`, currently 152) and the frontend
+   building (`npm run build` in `frontend/`).
+5. **Docs.** Update architecture §4.1 (new pages), §4.2 if endpoints were added, §9 checkboxes;
+   `plan.md`/`progress.md`. Record any design decision (e.g. grid rendering approach) as a DD.
 6. **Commit & push**, then overwrite this HANDOFF with the new session summary + a fresh
-   mini-plan for the *next* item (README/final polish).
+   mini-plan for the *next* item.
+
+If picking up **README/final polish** instead: finish the README setup guide + API examples,
+do a docstring/typing pass, and close the open ADR items that are decidable without new features
+(DD-004 mail gating, the verification-debt cadence).
 
 ## Gotchas
 
@@ -132,7 +138,8 @@ Follow exactly; commit per concern (frontend scaffold / app pages / compose / do
   Every new choice (or "considered and rejected") gets a DD-NNN entry in the same commit; the
   HANDOFF must copy the OPEN items verbatim so they get resolved. Keep OPEN items few.
 - **New `Settings` fields must go in `.env.example` in the same commit** (real past miss —
-  Redis and SMTP flags shipped without it; both fixed).
+  Redis and SMTP flags shipped without it; both fixed). The frontend has its own
+  `frontend/.env.example` for `NEXT_PUBLIC_API_URL`.
 - **Tests: `uv run python -m app.tests`** (not pytest). Add any router touched by tests to the
   patch loop in `app/tests/conftest.py`. New test modules must be imported in
   `app/tests/__main__.py`. **No *external* Redis/Celery/SMTP in tests** — stub or fake anything
@@ -141,6 +148,8 @@ Follow exactly; commit per concern (frontend scaffold / app pages / compose / do
 - **Redis and email are inert in tests by default**: `conftest.py` sets `REDIS_ENABLED=False`
   and `EMAIL_ENABLED=False`. A test that needs either enables it and MUST restore the shared
   `app.config.settings` attributes (and any module attribute) in `finally`.
+- **The frontend has no backend test entry** — it's a separate npm project. Verify with
+  `npm run build` (type-check + prod build) and a live backend; the SQLite suite stays backend-only.
 - **The mailer's only network touch is `mail_service._deliver`** — composition tests patch
   `_deliver`; when running the real background thread, keep the patch alive until the thread
   is joined (see `test_email_notifications.py`).
@@ -168,15 +177,17 @@ Follow exactly; commit per concern (frontend scaffold / app pages / compose / do
   modes.
 - **The auth gate is global**: tests that call a non-exempt route must pass
   `auth_headers(login_token(client))`. Only `/health` and `/auth/*` are exempt. **`/api/v1/*`
-  is NOT exempt** — versioned routes require the same token. The auth rate limits are inert in
-  tests (Redis off) but still apply via `request.client.host` when a fake client is installed
-  — restore it after the test.
+  is NOT exempt** — versioned routes require the same token. The frontend login page posts to
+  the root `/auth/login` (the only non-versioned path the client calls).
 - **Error envelope:** every error returns `{"detail": ...}`; 422 and 500 add `request_id`.
-  HTTPException keeps the default shape. Don't introduce a different envelope.
+  HTTPException keeps the default shape. The frontend `api.ts` surfaces `detail` as the message.
 - **Variation semantics:** instance #1 is the deterministic baseline (seed `None`) unless
   `variation="best"`; gap criteria only reshape *seeded* re-rolls; keep `PLACEMENT_WEIGHT`
   strictly above any soft/variation term.
 - **Exam specifics:** `EXAM_DATE_SEPARATION` only matters with `term_start`; OR-Tools models
   the rule relationally (§5.2) and the final full-checker pass is the safety net.
+- **The dockerized frontend** needs `HOSTNAME=0.0.0.0` + `PORT=3000` env (Next standalone
+  binds to `$HOSTNAME`, which Docker auto-sets to an unresolvable container id) — already in
+  `docker-compose.yml`.
 - Keeping `documentation/timetable-generator-architecture.md` in sync is mandatory (schema §3,
   endpoints §4, engine §5, parameters §8). Also update `plan.md`/`progress.md` checkboxes.
