@@ -4,7 +4,9 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
+from fastapi import APIRouter, FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from jose import jwt
@@ -58,6 +60,38 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Timetable Generator API", lifespan=lifespan)
+
+
+# ── Global JSON error envelope ─────────────────────────────
+# Every error returns the FastAPI-default {"detail": ...} envelope.
+# HTTPException responses keep that default shape untouched; the two handlers
+# below lock the envelope and add the request id to the server-side cases
+# (validation 422 and unhandled 500) that previously carried no request
+# context. The observability middleware remains the safety net for anything
+# raised outside the routing layer.
+@app.exception_handler(RequestValidationError)
+async def _validation_error_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": jsonable_encoder(exc.errors()),
+            "request_id": getattr(request.state, "request_id", None),
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def _unhandled_error_handler(request: Request, exc: Exception):
+    request_id = getattr(request.state, "request_id", None)
+    logger.exception(
+        "Unhandled error: %s %s [%s]",
+        request.method, request.url.path, request_id,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error", "request_id": request_id},
+    )
+
 
 
 # ── Auth: every route requires a valid admin JWT except /health and /auth/* ──
@@ -137,6 +171,7 @@ def _write_audit(request: Request, status_code: int, request_id: str) -> None:
 @app.middleware("http")
 async def observability(request: Request, call_next):
     request_id = uuid.uuid4().hex[:8]
+    request.state.request_id = request_id
     start = time.perf_counter()
     try:
         response = await call_next(request)
@@ -188,6 +223,35 @@ app.include_router(export.router)
 app.include_router(settings.router)
 app.include_router(assignments.router)
 app.include_router(audit.router)
+
+# ── API versioning ─────────────────────────────────────────
+# One /api/v1 aggregator mounts the same routers at a versioned prefix; the
+# unversioned routes above stay live for backward compatibility so existing
+# clients and /docs keep working. /health and /auth/* deliberately stay at the
+# root (they are the only paths exempt from the auth middleware).
+api_v1 = APIRouter(prefix="/api/v1", tags=["API v1"])
+for _router in (
+    rooms.router,
+    faculty.router,
+    groups.router,
+    subjects.router,
+    room_blackout.router,
+    faculty_availibility.router,
+    profiles.router,
+    constraints.router,
+    generate.router,
+    instances.router,
+    import_csv.router,
+    history.router,
+    reset.router,
+    export.router,
+    settings.router,
+    assignments.router,
+    audit.router,
+):
+    api_v1.include_router(_router)
+app.include_router(api_v1)
+
 
 
 @app.get("/health", tags=["Health"])
