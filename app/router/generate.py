@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -7,6 +7,7 @@ from app.models.admin import Admin
 from app.models.generation import TimetableGeneration
 from app.schemas.generation import GenerationRequest, GenerationResponse
 from app.utils.auth import get_current_admin
+from app.utils.pagination import Pagination, pagination, paginate
 from app.engine.scheduler import Scheduler, GenerationLockError
 from app.tasks.generation import enqueue_generation
 from app.config import settings
@@ -15,6 +16,24 @@ import logging
 logger = logging.getLogger("timetable")
 
 router = APIRouter(prefix="/generate", tags=["Generate"])
+
+@router.get("/", response_model=list[GenerationResponse])
+def list_generations(
+    response: Response,
+    page: Pagination = Depends(pagination),
+    db: Session = Depends(get_db),
+):
+    """List generation runs, newest first, with X-Total-Count pagination.
+
+    Ordered by ``triggered_at`` descending so the frontend dashboard can show
+    recent runs without a separate "history of runs" endpoint. Same page/skip
+    contract as every other top-level list (§7.10).
+    """
+    query = select(TimetableGeneration).order_by(
+        TimetableGeneration.triggered_at.desc(),
+        TimetableGeneration.id.desc(),
+    )
+    return paginate(db, query, page, response)
 
 @router.post("/", response_model=GenerationResponse,
              status_code=status.HTTP_201_CREATED)

@@ -109,7 +109,39 @@ def _pagination_suite(s):
             assert r.status_code == 201, r.text
         _assert_page(client, headers, "/faculty_availability/?")
 
-    return [t_profiles, t_hard, t_soft, t_history, t_blackouts, t_availability]
+    @test("generation runs list paginates with X-Total-Count, newest first")
+    def t_generations(client):
+        seed_minimal()
+        from app.tests.conftest import TestingSessionLocal
+        from app.models.generation import (
+            TimetableGeneration, TimetableType, AlgorithmType, VariationMode,
+            GenerationStatus,
+        )
+        from app.models.admin import Admin
+        db = TestingSessionLocal()
+        try:
+            admin = db.query(Admin).first()
+            for i in range(3):
+                db.add(TimetableGeneration(
+                    profile_id=None, academic_year="2025-26", semester=3,
+                    timetable_type=TimetableType.CLASS,
+                    generation_status=GenerationStatus.COMPLETED,
+                    algorithm_used=AlgorithmType.GREEDY,
+                    variation=VariationMode.RANDOM,
+                    instances_requested=3, instances_produced=3,
+                    triggered_by=admin.id,
+                ))
+            db.commit()
+        finally:
+            db.close()
+        headers = _login(client)
+        _assert_page(client, headers, "/generate/?")
+        r = client.get("/generate/?limit=10", headers=headers)
+        ids = [row["id"] for row in r.json()]
+        assert ids == sorted(ids, reverse=True), r.text
+
+    return [t_profiles, t_hard, t_soft, t_history, t_blackouts, t_availability,
+            t_generations]
 
 
 @suite("Phase 5 — API polish (global error envelope)")
