@@ -90,6 +90,10 @@ class GreedySolver:
         # instead of being random re-rolls.
         self.variation = variation
         self.committed_slots: list[TimetableSlot] = []
+        # Number of requested sessions the solver could not place (0 when
+        # everything was placed). Read by the scheduler to stamp a warning on
+        # the run when a COMPLETED generation still dropped sessions.
+        self.unplaced_count = 0
         # Populated by the scheduler with PUBLISHED reservations, keyed by
         # resource ("faculty" / "room" / "group") -> {(id, day, slot)}.
         self.reserved_conflicts: dict[str, set[tuple]] = {}
@@ -602,5 +606,5 @@ class GreedySolver:
                 unscheduled.append(session)
 
         if unscheduled:
-            print(f"Warning: {len(unscheduled)} sessions could not be scheduled")
+            self.unplaced_count = len(unscheduled)
         return self.committed_slots

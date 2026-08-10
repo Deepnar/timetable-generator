@@ -72,6 +72,11 @@ class TimetableGeneration(Base):
         DateTime, default=datetime.utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)
     error_log: Mapped[str | None] = mapped_column(Text)
+    # Set when a run completes but could not place every requested session
+    # (oversubscribed profile, no matching room, etc.). Nullable so a fully
+    # placed run stays NULL; the API surfaces it so clients see a COMPLETED
+    # run that still dropped sessions.
+    placement_warning: Mapped[str | None] = mapped_column(Text)
 
 class TimetableInstance(Base):
     __tablename__ = "timetable_instances"

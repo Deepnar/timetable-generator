@@ -1062,8 +1062,27 @@ def _phase3_ortools_robustness(s):
         inst = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]
         slots = client.get(f"/instances/{inst['id']}/slots", headers=headers).json()
         assert slots == [], f"expected zero slots, got {len(slots)}"
+        # A run that could not place anything must surface that to the client
+        # instead of looking like a clean success.
+        assert gen["placement_warning"], gen
+        assert "could not be placed" in gen["placement_warning"], gen
 
-    return [t_ortools_empty_domain]
+    @test("a fully placed run has no placement_warning")
+    def t_no_warning(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        assert gen["generation_status"] == "COMPLETED", gen
+        assert gen["placement_warning"] is None, gen
+
+    return [t_ortools_empty_domain, t_no_warning]
 
 
 @suite("Phase 3 — Instance diversity")

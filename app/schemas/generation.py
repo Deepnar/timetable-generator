@@ -32,6 +32,7 @@ class GenerationResponse(BaseModel):
     triggered_at: datetime
     completed_at: Optional[datetime] = None
     error_log: Optional[str] = None
+    placement_warning: Optional[str] = None
 
     class Config:
         from_attributes = True

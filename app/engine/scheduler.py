@@ -234,6 +234,7 @@ class Scheduler:
         instances_created = 0
         best_score: float | None = None
         accepted_signatures: list[frozenset] = []
+        final_unplaced = 0
         variation = generation.variation
         for i in range(generation.instances_requested):
             instance = TimetableInstance(
@@ -275,7 +276,7 @@ class Scheduler:
                     score_instance(candidate, soft_rules, scoring_ctx)
                     if soft_rules else None
                 )
-                attempts.append((candidate, candidate_sig, score))
+                attempts.append((candidate, candidate_sig, score, solver.unplaced_count))
                 is_distinct = all(
                     self._hamming(candidate_sig, prev)
                     >= self._DIVERSITY_MIN_DISTANCE
@@ -286,7 +287,7 @@ class Scheduler:
 
             if variation == VariationMode.BEST:
                 distinct = [
-                    (c, sig, sc) for c, sig, sc in attempts
+                    (c, sig, sc, u) for c, sig, sc, u in attempts
                     if all(
                         self._hamming(sig, prev) >= self._DIVERSITY_MIN_DISTANCE
                         for prev in accepted_signatures
@@ -294,13 +295,13 @@ class Scheduler:
                 ]
                 pool = distinct or attempts
                 if soft_rules:
-                    slots, signature, score = max(
+                    slots, signature, score, final_unplaced = max(
                         pool, key=lambda t: t[2]
                     )
                 else:
-                    slots, signature, score = pool[0]
+                    slots, signature, score, final_unplaced = pool[0]
             else:
-                slots, signature, score = attempts[-1]
+                slots, signature, score, final_unplaced = attempts[-1]
 
             accepted_signatures.append(signature)
             for slot in slots:
@@ -317,6 +318,11 @@ class Scheduler:
         generation.score_best_instance = best_score
         generation.completed_at = datetime.utcnow()
         generation.run_duration_ms = int((time.time() - start) * 1000)
+        if final_unplaced:
+            generation.placement_warning = (
+                f"{final_unplaced} session(s) could not be placed "
+                f"in the final instance"
+            )
         self.db.commit()
 
         return generation

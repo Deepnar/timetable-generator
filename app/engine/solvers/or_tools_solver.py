@@ -98,6 +98,7 @@ class ORToolsSolver(GreedySolver):
         # a bare float (1000.0 * 0) and crash; fail gracefully with zero slots
         # instead, exactly like greedy's empty-placement path.
         if not x:
+            self.unplaced_count = len(sessions)
             return self.committed_slots
 
         # Each session placed at most once (unplaced degrades gracefully).
@@ -180,6 +181,7 @@ class ORToolsSolver(GreedySolver):
             solver.parameters.randomize_search = True
         status = solver.Solve(model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            self.unplaced_count = len(sessions)
             return self.committed_slots
 
         chosen = sorted(k for k, var in x.items() if solver.Value(var) == 1)
@@ -216,6 +218,8 @@ class ORToolsSolver(GreedySolver):
                         subject_id=s.subject_id, session_type=s.session_type,
                         slot_date=slot_date, is_manual_override=False,
                     ))
+        placed_sessions = {k[0] for k in chosen}
+        self.unplaced_count = len(sessions) - len(placed_sessions)
         return self.committed_slots
 
     def _faculty(self, faculty_id):
