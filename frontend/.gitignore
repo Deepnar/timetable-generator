@@ -1,0 +1,15 @@
+# Node
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment — .env.example is the committed template; local copies stay local.
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
