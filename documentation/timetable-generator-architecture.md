@@ -746,6 +746,12 @@ POST   /instances/{instance_id}/publish  Publish (status=PUBLISHED); archives pr
                                         # PUBLISHED instances of the SAME generation; published
                                         # instances from other generations remain live and feed
                                         # cross-timetable reservations on the next run.
+                                        # After the commit, publish notifications fire in a
+                                        # background thread (SMTP): each faculty gets their
+                                        # personal PDF, HOD/admins a full-instance summary,
+                                        # each group's incharge_email their group's PDF. A no-op
+                                        # when email is unconfigured; never blocks the publish
+                                        # (§7.7).
 PATCH  /instances/{instance_id}/slots/{slot_id}   Manual override of a slot
                                         # Sets is_manual_override=true and override_reason.
                                         # The new position is re-validated by the constraint
@@ -1122,9 +1128,38 @@ All three live in `app/services/export_service.py` and share one filter layer (`
 | iCal    | implemented| Import into Google Calendar / Outlook — weekly-recurring `VEVENT`s (`RRULE FREQ=WEEKLY`, hand-written RFC 5545), anchored to `term_start` with optional `UNTIL` from `term_end` |
 | JSON    | NOT exposed | The doc previously listed JSON export — there is **no `/generate/export/json` endpoint**. The `timetable_slots` are reachable via `GET /instances/{id}/slots` + filtering, which is the de-facto JSON export. |
 
-### 7.7 Notification on Publish — *NOT implemented*
+### 7.7 Email Notifications on Publish — *implemented (opt-in)*
 
-There is no notification service, no email integration, and no WebSocket / SSE push. After `POST /instances/{id}/publish`, the only way an admin or faculty member learns something happened is by polling the API. This is a planned next-phase feature; the audit row IS the "notification" today.
+After `POST /instances/{id}/publish` commits, `app/services/mail_service.py` fires best-effort
+notifications in a **daemon thread** so SMTP latency (or an outage) never delays the publish
+response. The mailer is **opt-in via .env** and degrades to a strict no-op when unconfigured —
+the same posture as the Redis client (§7.9):
+
+- **Master switch + SMTP config** — `EMAIL_ENABLED` (default `true`), `SMTP_HOST` (default empty),
+  `SMTP_PORT` (587), `SMTP_USER` / `SMTP_PASSWORD` (optional login), `SMTP_FROM`. The mailer is
+  active only when `EMAIL_ENABLED` **and** `SMTP_HOST` **and** `SMTP_FROM` are all set; otherwise
+  `dispatch_publish_notifications` returns before spawning a thread. `.env` `SMTP_HOST`/`SMTP_FROM`
+  being empty is the default "mail off" state.
+- **Recipients & payloads.** One message per audience, each carrying a PDF rendered by the export
+  layer (`generate_timetable_pdf`, reused directly — no new rendering code):
+  - *Faculty* — every `faculty` row that has a slot in the published instance gets its **personal
+    schedule PDF** (the `?faculty_id=` filter narrowed to their slots).
+  - *HOD / admins* — the addresses listed in `CollegeSettings.config_json["notification_emails"]`
+    get a **full-instance summary PDF** + a summary body (sessions / teaching days / faculty /
+    groups). There is no HOD table in the schema; the singleton's free-form `config_json` is the
+    designated place for the contact list.
+  - *Class incharges* — every group with a non-null `student_groups.incharge_email` (column added
+    by migration `f5a1b3c8e6d2`, nullable) gets that **group's schedule PDF**.
+  - A recipient audience with no slots is skipped. Each message is plain-text + HTML (`EmailMessage`,
+    stdlib `smtplib`, `STARTTLS` on port 587, optional login).
+- **Never breaks the publish.** The router wraps the dispatch call in try/except, the dispatch
+  itself only starts the thread, and `_deliver`/`send_publish_notifications` swallow and log per-
+  recipient failures. A mail outage, a bad address, or a fully unconfigured SMTP all leave the
+  publish response untouched. The SQLite suite forces `EMAIL_ENABLED=false` in `conftest.py` and
+  tests composition against a mocked delivery layer (`app/tests/test_email_notifications.py`).
+
+Trigger points: only `POST /instances/{id}/publish`. There is no `/notifications` admin endpoint,
+no per-recipient opt-out, and no retry queue yet (a failed send is logged and dropped).
 
 ### 7.8 Versioning — *implemented*
 
@@ -1246,6 +1281,21 @@ The solver is a **weekly template** — a timetable describes one repeating week
 - `HOLIDAY_CALENDAR` (registry rule) reuses this mechanism: its validator (`_holiday_calendar` in `app/engine/constraint_registry.py`) refuses any candidate whose materialized `slot_date` appears in `config_json.holidays` (`["YYYY-MM-DD", ...]`), and is a **no-op** when the slot carries no date — so a profile without `term_start` cannot accidentally blank out every week.
 - `EXAM_DATE_SEPARATION` (registry rule, §5.4) uses the same dates: it rejects an exam candidate placed closer than `min_days` to another exam of the same group, and is a no-op when the slot carries no date.
 
+### 8.9 Notification config (env + college singleton)
+
+Publish notifications (§7.7) are switched by `.env` flags on `app/config.py` and one college-level
+value:
+
+| Key | Where it lives | Wired? |
+|-----|----------------|--------|
+| `EMAIL_ENABLED` | `.env` (default `true`) | ✅ master switch; `false` → mailer is a no-op |
+| `SMTP_HOST` | `.env` (default empty) | ✅ empty → mailer is a no-op (the default "mail off" state) |
+| `SMTP_PORT` | `.env` (default `587`) | ✅ `STARTTLS` used on 587 |
+| `SMTP_USER` / `SMTP_PASSWORD` | `.env` (default empty) | ✅ optional login; empty → no AUTH |
+| `SMTP_FROM` | `.env` (default empty) | ✅ `From:` header; empty → mailer is a no-op |
+| `config_json["notification_emails"]` | `CollegeSettings` (via `PUT /settings/`) | ✅ list of HOD/admin addresses receiving the publish summary (§7.7) |
+| `student_groups.incharge_email` | per-group column (migration `f5a1b3c8e6d2`) | ✅ class incharge contact; nullable, set via `POST /groups` |
+
 ---
 
 ## 9. Implementation Status & Roadmap
@@ -1254,7 +1304,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### ✅ Shipped (matches the doc above)
 
-- **Schema (22 tables)** — Alembic chain `aeaadc4f2374 → … → d7a3c5e9f1b2`; latest migration is `d7a3c5e9f1b2` (CUSTOM enum labels).
+- **Schema (22 tables)** — Alembic chain `aeaadc4f2374 → … → d7a3c5e9f1b2 → f5a1b3c8e6d2`; latest migration is `f5a1b3c8e6d2` (nullable `student_groups.incharge_email`).
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — `POST /generate` with greedy (default) and OR-Tools CP-SAT, running synchronously by default or through a Celery worker when `ASYNC_GENERATION=true` (§7.1). `Scheduler` is split into `create_generation()` (PENDING row + run_id) and `solve_generation()` (worker entry point); failures flip the run to `FAILED` with `error_log`.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2). `GET /profiles/combinations` lists combinations with member names/weights and a `resolution_status` preview, and `POST /profiles/combinations/{id}/resolve` returns the merged `ResolvedProfile` for manual preview (§4.2).
@@ -1275,6 +1325,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **Reset** — `POST /reset/` (FULL_YEAR archives published + clears profiles; PROFILE_SPECIFIC clears only; SEMESTER no-op) plus `GET /reset/log`; `timetable_reset_log` row written for every reset.
 - **Pagination utility** — `app/utils/pagination.py` exposes `Pagination`, `pagination`, `paginate`; `GET /audit/` and several list endpoints use it.
 - **Redis integration** — optional client (`app/services/redis_client.py`) with graceful degradation: generation-conflict locking (`409` on a busy run), response caching for rooms/subjects/profiles/settings (busted on write), and IP rate limiting on `/auth/login` + `/auth/register` (`429`). Gated by `REDIS_ENABLED` (§7.9).
+- **Email notifications on publish** — opt-in SMTP mailer (`app/services/mail_service.py`): on `POST /instances/{id}/publish`, faculty get their personal PDF, HOD/admins (`config_json["notification_emails"]`) the full-instance summary, and class incharges (`student_groups.incharge_email`, migration `f5a1b3c8e6d2`) their group's PDF. Delivery is a non-blocking daemon thread; unconfigured SMTP (`EMAIL_ENABLED=false` or empty `SMTP_HOST`/`SMTP_FROM`) is a strict no-op and mail failures never fail the publish (§7.7, §8.9).
 
 ### 🟡 Partial — *working, but with documented gaps*
 
@@ -1288,8 +1339,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 - **Async / Celery generation** — opt-in via `ASYNC_GENERATION=true`; `POST /generate` returns 202 PENDING and a worker runs `solve_generation()`, flipping the run to COMPLETED/FAILED with `error_log` (§7.1). *Remaining:* WebSocket progress push, Celery result inspection via the API.
 - **Profile shift** — front-end is on its own.
-- **RBAC** — single-role `Admin` model; HOD/Teacher/Student users don't exist.
-- **Notification on publish** — no email / WebSocket / SSE.
+- **RBAC** — single-role `Admin` model; HOD/Teacher/Student users don't exist. (HOD *mail* recipients are configured via `config_json["notification_emails"]`, §7.7 — but there is no HOD login/role.)
 - **History restore** — read-only.
 - **Genetic solver** — `AlgorithmType` has only `GREEDY` and `OR_TOOLS`.
 - **Frontend** — backend only.
@@ -1301,7 +1351,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 3. ~~**Fold soft scoring into the CP-SAT objective**~~ — ✅ done (`soft_objective.py`; `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`).
 4. ~~**Object-based instance variation**~~ — ✅ done (`variation` field on `POST /generate`; `random` / `best` / `minimize-teacher-gaps` / `minimize-student-gaps`, §5.3).
 5. **Frontend** — Next.js SPA using the API documented in §4.2.
-6. **Notification service** — emails + push on publish.
+6. ~~**Notification service**~~ — ✅ done (email on publish, §7.7; WebSocket / SSE push remains open).
 7. **RBAC** — once a teacher/student app needs read scoping.
 8. **Genetic solver** — only if CP-SAT still leaves real departments unsolved.
 

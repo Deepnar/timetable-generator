@@ -89,9 +89,8 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Filtered Exports**
   - PDF/CSV/iCal all accept `?group_id=`, `?faculty_id=`, `?year=`, `?department=` (shared `get_filtered_slots`).
   - **iCal (.ics)** export implemented — weekly-recurring `VEVENT`s with `?term_start`/`?term_end`, ideal for a teacher importing their personal schedule (`?faculty_id=`).
-- [ ] **Notification Service**
-  - Set up FastAPI-mail (SMTP).
-  - Trigger emails on `POST /instances/{id}/publish`: send individual PDFs to teachers, summary to HODs.
+- [x] **Notification Service**
+  - SMTP email on `POST /instances/{id}/publish` (`app/services/mail_service.py`, stdlib `smtplib` — not FastAPI-mail): each faculty gets their personal PDF, HOD/admin addresses (`config_json["notification_emails"]`) the full-instance summary, and class incharges (`student_groups.incharge_email`) their group's PDF. Non-blocking daemon thread; a strict no-op when SMTP is unconfigured, and a mail failure never fails the publish. See architecture §7.7.
 - [ ] **API Polish**
   - Global error handling middleware and consistent JSON error responses.
   - Pagination (`?page=1&limit=20`) on all list endpoints.

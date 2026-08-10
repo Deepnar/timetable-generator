@@ -102,8 +102,8 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 ### 🟡 Exports, Notifications & Polish
 - [x] **Filtered Exports** — PDF/CSV/iCal accept `group_id` / `faculty_id` / `year` / `department` via a shared `get_filtered_slots` helper (`/export/instances/{id}/{pdf,csv,ical}`).
 - [x] **iCal (.ics) Export** — weekly-recurring `VEVENT`s (RFC 5545, `RRULE FREQ=WEEKLY`) anchored to `term_start`, optional `term_end`; a teacher imports their schedule with `?faculty_id=`.
-- [ ] **Email Notifications on Publish**
-  - SMTP setup, trigger emails to faculty (personal PDF), HOD (summary), and class incharges.
+- [x] **Email Notifications on Publish**
+  - Opt-in SMTP mailer (`app/services/mail_service.py`, `.env` `EMAIL_ENABLED` + `SMTP_*`): on `POST /instances/{id}/publish` each faculty gets their personal PDF, HOD/admin addresses (`CollegeSettings.config_json["notification_emails"]`) the full-instance summary, and class incharges (`student_groups.incharge_email`, migration `f5a1b3c8e6d2`) their group's PDF. Delivery runs in a non-blocking daemon thread; unconfigured SMTP is a strict no-op and a mail failure never fails the publish. Tested against a mocked delivery layer (`app/tests/test_email_notifications.py`). See architecture §7.7 / §8.9.
 - [x] **Redis Integration**
   - Optional client (`app/services/redis_client.py`, `REDIS_ENABLED` + `REDIS_URL`) with graceful degradation: **generation-conflict locking** (`Scheduler.solve_generation` locks the run's resource set; a busy lock marks the run FAILED and `POST /generate` returns 409), **response caching** for `GET /rooms/` `/subjects/` `/profiles/` `/settings/` (60s TTL, busted on matching writes), and **IP rate limiting** on `/auth/login` (5/min) + `/auth/register` (3/min) → 429. All inert when Redis is down or disabled; the SQLite suite forces `REDIS_ENABLED=false` and tests against a fake client (`app/tests/test_redis_integration.py`). See architecture §7.9.
 - [x] **Async Generation (Celery)**
