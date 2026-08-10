@@ -92,6 +92,14 @@ class ORToolsSolver(GreedySolver):
                             f"x_{si}_{day}_{sn}_{room.id}"
                         )
 
+        # Nothing survived the domain pruning (every candidate blocked — e.g.
+        # all resources reserved by published instances, or a constraint that
+        # rules out every placement). Building the objective would hand CP-SAT
+        # a bare float (1000.0 * 0) and crash; fail gracefully with zero slots
+        # instead, exactly like greedy's empty-placement path.
+        if not x:
+            return self.committed_slots
+
         # Each session placed at most once (unplaced degrades gracefully).
         per_session: dict[int, list] = defaultdict(list)
         for (si, _d, _s, _r), var in x.items():

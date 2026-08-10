@@ -829,6 +829,49 @@ def _phase3_ortools(s):
             t_ortools_holiday]
 
 
+@suite("Phase 3 — OR-Tools robustness")
+def _phase3_ortools_robustness(s):
+    @test("OR-Tools degrades gracefully when the domain is empty")
+    def t_ortools_empty_domain(client):
+        """Every subject requiring a room feature no room has prunes all
+        placements. The solver must return zero slots, not crash building an
+        empty objective (regression: PLACEMENT_WEIGHT * 0 was a bare float
+        that CP-SAT rejected with TypeError)."""
+        from app.tests.test_runner import login_token, auth_headers
+        from app.tests.conftest import TestingSessionLocal
+        from app.models.subjects import Subject
+        from sqlalchemy import select
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+
+        # Make the profile's subject unsatisfiable: require a feature no room has.
+        db = TestingSessionLocal()
+        try:
+            subj = db.scalars(select(Subject).where(
+                Subject.id == ids["subject"])).first()
+            subj.requirements_json = {
+                "room_types": ["CLASSROOM"], "features": ["holodeck"],
+            }
+            db.commit()
+        finally:
+            db.close()
+
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "OR_TOOLS",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        assert gen["generation_status"] == "COMPLETED", gen
+        assert gen["instances_produced"] == 1, gen
+        inst = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]
+        slots = client.get(f"/instances/{inst['id']}/slots", headers=headers).json()
+        assert slots == [], f"expected zero slots, got {len(slots)}"
+
+    return [t_ortools_empty_domain]
+
+
 @suite("Phase 3 — Instance diversity")
 def _phase3_diversity(s):
     @test("requesting several instances yields non-identical timetables")
