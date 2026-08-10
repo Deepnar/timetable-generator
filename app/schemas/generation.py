@@ -28,6 +28,7 @@ class GenerationResponse(BaseModel):
     instances_requested: int
     instances_produced: int
     score_best_instance: Optional[float] = None
+    run_duration_ms: Optional[int] = None
     triggered_at: datetime
     completed_at: Optional[datetime] = None
     error_log: Optional[str] = None

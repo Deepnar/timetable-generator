@@ -56,6 +56,12 @@ def generate_timetable_pdf(
 
     Pass ``slots`` to render a pre-filtered subset (e.g. one faculty's
     schedule); otherwise every slot in the instance is loaded.
+
+    When the slots span several student groups (a whole-department instance),
+    one grid per group is rendered instead of a single grid cramming every
+    group into every cell — a cell holding dozens of sessions would exceed the
+    page frame (ReportLab ``LayoutError``). Per-class grids match the college
+    artifact (see ``sample/``).
     """
     if slots is None:
         slots = db.scalars(
@@ -78,58 +84,6 @@ def generate_timetable_pdf(
 
     maps = _get_lookup_maps(db, slots)
 
-    # build slot time labels
-    slot_times = {}
-    for slot in slots:
-        if slot.slot_number not in slot_times:
-            slot_times[slot.slot_number] = (
-                f"{slot.start_time.strftime('%H:%M')}"
-                f" - {slot.end_time.strftime('%H:%M')}"
-            )
-
-    # get unique days and slot numbers
-    days_used = sorted(set(s.day_of_week for s in slots if s.day_of_week is not None))
-    slot_numbers = sorted(slot_times.keys())
-
-    # build grid — rows = slots, columns = days
-    # slot_grid[slot_number][day] = list of sessions
-    slot_grid = {sn: {d: [] for d in days_used} for sn in slot_numbers}
-    for slot in slots:
-        if slot.day_of_week is not None and slot.slot_number is not None:
-            subject = maps["subjects"].get(slot.subject_id)
-            faculty = maps["faculty"].get(slot.faculty_id)
-            room = maps["rooms"].get(slot.room_id)
-            group = maps["groups"].get(slot.student_group_id)
-
-            cell_text = []
-            if subject:
-                cell_text.append(subject.name)
-            if faculty:
-                cell_text.append(f"Faculty: {faculty.name}")
-            if room:
-                cell_text.append(f"Room: {room.name}")
-            if group:
-                cell_text.append(f"Group: {group.name}")
-
-            slot_grid[slot.slot_number][slot.day_of_week].append(
-                "\n".join(cell_text)
-            )
-
-    # build table data
-    # header row
-    header = ["Slot / Time"] + [DAYS.get(d, f"Day {d}") for d in days_used]
-    table_data = [header]
-
-    for sn in slot_numbers:
-        time_label = slot_times[sn]
-        row = [f"Slot {sn}\n{time_label}"]
-        for d in days_used:
-            cell_sessions = slot_grid[sn][d]
-            cell_content = "\n---\n".join(cell_sessions) if cell_sessions else ""
-            row.append(cell_content)
-        table_data.append(row)
-
-    # create PDF
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -148,6 +102,83 @@ def generate_timetable_pdf(
         fontSize=16,
         spaceAfter=12
     )
+    subtitle_style = ParagraphStyle(
+        "subtitle",
+        parent=styles["Heading2"],
+        alignment=TA_CENTER,
+        fontSize=11,
+        spaceAfter=8,
+        textColor=colors.HexColor("#2E4057"),
+    )
+
+    # Build slot-time labels once (shared by every group's grid).
+    slot_times = {}
+    for slot in slots:
+        if slot.slot_number not in slot_times:
+            slot_times[slot.slot_number] = (
+                f"{slot.start_time.strftime('%H:%M')}"
+                f" - {slot.end_time.strftime('%H:%M')}"
+            )
+
+    # Group the slots per student group so each grid stays page-sized.
+    by_group: dict[int | None, list[TimetableSlot]] = {}
+    for slot in slots:
+        by_group.setdefault(slot.student_group_id, []).append(slot)
+
+    elements = [Paragraph(title, title_style), Spacer(1, 0.3*cm)]
+    for group_id, group_slots in by_group.items():
+        group_name = maps["groups"].get(group_id).name if group_id is not None and maps["groups"].get(group_id) else "Ungrouped"
+        grid = _build_grid(group_slots, maps, slot_times)
+        if grid is None:
+            continue
+        elements.append(Paragraph(f"Group: {group_name}", subtitle_style))
+        elements.append(grid)
+        elements.append(Spacer(1, 0.4*cm))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+def _build_grid(slots, maps, slot_times):
+    """One group's slot x day grid as a ReportLab Table (or None if empty)."""
+    days_used = sorted(set(s.day_of_week for s in slots if s.day_of_week is not None))
+    slot_numbers = sorted(slot_times.keys())
+    if not days_used:
+        return None
+
+    # slot_grid[slot_number][day] = list of sessions
+    slot_grid = {sn: {d: [] for d in days_used} for sn in slot_numbers}
+    for slot in slots:
+        if slot.day_of_week is not None and slot.slot_number is not None:
+            subject = maps["subjects"].get(slot.subject_id)
+            faculty = maps["faculty"].get(slot.faculty_id)
+            room = maps["rooms"].get(slot.room_id)
+
+            cell_text = []
+            if subject:
+                cell_text.append(subject.name)
+            if faculty:
+                cell_text.append(f"Faculty: {faculty.name}")
+            if room:
+                cell_text.append(f"Room: {room.name}")
+
+            slot_grid[slot.slot_number][slot.day_of_week].append(
+                "\n".join(cell_text)
+            )
+
+    # header row
+    header = ["Slot / Time"] + [DAYS.get(d, f"Day {d}") for d in days_used]
+    table_data = [header]
+
+    for sn in slot_numbers:
+        time_label = slot_times[sn]
+        row = [f"Slot {sn}\n{time_label}"]
+        for d in days_used:
+            cell_sessions = slot_grid[sn][d]
+            cell_content = "\n---\n".join(cell_sessions) if cell_sessions else ""
+            row.append(cell_content)
+        table_data.append(row)
 
     col_width = (27*cm) / (len(days_used) + 1)
     col_widths = [col_width] * (len(days_used) + 1)
@@ -182,14 +213,7 @@ def generate_timetable_pdf(
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
     ]))
 
-    elements = [
-        Paragraph(title, title_style),
-        Spacer(1, 0.3*cm),
-        table
-    ]
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
+    return table
 
 
 # ── filtering ────────────────────────────────────────────────

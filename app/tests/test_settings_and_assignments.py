@@ -965,7 +965,45 @@ def _phase5_exports(s):
         assert "application/pdf" in r.headers["content-type"]
         assert r.content[:4] == b"%PDF"
 
-    return [t_csv_full, t_csv_group, t_csv_year, t_csv_faculty, t_empty, t_ical, t_pdf]
+    @test("unfiltered multi-group PDF still renders (one grid per group)")
+    def t_pdf_multigroup(client):
+        ids = seed_two_divisions()
+        headers = _headers(client)
+        inst = _generate(client, headers, ids["profile"])
+        # Previously a multi-group instance (2 divisions, 4 sessions) would
+        # raise ReportLab's LayoutError (a cell taller than the page frame)
+        # because every group was crammed into one grid. Now each group gets
+        # its own grid so the export renders.
+        r = client.get(f"/export/instances/{inst}/pdf", headers=headers)
+        assert r.status_code == 200, r.text
+        assert "application/pdf" in r.headers["content-type"]
+        assert r.content[:4] == b"%PDF"
+        # The unfiltered export must contain both divisions' grids (i.e. more
+        # than the single-group case) — render again filtered to compare sizes.
+        single = client.get(
+            f"/export/instances/{inst}/pdf?group_id={ids['group_a']}", headers=headers
+        )
+        assert single.status_code == 200
+        assert len(r.content) > len(single.content), (
+            "unfiltered multi-group PDF should be larger than a single-group one"
+        )
+
+    @test("generation response includes run_duration_ms")
+    def t_run_duration(client):
+        ids = seed_minimal()
+        headers = _headers(client)
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26",
+            "semester": 3, "timetable_type": "CLASS",
+            "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        body = r.json()
+        assert body["generation_status"] == "COMPLETED"
+        assert isinstance(body["run_duration_ms"], int), body
+
+    return [t_csv_full, t_csv_group, t_csv_year, t_csv_faculty, t_empty, t_ical, t_pdf,
+            t_pdf_multigroup, t_run_duration]
 
 
 @suite("Phase 5 — API polish (pagination & audit)")
