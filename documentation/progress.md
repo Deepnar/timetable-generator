@@ -108,8 +108,8 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
   - Optional client (`app/services/redis_client.py`, `REDIS_ENABLED` + `REDIS_URL`) with graceful degradation: **generation-conflict locking** (`Scheduler.solve_generation` locks the run's resource set; a busy lock marks the run FAILED and `POST /generate` returns 409), **response caching** for `GET /rooms/` `/subjects/` `/profiles/` `/settings/` (60s TTL, busted on matching writes), and **IP rate limiting** on `/auth/login` (5/min) + `/auth/register` (3/min) → 429. All inert when Redis is down or disabled; the SQLite suite forces `REDIS_ENABLED=false` and tests against a fake client (`app/tests/test_redis_integration.py`). See architecture §7.9.
 - [x] **Async Generation (Celery)**
   - Move long-running solver tasks out of the HTTP request cycle. `ASYNC_GENERATION=true` makes `POST /generate` return **202 PENDING** (with `run_id`) and enqueue `app/tasks/generation.py::run_generation`; the worker (`app/worker.py`) runs `Scheduler.solve_generation()`, which flips the run to COMPLETED (or FAILED with `error_log`) and stamps `run_duration_ms`. `GET /generate/{run_id}/status` polls PENDING/RUNNING/COMPLETED/FAILED. Default remains synchronous (`ASYNC_GENERATION=false`) so the SQLite test suite needs no Redis. See architecture §7.1.
-- [ ] **API Polish**
-  - Pagination (`page/limit`), global error middleware, request logging/audit trail, `GET /health`, API versioning (`/api/v1/`).
+- [x] **API Polish**
+  - Pagination (`skip/limit`) on every top-level list endpoint with `X-Total-Count`; global `{"detail": ...}` error envelope with `request_id` on 422/500; request logging/audit trail; `GET /health`; API versioning — `/api/v1/` aggregator keeps unversioned paths live (`app/main.py`, §7.10). Tested in `app/tests/test_api_polish.py`.
 
 ### 🟢 Full Stack Frontend Development (Next.js / React)
 *This is now a core part of this project, not an external consumer.*

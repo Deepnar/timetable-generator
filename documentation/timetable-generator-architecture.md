@@ -566,7 +566,9 @@ The `engine/` tree intentionally does **not** have a `conflict_detector.py` or
 
 ### 4.2 Core Endpoints
 
-The route prefixes below match the `@router.prefix` declarations in the router files. **Every route requires a valid admin JWT except `GET /health` and the `/auth/*` endpoints** (`register`/`login`). This is enforced by one global middleware (`require_auth` in `app/main.py`) rather than a per-route dependency, so a new router/endpoint cannot accidentally be left public; the middleware runs inside the observability middleware (requests still get logged/audited) and behind CORS (rejected responses still carry CORS headers). The `get_current_admin` dependency remains on mutation endpoints that need the admin identity (`created_by`, `selected_by`, `triggered_by`, …). OpenAPI docs (`/docs`, `/openapi.json`) are also behind the gate. Pagination (`?page=`, `?limit=`) is wired through `app/utils/pagination.py` on list endpoints where the router imports it.
+The route prefixes below match the `@router.prefix` declarations in the router files. **Every route requires a valid admin JWT except `GET /health` and the `/auth/*` endpoints** (`register`/`login`). This is enforced by one global middleware (`require_auth` in `app/main.py`) rather than a per-route dependency, so a new router/endpoint cannot accidentally be left public; the middleware runs inside the observability middleware (requests still get logged/audited) and behind CORS (rejected responses still carry CORS headers). The `get_current_admin` dependency remains on mutation endpoints that need the admin identity (`created_by`, `selected_by`, `triggered_by`, …). OpenAPI docs (`/docs`, `/openapi.json`) are also behind the gate.
+
+The whole API is additionally mounted at `/api/v1/…` through one aggregator router in `app/main.py` (every router except `/auth`), so each route below is reachable at both the unversioned path and `/api/v1/<path>`. Unversioned routes stay live for backward compatibility; `/health` and `/auth/*` remain root-only (they are the auth-exempt paths). **Every error returns the FastAPI-default `{"detail": ...}` envelope** — HTTPExceptions keep that default shape, while validation errors (422) and unhandled errors (500) add a `request_id` via global handlers in `app/main.py` (see §7.10). All top-level list endpoints paginate through `app/utils/pagination.py` (`?skip=` / `?limit=`, plus an `X-Total-Count` response header for the unpaginated total); sub-resource lists are bounded by one parent row and stay unpaginated.
 
 #### Resource Management
 
@@ -595,7 +597,7 @@ POST   /groups                         Create group
 DELETE /groups/{id}                    Soft delete (is_active=false)
                                         # NOTE: no PUT /groups/{id} currently — add if needed.
 
-GET    /blackouts                      List room blackouts
+GET    /blackouts                      List room blackouts (paginated)
 GET    /blackouts/{id}                 Get one blackout
 POST   /blackouts                      Create a blackout window for a room
 PUT    /blackouts/{id}                 Update blackout
@@ -603,7 +605,7 @@ DELETE /blackouts/{id}                 Hard delete
                                         # NOTE: blackouts are NOT nested under /rooms/{id};
                                         # `room_id` is a field on the blackout body.
 
-GET    /faculty_availability           List faculty availability rows
+GET    /faculty_availability           List faculty availability rows (paginated)
 GET    /faculty_availability/{id}      Get one row (by row id, NOT by faculty_id)
 POST   /faculty_availability           Create availability window
 PUT    /faculty_availability/{id}      Update availability row
@@ -647,7 +649,7 @@ GET    /health                         Liveness + DB reachability (for deploy mo
 #### Profile Management
 
 ```
-GET    /profiles                       List profiles (filter: academic_year, scope_type, department, is_archived)
+GET    /profiles                       List profiles (filter: academic_year, scope_type, department, is_archived; paginated)
 GET    /profiles/{id}                  Get one profile
 POST   /profiles                       Create profile (created_by = current admin)
 PUT    /profiles/{id}                  Update profile
@@ -688,12 +690,12 @@ POST   /profiles/combinations/{id}/resolve   Preview the merged ResolvedProfile
 #### Constraint Management
 
 ```
-GET    /constraints/hard               List active hard constraints (filter: profile_id)
+GET    /constraints/hard               List active hard constraints (filter: profile_id; paginated)
 POST   /constraints/hard               Create hard constraint
 PUT    /constraints/hard/{id}          Update hard constraint
 DELETE /constraints/hard/{id}          Soft delete (is_active=false)
 
-GET    /constraints/soft               List active soft constraints (filter: profile_id)
+GET    /constraints/soft               List active soft constraints (filter: profile_id; paginated)
 POST   /constraints/soft               Create soft constraint with weight
 PUT    /constraints/soft/{id}          Update soft constraint
 DELETE /constraints/soft/{id}          Soft delete
@@ -779,7 +781,7 @@ GET    /export/instances/{id}/ical    Weekly-recurring .ics calendar (RFC 5545)
 #### History & Reset
 
 ```
-GET    /history                        List archived snapshots (filter: academic_year)
+GET    /history                        List archived snapshots (filter: academic_year; paginated)
 GET    /history/{id}                   View one archived snapshot (returns snapshot_json)
                                         # NOTE: no POST /history/restore/{id} yet — tracked in plan.md.
 
@@ -1179,6 +1181,18 @@ Beyond being the Celery broker/backend, the same Redis (`.env` `REDIS_URL`, defa
 - **Response caching.** The hot list endpoints — `GET /rooms/`, `GET /subjects/`, `GET /profiles/`, `GET /settings/` — cache their serialized JSON under `timetable:cache:<collection>:<query params>` for 60s. Cache hits restore the `X-Total-Count` header for paginated lists. Every matching write (POST/PUT/DELETE on rooms/subjects/profiles; PUT on settings) busts the whole collection prefix with a `scan_iter` + delete. Because the cache is keyed by query params, filter variations don't collide.
 - **Auth rate limiting.** `POST /auth/login` (5/min) and `POST /auth/register` (3/min) run a fixed-window counter per client IP (`timetable:ratelimit:<scope>:<ip>:<window>`); exceeding the limit returns **429**. Redis-down returns `None` → always allowed, so a broker outage can never lock admins out.
 
+### 7.10 API versioning & the JSON error envelope — *implemented*
+
+The whole API is served under `/api/v1/` in addition to the root paths. A single `APIRouter(prefix="/api/v1")` aggregator in `app/main.py` includes every router except `/auth`, so both the unversioned and versioned paths share the same endpoints, schemas, and auth gate. The unversioned routes are kept deliberately (existing clients and `/docs` keep working); `/health` and `/auth/*` remain root-only because they are the middleware's only exempt paths.
+
+Every error response uses the FastAPI-default `{"detail": ...}` envelope, guaranteed by two global handlers registered on the app in `app/main.py`:
+
+- `RequestValidationError` → **422** with `{"detail": [field errors], "request_id": "…"}`.
+- `Exception` → **500** with `{"detail": "Internal server error", "request_id": "…"}`.
+- `HTTPException` keeps the framework's default `{"detail": "…"}` body (client-driven 4xx).
+
+`request_id` is generated and stored on `request.state.request_id` by the observability middleware, so handlers can echo it and admins can correlate a response body with the matching log line (`X-Request-ID` header is set on every response regardless).
+
 ---
 
 ## 8. Parameter Reference
@@ -1326,9 +1340,10 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **Health** — `GET /health` with Postgres reachability check.
 - **CSV import** — `/import/{rooms|faculty|groups|subjects}` and `/import/assignments` (dry-run + commit). All-or-nothing: any invalid row rejects the whole file (422, `inserted=0`).
 - **Reset** — `POST /reset/` (FULL_YEAR archives published + clears profiles; PROFILE_SPECIFIC clears only; SEMESTER no-op) plus `GET /reset/log`; `timetable_reset_log` row written for every reset.
-- **Pagination utility** — `app/utils/pagination.py` exposes `Pagination`, `pagination`, `paginate`; `GET /audit/` and several list endpoints use it.
+- **Pagination utility** — `app/utils/pagination.py` exposes `Pagination`, `pagination`, `paginate`; every top-level list endpoint (`rooms`, `faculty`, `groups`, `subjects`, `assignments`, `audit`, `profiles`, `constraints/hard`, `constraints/soft`, `history`, `blackouts`, `faculty_availability`) paginates with `?skip=`/`?limit=` and an `X-Total-Count` header (§4.2).
 - **Redis integration** — optional client (`app/services/redis_client.py`) with graceful degradation: generation-conflict locking (`409` on a busy run), response caching for rooms/subjects/profiles/settings (busted on write), and IP rate limiting on `/auth/login` + `/auth/register` (`429`). Gated by `REDIS_ENABLED` (§7.9).
 - **Email notifications on publish** — opt-in SMTP mailer (`app/services/mail_service.py`): on `POST /instances/{id}/publish`, faculty get their personal PDF, HOD/admins (`config_json["notification_emails"]`) the full-instance summary, and class incharges (`student_groups.incharge_email`, migration `f5a1b3c8e6d2`) their group's PDF. Delivery is a non-blocking daemon thread; unconfigured SMTP (`EMAIL_ENABLED=false` or empty `SMTP_HOST`/`SMTP_FROM`) is a strict no-op and mail failures never fail the publish (§7.7, §8.9).
+- **API versioning + JSON error envelope** — the whole API is mounted at `/api/v1/` via one aggregator router (unversioned paths stay live); global handlers guarantee the `{"detail": ...}` envelope with `request_id` on 422/500 (§7.10).
 
 ### 🟡 Partial — *working, but with documented gaps*
 

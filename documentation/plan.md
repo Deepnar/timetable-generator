@@ -91,11 +91,12 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - **iCal (.ics)** export implemented — weekly-recurring `VEVENT`s with `?term_start`/`?term_end`, ideal for a teacher importing their personal schedule (`?faculty_id=`).
 - [x] **Notification Service**
   - SMTP email on `POST /instances/{id}/publish` (`app/services/mail_service.py`, stdlib `smtplib` — not FastAPI-mail): each faculty gets their personal PDF, HOD/admin addresses (`config_json["notification_emails"]`) the full-instance summary, and class incharges (`student_groups.incharge_email`) their group's PDF. Non-blocking daemon thread; a strict no-op when SMTP is unconfigured, and a mail failure never fails the publish. See architecture §7.7.
-- [ ] **API Polish**
-  - Global error handling middleware and consistent JSON error responses.
-  - Pagination (`?page=1&limit=20`) on all list endpoints.
+- [x] **API Polish**
+  - Global error handling middleware and consistent JSON error responses (every error returns `{"detail": ...}`; `request_id` on 422/500).
+  - Pagination (`?skip=1&limit=20` + `X-Total-Count`) on all list endpoints.
   - Request logging / audit trail for every mutation.
   - `GET /health` endpoint for deployment monitoring.
+  - API versioning — `/api/v1/` aggregator (unversioned paths kept live).
 - [x] **Global Auth Gate** — every route (except `/health` + `/auth/*`) requires a valid admin JWT via a single `require_auth` middleware in `app/main.py`, replacing the per-route "mutations only" posture. New routers/endpoints cannot accidentally be left public; OpenAPI docs are gated too. (Phase 1/5 auth hardening, see architecture §4.2.)
 
 ## Phase 6: Deployment & Final Polish

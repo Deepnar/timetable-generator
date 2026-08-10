@@ -145,6 +145,54 @@ next session is pointed at them. See `AGENTS.md` → "Design decisions".
 
 ---
 
+## API Polish (2026-08-10)
+
+### DD-014 — JSON errors use the FastAPI-default `{"detail": ...}` envelope; `request_id` joins server-side errors
+- **Status:** Decided / Tested.
+- **Context:** error responses were inconsistent — the 500 path returned
+  `{"detail", "request_id"}`, validation returned bare `{"detail": [...]}` with no
+  request context, and `PATCH /instances/{id}/slots/{slot_id}` returned a nested
+  dict under `detail`.
+- **Decision:** every error returns the framework-default `{"detail": ...}`
+  envelope. Two global handlers in `app/main.py` lock it and add `request_id` to
+  the server-side cases: `RequestValidationError` → 422 with
+  `{"detail": errors, "request_id"}`, and a generic `Exception` handler → 500
+  with `{"detail": "Internal server error", "request_id"}`. HTTPException responses
+  keep the default shape. The observability middleware stores the id on
+  `request.state.request_id` so handlers can report it; the middleware remains the
+  safety net for anything raised outside the routing layer.
+- **Rejected alternatives:** a richer `{"error": {...}}` envelope — it diverges
+  from what every existing client and FastAPI's default handlers already emit for
+  no gain.
+
+### DD-015 — API versioning is one `/api/v1` aggregator router; unversioned routes stay live
+- **Status:** Decided / Tested.
+- **Context:** the roadmap called for `/api/v1/`; there was no versioned path.
+- **Decision:** a single `APIRouter(prefix="/api/v1")` in `app/main.py` includes
+  every router except `auth`. Unversioned routes remain mounted for backward
+  compatibility (existing clients and `/docs` keep working), both paths sit behind
+  the global auth gate, and `/health` + `/auth/*` deliberately stay at the root
+  (the only auth-exempt paths).
+- **Rejected alternatives:** changing each router's `prefix` (touches every file
+  and makes the migration one-way); a `v2` path param (intrusive, needless
+  churn); dropping the unversioned routes (breaks existing clients).
+
+### DD-016 — Every top-level list endpoint paginates; sub-resource lists stay unbounded
+- **Status:** Decided / Tested.
+- **Context:** only `rooms`/`faculty`/`groups`/`subjects`/`assignments`/`audit`
+  paginated; `profiles`, `constraints/hard`, `constraints/soft`, `history`,
+  `blackouts`, and `faculty_availability` returned every row.
+- **Decision:** all top-level list GETs paginate through the shared
+  `app/utils/pagination.py` (`?skip=`/`?limit=`, `X-Total-Count`). `GET /profiles/`
+  folds the page window into its Redis cache key and restores the total header on
+  cache hits. Sub-resource lists (`/instances/{id}/slots`,
+  `/profiles/{id}/resources`, `/profiles/{id}/parameters`,
+  `/profiles/combinations`) stay unpaginated — they are bounded by one parent row.
+- **Rejected alternatives:** paginating the sub-resource lists — unnecessary for
+  collections that cannot grow past a single parent's data.
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
