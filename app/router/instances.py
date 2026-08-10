@@ -12,7 +12,11 @@ from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.profile_resolver import ProfileResolver
 from app.engine.scheduler import Scheduler
 from app.services.settings_service import get_settings
+from app.services import mail_service
 from datetime import datetime
+import logging
+
+logger = logging.getLogger("timetable")
 
 router = APIRouter(prefix="/instances", tags=["Instances"])
 
@@ -110,6 +114,16 @@ def publish_instance(
     instance.published_at = datetime.utcnow()
     db.commit()
     db.refresh(instance)
+
+    # Fire the publish notifications after the commit so a mail outage can
+    # never roll back a successful publish. Delivery is best-effort in a
+    # background thread and a no-op when SMTP is unconfigured; the dispatch is
+    # also guarded here so an unexpected mailer error never fails the publish.
+    try:
+        mail_service.dispatch_publish_notifications(instance.id)
+    except Exception:
+        logger.exception("Publish notifications failed for instance %s", instance.id)
+
     return instance
 
 @router.patch("/{instance_id}/slots/{slot_id}",
