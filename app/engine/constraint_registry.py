@@ -241,6 +241,45 @@ def _max_consecutive_same_teacher(candidate, committed, config, ctx) -> Optional
     return None
 
 
+@hard_rule("MAX_DAILY_SUBJECTS")
+def _max_daily_subjects(candidate, committed, config, ctx) -> Optional[str]:
+    """Cap how many distinct subjects a group can sit in a single day.
+
+    config: ``{"max": int, "group_id"?: int, "subject_id"?: int}``. Without
+    ``group_id`` the cap applies to every group; ``subject_id`` narrows the
+    rule to one subject. A common real-world rule ("don't give a class five
+    different subjects in one day") that the base engine leaves unlimited.
+    """
+    config = config or {}
+    max_subjects = config.get("max")
+    if not max_subjects:
+        return None
+    group_id = config.get("group_id")
+    subject_id = config.get("subject_id")
+    if group_id is not None and candidate.student_group_id != group_id:
+        return None
+    if subject_id is not None and candidate.subject_id != subject_id:
+        return None
+    if candidate.student_group_id is None or candidate.day_of_week is None:
+        return None
+
+    distinct = {
+        s.subject_id
+        for s in committed
+        if s.student_group_id == candidate.student_group_id
+        and s.day_of_week == candidate.day_of_week
+        and s.subject_id is not None
+    }
+    distinct.add(candidate.subject_id)
+    if len(distinct) > max_subjects:
+        return (
+            f"group {candidate.student_group_id} would have {len(distinct)} "
+            f"distinct subjects on day {candidate.day_of_week} "
+            f"(cap {max_subjects})"
+        )
+    return None
+
+
 def _lab_batch_rotation(candidate, committed, config, ctx) -> Optional[str]:
     """Pin a group's (lab batch's) sessions to specific weekdays.
 

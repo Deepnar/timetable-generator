@@ -114,6 +114,7 @@ class ORToolsSolver(GreedySolver):
         by_room_slot = defaultdict(list)
         by_group_slot = defaultdict(list)
         by_group_subject_day = defaultdict(list)
+        by_group_day = defaultdict(list)
         by_teacher_day = defaultdict(list)
         by_teacher = defaultdict(list)
         for (si, day, sn, room_id), var in x.items():
@@ -123,6 +124,7 @@ class ORToolsSolver(GreedySolver):
                 by_room_slot[(room_id, day, n)].append(var)
                 by_group_slot[(s.student_group_id, day, n)].append(var)
             by_group_subject_day[(s.student_group_id, s.subject_id, day)].append(var)
+            by_group_day[(s.student_group_id, day)].append((s.subject_id, var))
             for _ in range(s.block_length):
                 by_teacher_day[(s.faculty_id, day)].append(var)
                 by_teacher[s.faculty_id].append(var)
@@ -145,6 +147,7 @@ class ORToolsSolver(GreedySolver):
             if fac and fac.max_hours_per_week:
                 model.Add(sum(vs) <= fac.max_hours_per_week)
 
+        self._add_max_daily_subjects(model, x, sessions, by_group_day)
         self._add_exam_separation(model, x, sessions)
 
         # Soft preferences (gated by the college scoring flag): fold active
@@ -221,6 +224,46 @@ class ORToolsSolver(GreedySolver):
         if faculty_id not in self._fac_cache:
             self._fac_cache[faculty_id] = self.db.get(Faculty, faculty_id)
         return self._fac_cache[faculty_id]
+
+    def _add_max_daily_subjects(self, model, x, sessions, by_group_day):
+        """Model MAX_DAILY_SUBJECTS as a relational CP-SAT rule.
+
+        The registry validator is committed-dependent (it reads already-placed
+        slots), so OR-Tools could not enforce it in the static domain-pruning
+        pass and the final checker would only *drop* placements. Modelling it
+        here keeps the premium solver honest: for each (group, day) we add one
+        indicator per distinct subject and constrain their sum to the cap.
+        """
+        caps = []
+        for rule in self._load_hard_constraints():
+            rule_type = getattr(rule.constraint_type, "value", rule.constraint_type)
+            if rule_type != "MAX_DAILY_SUBJECTS":
+                continue
+            cap = (getattr(rule, "config_json", None) or {}).get("max")
+            if cap:
+                caps.append(int(cap))
+        if not caps:
+            return
+        cap = max(caps)  # a group may not exceed the tightest cap across rows
+
+        for (group_id, day), placements in by_group_day.items():
+            by_subject: dict = {}
+            for subject_id, var in placements:
+                if subject_id is None:
+                    continue
+                by_subject.setdefault(subject_id, []).append(var)
+            if len(by_subject) <= cap:
+                continue
+            indicators = []
+            for subject_id, vs in by_subject.items():
+                used = model.NewBoolVar(
+                    f"maxsubj_{group_id}_{day}_{subject_id}"
+                )
+                model.Add(used <= sum(vs))
+                for var in vs:
+                    model.Add(used >= var)
+                indicators.append(used)
+            model.Add(sum(indicators) <= cap)
 
     def _add_exam_separation(self, model, x, sessions):
         """Model EXAM_DATE_SEPARATION as a relational CP-SAT rule.

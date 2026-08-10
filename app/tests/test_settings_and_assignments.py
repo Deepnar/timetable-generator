@@ -591,8 +591,57 @@ def _phase2_registry(s):
         slots = _gen_slots(client, headers, ids["profile"])
         assert len(slots) == 3, slots
 
+    @test("MAX_DAILY_SUBJECTS validator caps distinct subjects per group per day")
+    def t_max_daily_subjects(client):
+        from datetime import time
+        from app.engine.constraint_registry import HARD_CONSTRAINT_REGISTRY
+        from app.engine.constraint_checker import SlotCandidate
+
+        class _Slot:
+            def __init__(self, gid, sid, day, sn):
+                self.student_group_id, self.subject_id = gid, sid
+                self.day_of_week, self.slot_number = day, sn
+
+        def cand(subj_id, day, sn):
+            return SlotCandidate(
+                instance_id=1, day_of_week=day, slot_number=sn,
+                start_time=time(9), end_time=time(10), faculty_id=1, room_id=1,
+                student_group_id=1, subject_id=subj_id, session_type="LECTURE",
+            )
+
+        v = HARD_CONSTRAINT_REGISTRY["MAX_DAILY_SUBJECTS"]
+        # group 1 already had subjects 10 and 11 on day 0; cap 2 -> adding 12 exceeds.
+        committed = [_Slot(1, 10, 0, 1), _Slot(1, 11, 0, 2)]
+        assert v(cand(12, 0, 3), committed, {"max": 2}, None) is not None
+        # cap 3 -> 3 distinct is fine.
+        assert v(cand(12, 0, 3), committed, {"max": 3}, None) is None
+        # same subject repeated on the same day does not count twice.
+        assert v(cand(10, 0, 3), committed, {"max": 2}, None) is None
+
+    @test("MAX_DAILY_SUBJECTS is enforced end-to-end by greedy")
+    def t_max_daily_subjects_e2e(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "MAX_DAILY_SUBJECTS",
+            "config_json": {"max": 1},  # one distinct subject per group per day
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+        # every (group, day) may hold at most one distinct subject
+        by_day: dict[tuple, set] = {}
+        for s in slots:
+            by_day.setdefault((s["student_group_id"], s["day_of_week"]), set()).add(
+                s["subject_id"])
+        assert all(len(subjects) == 1 for subjects in by_day.values()), by_day
+
     return [t_time_pref, t_consecutive, t_year,
-            t_holiday, t_holiday_e2e, t_holiday_outside_term, t_holiday_no_anchor]
+            t_holiday, t_holiday_e2e, t_holiday_outside_term, t_holiday_no_anchor,
+            t_max_daily_subjects, t_max_daily_subjects_e2e]
 
 
 @suite("Phase 3 — Soft-constraint scoring")
@@ -950,8 +999,28 @@ def _phase3_ortools(s):
             f"{[sl['day_of_week'] for sl in slots]}"
         )
 
+    @test("OR-Tools models MAX_DAILY_SUBJECTS relationally")
+    def t_ortools_max_daily_subjects(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "MAX_DAILY_SUBJECTS",
+            "config_json": {"max": 1},  # one distinct subject per group per day
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen(client, headers, ids["profile"], "OR_TOOLS")
+        assert slots, "expected slots"
+        by_day: dict[tuple, set] = {}
+        for sl in slots:
+            by_day.setdefault((sl["student_group_id"], sl["day_of_week"]), set()).add(
+                sl["subject_id"])
+        assert all(len(subjects) == 1 for subjects in by_day.values()), by_day
+
     return [t_ortools_basic, t_ortools_registry, t_ortools_soft_objective,
-            t_ortools_holiday]
+            t_ortools_holiday, t_ortools_max_daily_subjects]
 
 
 @suite("Phase 3 — OR-Tools robustness")
