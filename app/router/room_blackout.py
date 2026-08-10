@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..utils.auth import get_current_admin
+from ..utils.pagination import Pagination, pagination, paginate
 from .. import models
 from .. import schemas
 
@@ -18,9 +19,12 @@ def create_room_blackout(blackout: schemas.RoomBlackoutCreate, db: Session = Dep
     return new_blackout
 
 @router.get("/", response_model=list[schemas.RoomBlackoutResponse])
-def get_room_blackouts(db: Session = Depends(get_db)):
-    blackouts = db.scalars(select(models.RoomBlackout)).all()
-    return blackouts
+def get_room_blackouts(
+    response: Response,
+    page: Pagination = Depends(pagination),
+    db: Session = Depends(get_db),
+):
+    return paginate(db, select(models.RoomBlackout), page, response)
 
 @router.get("/{id}", response_model=schemas.RoomBlackoutResponse)
 def get_room_blackout(id: int, db: Session = Depends(get_db)):

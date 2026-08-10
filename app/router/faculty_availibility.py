@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..utils.auth import get_current_admin
+from ..utils.pagination import Pagination, pagination, paginate
 from .. import models
 from .. import schemas
 
@@ -20,9 +21,12 @@ def create_faculty_availability(availability: schemas.FacultyAvailabilityCreate,
     return new_availability
 
 @router.get("/", response_model=list[schemas.FacultyAvailabilityResponse])
-def get_faculty_availability(db: Session = Depends(get_db)):
-    availability = db.scalars(select(models.FacultyAvailability)).all()
-    return availability
+def get_faculty_availability(
+    response: Response,
+    page: Pagination = Depends(pagination),
+    db: Session = Depends(get_db),
+):
+    return paginate(db, select(models.FacultyAvailability), page, response)
 
 @router.get("/{id}", response_model=schemas.FacultyAvailabilityResponse)
 def get_one_faculty_availability(id: int, db: Session = Depends(get_db)):

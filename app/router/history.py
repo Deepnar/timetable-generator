@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Optional
 from app.database import get_db
+from app.utils.pagination import Pagination, pagination, paginate
 from app.models.history import TimetableHistory, TimetableResetLog, ArchiveReason, ResetType
 from app.models.generation import TimetableInstance, TimetableSlot, InstanceStatus
 from app.models.profiles import TimetableProfile, ProfileResource, ProfileParameter
@@ -14,14 +15,16 @@ router = APIRouter(prefix="/history", tags=["History"])
 
 @router.get("/", )
 def get_history(
+    response: Response,
     academic_year: Optional[str] = None,
+    page: Pagination = Depends(pagination),
     db: Session = Depends(get_db),
 ):
     query = select(TimetableHistory)
     if academic_year:
         query = query.where(TimetableHistory.academic_year == academic_year)
     query = query.order_by(TimetableHistory.archived_at.desc())
-    history = db.scalars(query).all()
+    history = paginate(db, query, page, response)
     return [
         {
             "id": h.id,

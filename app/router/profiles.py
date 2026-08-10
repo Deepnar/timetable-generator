@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Optional
 from ..database import get_db
+from ..utils.pagination import Pagination, pagination, paginate
 from ..models.profiles import (TimetableProfile, ProfileResource,
                                   ProfileParameter, ProfileCombination,
                                   ProfileCombinationMember, ScopeType)
@@ -25,17 +26,19 @@ _PROFILES_CACHE_PREFIX = "timetable:cache:profiles"
 
 @router.get("/", response_model=list[ProfileResponse])
 def get_profiles(
+    response: Response,
     academic_year: Optional[str] = None,
     scope_type: Optional[ScopeType] = None,
     department: Optional[str] = None,
     is_archived: bool = False,
+    page: Pagination = Depends(pagination),
     db: Session = Depends(get_db)
 ):
     cache_key = (
         f"{_PROFILES_CACHE_PREFIX}:{academic_year}:{scope_type}:{department}:"
-        f"{is_archived}"
+        f"{is_archived}:{page.skip}:{page.limit}"
     )
-    cached = redis_client.cache_serve_list(cache_key, None)
+    cached = redis_client.cache_serve_list(cache_key, response)
     if cached is not None:
         return cached
     query = select(TimetableProfile).where(
@@ -48,8 +51,8 @@ def get_profiles(
         query = query.where(TimetableProfile.scope_type == scope_type)
     if department:
         query = query.where(TimetableProfile.department == department)
-    rows = db.scalars(query).all()
-    return redis_client.cacheable_list(cache_key, ProfileResponse, rows, None)
+    rows = paginate(db, query, page, response)
+    return redis_client.cacheable_list(cache_key, ProfileResponse, rows, response)
 
 # ── Profile Combination List & Resolve ─────────────────────
 # These live BEFORE /profiles/{id} so the literal "combinations" segment is

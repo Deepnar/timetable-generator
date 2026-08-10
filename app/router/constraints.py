@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Optional
 from ..database import get_db
+from ..utils.pagination import Pagination, pagination, paginate
 from ..models.constraints import (
     HardConstraint, SoftConstraint, ConstraintType,
     HARD_CONSTRAINT_TYPES, SOFT_CONSTRAINT_TYPES,
@@ -18,13 +19,15 @@ router = APIRouter(prefix="/constraints", tags=["Constraints"])
 
 @router.get("/hard", response_model=list[HardConstraintResponse])
 def get_hard_constraints(
+    response: Response,
     profile_id: Optional[int] = None,
+    page: Pagination = Depends(pagination),
     db: Session = Depends(get_db)
 ):
     query = select(HardConstraint).where(HardConstraint.is_active == True)
     if profile_id:
         query = query.where(HardConstraint.profile_id == profile_id)
-    return db.scalars(query).all()
+    return paginate(db, query, page, response)
 
 @router.post("/hard", status_code=status.HTTP_201_CREATED,
              response_model=HardConstraintResponse)
@@ -78,13 +81,15 @@ def delete_hard_constraint(
 
 @router.get("/soft", response_model=list[SoftConstraintResponse])
 def get_soft_constraints(
+    response: Response,
     profile_id: Optional[int] = None,
+    page: Pagination = Depends(pagination),
     db: Session = Depends(get_db)
 ):
     query = select(SoftConstraint).where(SoftConstraint.is_active == True)
     if profile_id:
         query = query.where(SoftConstraint.profile_id == profile_id)
-    return db.scalars(query).all()
+    return paginate(db, query, page, response)
 
 @router.post("/soft", status_code=status.HTTP_201_CREATED,
              response_model=SoftConstraintResponse)
