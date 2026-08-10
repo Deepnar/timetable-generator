@@ -176,6 +176,15 @@ class GreedySolver:
         """Active hard rules for the resolved profile (global + per-member)."""
         return list(self.profile.hard_constraints)
 
+    def _load_soft_constraints(self) -> list:
+        """Active soft rules for the resolved profile (global + per-member).
+
+        The greedy solver reads them to order its (day, slot) scan so the
+        default solver *pursues* the college's preferences during placement,
+        not just ranks the result afterwards (see :meth:`_preference_scan`).
+        """
+        return list(self.profile.soft_constraints)
+
     def _is_exam_mode(self) -> bool:
         """Whether this profile schedules EXAM sessions instead of classes.
 
@@ -381,7 +390,7 @@ class GreedySolver:
         # Instance #1 (seed=None) stays the deterministic baseline: the
         # criterion only reshapes the *seeded* re-rolls.
         if peer_attr is None or self.rng is None:
-            return [(d, st) for d in working_days for st in slot_times]
+            return None
 
         peer_id = getattr(session, peer_attr)
         by_day: dict[int, list[int]] = defaultdict(list)
@@ -399,6 +408,108 @@ class GreedySolver:
                 # 0 = the peer already teaches that day → fill beside it.
                 return (0, min(abs(sn - p) for p in same_day), sn)
             return (1, sn)
+
+        return sorted(
+            ((d, st) for d in working_days for st in slot_times), key=key
+        )
+
+    # ── soft-preference placement (greedy pursues preferences too) ──
+    def _preference_scan(
+        self, session, working_days: list[int], slot_times: list
+    ) -> list[tuple] | None:
+        """Order (day, slot) by the active soft constraints, if any.
+
+        The greedy solver is deterministic: without this, it always takes the
+        first valid slot and soft preferences only *rank* the finished result.
+        This re-orders the scan so the default solver actively leans toward the
+        college's stated preferences (morning slots for ``TEACHER_PREFERS_MORNING``,
+        fresh days for ``DISTRIBUTE_SUBJECTS_EVENLY``, light days for
+        ``BALANCE_TEACHER_LOAD``, etc.) while every candidate is still checked
+        against the full hard-constraint checker, so validity is unchanged —
+        only the search order.
+
+        Returns ``None`` when no soft rule applies so the caller keeps its
+        existing order (plain or gap-criterion). Rule weights scale each rule's
+        contribution; heavier preferences win.
+        """
+        rules = self._load_soft_constraints()
+        if not rules or not self.settings.enable_soft_constraint_scoring:
+            return None
+
+        # Collect (weight, per-slot bonus fn) for the applicable rules. Each
+        # bonus fn returns 0.0 for "no preference", positive for "prefer", and
+        # is called with (day, slot_number).
+        scanners: list[tuple[float, Callable]] = []
+        for rule in rules:
+            if not getattr(rule, "is_active", True):
+                continue
+            rtype = getattr(rule.constraint_type, "value", rule.constraint_type)
+            config = getattr(rule, "config_json", None) or {}
+            weight = float(getattr(rule, "weight", 1.0) or 1.0)
+            if weight <= 0:
+                continue
+
+            if rtype == "TEACHER_PREFERS_MORNING":
+                boundary = config.get("boundary_slot", 4)
+                faculty_id = config.get("faculty_id")
+                if faculty_id is not None and session.faculty_id != faculty_id:
+                    continue
+
+                def bonus_morning(day, sn, boundary=boundary):
+                    if sn <= boundary:
+                        return 1.0 / boundary
+                    return 0.0
+
+                scanners.append((weight, bonus_morning))
+
+            elif rtype == "DISTRIBUTE_SUBJECTS_EVENLY":
+                subject_id = config.get("subject_id")
+                if subject_id is not None and session.subject_id != subject_id:
+                    continue
+                if session.student_group_id is None:
+                    continue
+                used_days = {
+                    s.day_of_week
+                    for s in self.committed_slots
+                    if s.student_group_id == session.student_group_id
+                    and s.subject_id == session.subject_id
+                    and s.day_of_week is not None
+                }
+
+                def bonus_distribute(day, sn, used=used_days):
+                    return 0.0 if day in used else 1.0
+
+                scanners.append((weight, bonus_distribute))
+
+            elif rtype == "BALANCE_TEACHER_LOAD":
+                faculty_id = config.get("faculty_id")
+                if faculty_id is not None and session.faculty_id != faculty_id:
+                    continue
+                if session.faculty_id is None:
+                    continue
+                load: dict[int, int] = defaultdict(int)
+                for s in self.committed_slots:
+                    if s.faculty_id == session.faculty_id and s.day_of_week is not None:
+                        load[s.day_of_week] += 1
+                max_load = max(load.values()) if load else 0
+
+                def bonus_balance(day, sn, load=load, max_load=max_load):
+                    # Days under the current max get a boost; the lighter the
+                    # day relative to the busiest, the stronger the preference.
+                    cur = load.get(day, 0)
+                    if max_load <= 0:
+                        return 1.0
+                    return 1.0 - (cur / (max_load + 1))
+
+                scanners.append((weight, bonus_balance))
+
+        if not scanners:
+            return None
+
+        def key(item):
+            day, (sn, _st, _en) = item
+            total = sum(weight * fn(day, sn) for weight, fn in scanners)
+            return (-total, sn)
 
         return sorted(
             ((d, st) for d in working_days for st in slot_times), key=key
@@ -433,10 +544,16 @@ class GreedySolver:
                 rooms = list(rooms)
                 self.rng.shuffle(rooms)
 
-            # Seeded instances pursuing a gap criterion scan in adjacency order
-            # (days/slots closest to the peer's existing placements first);
-            # everything else keeps the plain day-then-slot order.
+            # Order the (day, slot) scan. The gap criterion (variation) takes
+            # precedence for seeded instances pursuing it; otherwise, when the
+            # profile has active soft constraints, the scan leans toward those
+            # preferences so the default greedy solver pursues them too.
+            # Everything else keeps the plain day-then-slot order.
             scan = self._criterion_scan(session, working_days, slot_times)
+            if scan is None:
+                scan = self._preference_scan(session, working_days, slot_times)
+            if scan is None:
+                scan = [(d, st) for d in working_days for st in slot_times]
             for day, (slot_number, _start_time, _end_time) in scan:
                 if placed:
                     break

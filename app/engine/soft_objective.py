@@ -125,6 +125,132 @@ def _minimize_teacher_free_slots(ctx: ObjectiveContext, config) -> list:
     return _build_span_terms(ctx, "faculty_id", "compact_t")
 
 
+def _avoid_consecutive_same_subject(ctx: ObjectiveContext, config) -> list:
+    """Penalise back-to-back sessions of the same subject for the same group.
+
+    For every (group, subject, day) that gets two adjacent placements we add a
+    per-adjacent-pair penalty. The always-on ``SAME_SUBJECT_SAME_DAY``
+    structural rule usually keeps a subject to one session per group per day,
+    so this term is typically inert — it only bites when that structural rule
+    is relaxed.
+    """
+    config = config or {}
+    subject_id = config.get("subject_id")
+
+    model, x, sessions = ctx.model, ctx.x, ctx.sessions
+    by_group_subj_day: dict[tuple, list] = {}
+    for (si, day, sn, _room), var in x.items():
+        s = sessions[si]
+        if s.subject_id is None or s.student_group_id is None:
+            continue
+        if subject_id is not None and s.subject_id != subject_id:
+            continue
+        by_group_subj_day.setdefault(
+            (s.student_group_id, s.subject_id, day), []
+        ).append((sn, var))
+
+    terms: list = []
+    for key, placements in by_group_subj_day.items():
+        by_slot = {sn: v for sn, v in placements}
+        day = key[2]
+        for sn, var in placements:
+            nxt = by_slot.get(sn + 1)
+            if nxt is not None:
+                pair = model.NewBoolVar(
+                    f"adj_subj_{day}_{sn}"
+                )
+                model.Add(pair >= var + nxt - 1)
+                terms.append((pair, -1.0))
+    return terms
+
+
+def _distribute_subjects_evenly(ctx: ObjectiveContext, config) -> list:
+    """Reward placing a subject's sessions on distinct days.
+
+    For each (group, subject) we count how many distinct days receive at least
+    one session and reward that count, capped at the number of sessions (a
+    subject fully spread over N days can score at most N). This mirrors the
+    post-hoc scorer's ``distinct_days / sessions`` fraction.
+    """
+    config = config or {}
+    subject_id = config.get("subject_id")
+
+    model, x, sessions = ctx.model, ctx.x, ctx.sessions
+    by_group_subj: dict[tuple, list] = {}
+    for (si, day, _sn, _room), var in x.items():
+        s = sessions[si]
+        if s.subject_id is None or s.student_group_id is None:
+            continue
+        if subject_id is not None and s.subject_id != subject_id:
+            continue
+        by_group_subj.setdefault((s.student_group_id, s.subject_id), []).append(
+            (day, var)
+        )
+
+    terms: list = []
+    for (_gs, _), placements in by_group_subj.items():
+        per_day: dict[int, list] = {}
+        for day, var in placements:
+            per_day.setdefault(day, []).append(var)
+        for day, vs in per_day.items():
+            # 1 if this day hosts at least one session of the subject.
+            has = model.NewBoolVar(f"even_{day}")
+            model.Add(has <= sum(vs))
+            for var in vs:
+                model.Add(has >= var)
+            terms.append((has, 1.0))
+    return terms
+
+
+def _balance_teacher_load(ctx: ObjectiveContext, config) -> list:
+    """Reward spreading each teacher's sessions evenly across days.
+
+    Linear relaxation of the coefficient-of-variation objective: reward every
+    (faculty, day) pair whose load stays at or below the teacher's daily mean
+    (``sessions / working_days``), using a single quadratic-free approximation.
+    A teacher packed onto one day cannot earn these "under-budget" bonuses,
+    while a spread teacher can earn them for every day — which pushes CP-SAT
+    toward the balanced solution without trading away placements.
+    """
+    config = config or {}
+    faculty_id = config.get("faculty_id")
+
+    model, x, sessions = ctx.model, ctx.x, ctx.sessions
+    slot_count = ctx.slot_count
+    by_fac_day: dict[tuple, list] = {}
+    for (si, day, _sn, _room), var in x.items():
+        s = sessions[si]
+        if s.faculty_id is None:
+            continue
+        if faculty_id is not None and s.faculty_id != faculty_id:
+            continue
+        by_fac_day.setdefault((s.faculty_id, day), []).append(var)
+
+    # total sessions per faculty (upper bound: slot_count per day is generous)
+    by_fac: dict[int, list] = {}
+    for (fid, day), vs in by_fac_day.items():
+        by_fac.setdefault(fid, []).append((day, vs))
+    if not by_fac:
+        return []
+
+    working_days = len(set(day for (fid, _day) in by_fac_day for fid in [fid]))
+    terms: list = []
+    for fid, day_vars in by_fac.items():
+        all_vars = [v for _day, vs in day_vars for v in vs]
+        total = model.NewIntVar(0, slot_count * 10, f"load_total_{fid}")
+        model.Add(total == sum(all_vars))
+        # daily budget = ceil(total / number of distinct days this teacher teaches)
+        distinct_days = len(set(day for day, _vs in day_vars))
+        budget = model.NewIntVar(0, slot_count * 10, f"load_budget_{fid}")
+        model.Add(budget * distinct_days >= total)
+        for _day, vs in day_vars:
+            below = model.NewBoolVar(f"load_below_{fid}_{_day}")
+            model.Add(below <= budget)
+            model.Add(sum(vs) <= budget + slot_count * (1 - below))
+            terms.append((below, 1.0))
+    return terms
+
+
 def _build_span_terms(ctx: ObjectiveContext, peer_attr: str, label: str) -> list:
     """One span-minimisation term per (peer, day) with ≥2 placements.
 
@@ -166,3 +292,6 @@ def _build_span_terms(ctx: ObjectiveContext, peer_attr: str, label: str) -> list
 soft_objective("TEACHER_PREFERS_MORNING")(_teacher_prefers_morning)
 soft_objective("MINIMIZE_STUDENT_FREE_SLOTS")(_minimize_student_free_slots)
 soft_objective("MINIMIZE_TEACHER_FREE_SLOTS")(_minimize_teacher_free_slots)
+soft_objective("AVOID_CONSECUTIVE_SAME_SUBJECT")(_avoid_consecutive_same_subject)
+soft_objective("DISTRIBUTE_SUBJECTS_EVENLY")(_distribute_subjects_evenly)
+soft_objective("BALANCE_TEACHER_LOAD")(_balance_teacher_load)

@@ -133,6 +133,119 @@ def _minimize_teacher_free_slots(slots, config, ctx) -> float:
     return 1.0 - (total_gaps / total_span)
 
 
+def _avoid_consecutive_same_subject(slots, config, ctx) -> float:
+    """Reward not placing the same subject back-to-back for the same group.
+
+    config: ``{"subject_id"?: int}`` (default: every subject). Satisfaction is
+    the fraction of (group, subject, day) runs that avoid adjacent same-subject
+    sessions. With the always-on ``SAME_SUBJECT_SAME_DAY`` structural rule a
+    subject appears at most once per group per day, so this is usually 1.0 —
+    the rule exists for colleges that relax that structural behaviour.
+    """
+    config = config or {}
+    subject_id = config.get("subject_id")
+
+    # slot_number -> adjacent pairs in a consecutive block
+    def adjacent_pairs(nums):
+        return sum(1 for a, b in zip(sorted(nums), sorted(nums)[1:]) if b == a + 1)
+
+    by_group_subject_day: dict[tuple, list[int]] = defaultdict(list)
+    for s in slots:
+        if (s.subject_id is None or s.student_group_id is None
+                or s.day_of_week is None):
+            continue
+        if subject_id is not None and s.subject_id != subject_id:
+            continue
+        by_group_subject_day[(s.student_group_id, s.subject_id,
+                              s.day_of_week)].append(s.slot_number)
+    if not by_group_subject_day:
+        return 1.0
+
+    total_adjacent = 0
+    total_sessions = 0
+    for nums in by_group_subject_day.values():
+        total_adjacent += adjacent_pairs(nums)
+        total_sessions += len(nums)
+    if total_sessions == 0:
+        return 1.0
+    # Max possible adjacent pairs ≈ sessions (fully contiguous).
+    return 1.0 - (total_adjacent / total_sessions)
+
+
+def _distribute_subjects_evenly(slots, config, ctx) -> float:
+    """Reward spreading a subject's sessions across distinct weekdays.
+
+    config: ``{"subject_id"?: int}``. For each (group, subject) measure the
+    number of distinct days its sessions land on, normalised by the number of
+    sessions (a subject with N sessions spread over N days scores 1.0). This
+    pushes sessions onto different days rather than clustering them.
+    """
+    config = config or {}
+    subject_id = config.get("subject_id")
+
+    by_group_subject: dict[tuple, set[int]] = defaultdict(set)
+    session_counts: dict[tuple, int] = defaultdict(int)
+    for s in slots:
+        if (s.subject_id is None or s.student_group_id is None
+                or s.day_of_week is None):
+            continue
+        if subject_id is not None and s.subject_id != subject_id:
+            continue
+        by_group_subject[(s.student_group_id, s.subject_id)].add(s.day_of_week)
+        session_counts[(s.student_group_id, s.subject_id)] += 1
+    if not by_group_subject:
+        return 1.0
+
+    total = 0.0
+    for key, days in by_group_subject.items():
+        n = session_counts[key]
+        if n <= 1:
+            total += 1.0
+            continue
+        total += len(days) / n
+    return total / len(by_group_subject)
+
+
+def _balance_teacher_load(slots, config, ctx) -> float:
+    """Reward an even spread of each teacher's load across the week.
+
+    config: ``{"faculty_id"?: int}``. For each teacher measures how evenly
+    their per-day session counts sit around their own average, scored as
+    ``1 - coefficient_of_variation``. A teacher with 2/2/2/2 across four days
+    scores 1.0; one with 8/0/0/0 scores ~0.
+    """
+    config = config or {}
+    faculty_id = config.get("faculty_id")
+
+    by_fac_day: dict[tuple, int] = defaultdict(int)
+    for s in slots:
+        if s.faculty_id is None or s.day_of_week is None:
+            continue
+        if faculty_id is not None and s.faculty_id != faculty_id:
+            continue
+        by_fac_day[(s.faculty_id, s.day_of_week)] += 1
+    if not by_fac_day:
+        return 1.0
+
+    per_fac: dict[int, list[int]] = defaultdict(list)
+    for (fid, _day), n in by_fac_day.items():
+        per_fac[fid].append(n)
+
+    total = 0.0
+    for nums in per_fac.values():
+        mean = sum(nums) / len(nums)
+        if mean == 0:
+            total += 1.0
+            continue
+        var = sum((n - mean) ** 2 for n in nums) / len(nums)
+        cv = (var ** 0.5) / mean
+        total += max(0.0, 1.0 - cv)
+    return total / len(per_fac)
+
+
 soft_rule("TEACHER_PREFERS_MORNING")(_teacher_prefers_morning)
 soft_rule("MINIMIZE_STUDENT_FREE_SLOTS")(_minimize_student_free_slots)
 soft_rule("MINIMIZE_TEACHER_FREE_SLOTS")(_minimize_teacher_free_slots)
+soft_rule("AVOID_CONSECUTIVE_SAME_SUBJECT")(_avoid_consecutive_same_subject)
+soft_rule("DISTRIBUTE_SUBJECTS_EVENLY")(_distribute_subjects_evenly)
+soft_rule("BALANCE_TEACHER_LOAD")(_balance_teacher_load)

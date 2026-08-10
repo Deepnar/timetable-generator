@@ -664,7 +664,132 @@ def _phase3_scoring(s):
         score = SOFT_CONSTRAINT_REGISTRY["TEACHER_PREFERS_MORNING"](slots, {"boundary_slot": 4}, None)
         assert abs(score - 0.5) < 1e-9, score
 
-    return [t_no_rules, t_scored, t_gaps, t_morning]
+    @test("AVOID_CONSECUTIVE_SAME_SUBJECT scores adjacency")
+    def t_avoid_consecutive(client):
+        from app.engine.scorer import SOFT_CONSTRAINT_REGISTRY
+
+        class _S:
+            def __init__(self, gid, sid, day, sn):
+                self.student_group_id, self.subject_id = gid, sid
+                self.day_of_week, self.slot_number = day, sn
+
+        # two same-subject sessions in adjacent slots -> 1 adjacency / 2 -> 0.5
+        slots = [_S(1, 10, 0, 1), _S(1, 10, 0, 2)]
+        score = SOFT_CONSTRAINT_REGISTRY["AVOID_CONSECUTIVE_SAME_SUBJECT"](slots, None, None)
+        assert abs(score - 0.5) < 1e-9, score
+        # separated sessions -> perfect
+        spread = [_S(1, 10, 0, 1), _S(1, 10, 0, 4)]
+        assert SOFT_CONSTRAINT_REGISTRY["AVOID_CONSECUTIVE_SAME_SUBJECT"](spread, None, None) == 1.0
+
+    @test("DISTRIBUTE_SUBJECTS_EVENLY rewards distinct days")
+    def t_distribute(client):
+        from app.engine.scorer import SOFT_CONSTRAINT_REGISTRY
+
+        class _S:
+            def __init__(self, gid, sid, day, sn):
+                self.student_group_id, self.subject_id = gid, sid
+                self.day_of_week, self.slot_number = day, sn
+
+        # 3 sessions on 3 distinct days -> 3/3 = 1.0
+        spread = [_S(1, 10, d, 1) for d in (0, 2, 4)]
+        score = SOFT_CONSTRAINT_REGISTRY["DISTRIBUTE_SUBJECTS_EVENLY"](spread, None, None)
+        assert abs(score - 1.0) < 1e-9, score
+        # 3 sessions crammed onto 1 day -> 1/3
+        crammed = [_S(1, 10, 0, 1), _S(1, 10, 0, 2), _S(1, 10, 0, 3)]
+        score = SOFT_CONSTRAINT_REGISTRY["DISTRIBUTE_SUBJECTS_EVENLY"](crammed, None, None)
+        assert abs(score - 1.0 / 3.0) < 1e-9, score
+
+    @test("BALANCE_TEACHER_LOAD rewards even daily load")
+    def t_balance(client):
+        from app.engine.scorer import SOFT_CONSTRAINT_REGISTRY
+
+        class _F:
+            def __init__(self, fid, day, sn):
+                self.faculty_id, self.day_of_week, self.slot_number = fid, day, sn
+
+        # even: 2/2/2 across three days -> CV 0 -> 1.0
+        even = [_F(1, d, n) for d in range(3) for n in range(1, 3)]
+        score = SOFT_CONSTRAINT_REGISTRY["BALANCE_TEACHER_LOAD"](even, None, None)
+        assert abs(score - 1.0) < 1e-9, score
+        # imbalanced: 5 on day 0, 1 on day 1 -> CV = (|5-3|+|1-3|)/2/3 = 2/3
+        imbalanced = [_F(1, 0, n) for n in range(1, 6)] + [_F(1, 1, 1)]
+        score = SOFT_CONSTRAINT_REGISTRY["BALANCE_TEACHER_LOAD"](imbalanced, None, None)
+        assert abs(score - (1.0 - 2.0 / 3.0)) < 1e-9, score
+
+    @test("greedy pursues TEACHER_PREFERS_MORNING during placement")
+    def t_greedy_pursues_morning(client):
+        from app.tests.test_runner import login_token, auth_headers
+        from app.tests.conftest import TestingSessionLocal
+        from app.services.settings_service import get_settings
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/soft", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "TEACHER_PREFERS_MORNING",
+            "config_json": {"boundary_slot": 2},
+            "weight": 3.0,
+        })
+        assert r.status_code == 201, r.text
+        # enable soft scoring for this run
+        db = TestingSessionLocal()
+        try:
+            s = get_settings(db)
+            s.enable_soft_constraint_scoring = True
+            db.commit()
+        finally:
+            db.close()
+        gen = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert gen.status_code == 201, gen.text
+        gen_id = gen.json()["id"]
+        inst = client.get(f"/instances/{gen_id}", headers=headers).json()[0]
+        slots = client.get(f"/instances/{inst['id']}/slots", headers=headers).json()
+        assert slots, "expected slots"
+        # with boundary 2 and a 3-session subject the greedy solver can fit all
+        # sessions in the morning window -> perfect soft_score
+        assert inst["soft_score"] == 1.0, inst["soft_score"]
+        assert all(sl["slot_number"] <= 2 for sl in slots), (
+            [sl["slot_number"] for sl in slots]
+        )
+
+    @test("OR-Tools runs all three additional soft rules")
+    def t_ortools_all_soft(client):
+        from app.tests.test_runner import login_token, auth_headers
+        from app.tests.conftest import TestingSessionLocal
+        from app.services.settings_service import get_settings
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        for ct in ("AVOID_CONSECUTIVE_SAME_SUBJECT", "DISTRIBUTE_SUBJECTS_EVENLY",
+                   "BALANCE_TEACHER_LOAD"):
+            r = client.post("/constraints/soft", headers=headers, json={
+                "profile_id": ids["profile"], "constraint_type": ct, "weight": 1.0,
+            })
+            assert r.status_code == 201, r.text
+        db = TestingSessionLocal()
+        try:
+            s = get_settings(db)
+            s.enable_soft_constraint_scoring = True
+            db.commit()
+        finally:
+            db.close()
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "OR_TOOLS",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        assert gen["generation_status"] == "COMPLETED", gen
+        inst = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]
+        slots = client.get(f"/instances/{inst['id']}/slots", headers=headers).json()
+        assert slots, "expected slots"
+        assert inst["soft_score"] is not None, inst
+
+    return [t_no_rules, t_scored, t_gaps, t_morning, t_avoid_consecutive,
+            t_distribute, t_balance, t_greedy_pursues_morning, t_ortools_all_soft]
 
 
 @suite("Phase 2 — Recurring blackouts & lab rotation")
