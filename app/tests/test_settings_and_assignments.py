@@ -1373,3 +1373,53 @@ def _phase4_combinations(s):
     return [t_merge_resources, t_param_weight, t_constraint_merge,
             t_ortools_combination, t_combine_unknown, t_weight_mismatch,
             t_inactive_member]
+
+
+@suite("Phase 6 — Student group CRUD (PUT /groups/{id})")
+def _phase6_group_crud(s):
+    def _headers(client):
+        from app.tests.test_runner import login_token, auth_headers
+        return auth_headers(login_token(client))
+
+    _GROUP = {
+        "name": "CS-A", "group_type": "DIVISION", "department": "CS",
+        "year": 2, "semester": 3, "strength": 60,
+    }
+
+    @test("create a group")
+    def t_create(client):
+        headers = _headers(client)
+        r = client.post("/groups/", headers=headers, json=_GROUP)
+        assert r.status_code == 201, r.text
+        assert r.json()["name"] == "CS-A"
+
+    @test("update a group (PUT) and see the change")
+    def t_update(client):
+        headers = _headers(client)
+        r = client.post("/groups/", headers=headers, json=_GROUP)
+        gid = r.json()["id"]
+        r = client.put(f"/groups/{gid}", headers=headers, json={
+            **_GROUP, "name": "CS-B", "strength": 55,
+        })
+        assert r.status_code == 200, r.text
+        assert r.json()["name"] == "CS-B"
+        assert r.json()["strength"] == 55
+        r = client.get(f"/groups/{gid}", headers=headers)
+        assert r.json()["name"] == "CS-B", r.text
+
+    @test("update on a missing group returns 404")
+    def t_update_missing(client):
+        headers = _headers(client)
+        r = client.put("/groups/999999", headers=headers, json=_GROUP)
+        assert r.status_code == 404, r.text
+
+    @test("delete soft-deletes the group")
+    def t_delete(client):
+        headers = _headers(client)
+        r = client.post("/groups/", headers=headers, json=_GROUP)
+        gid = r.json()["id"]
+        assert client.delete(f"/groups/{gid}", headers=headers).status_code == 204
+        r = client.get("/groups/", headers=headers)
+        assert all(g["id"] != gid for g in r.json()), r.text
+
+    return [t_create, t_update, t_update_missing, t_delete]
