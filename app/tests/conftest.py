@@ -41,6 +41,12 @@ import app.database as app_db  # noqa: E402
 app_db.engine = engine
 app_db.SessionLocal = TestingSessionLocal
 
+# The suite has no Redis: force the redis client to a no-op so caching, rate
+# limiting, and generation locking are inert in every test unless a test
+# explicitly substitutes a fake client (see test_redis_integration.py).
+from app.config import settings as _app_settings  # noqa: E402
+_app_settings.REDIS_ENABLED = False
+
 
 def _get_db_override() -> Iterator:
     db = TestingSessionLocal()
