@@ -4,14 +4,19 @@ Read `AGENTS.md` (repo root) first — commands, test entry points, and commit r
 read the sections below. This file is overwritten at the end of every session; the git
 history preserves older handoffs.
 
+**Design decisions live in `documentation/design-decisions.md`** (a permanent ADR log — not
+here). The OPEN items below are copied from it; resolve them and mark them done in the log.
+
 ## Session summary (committed & pushed)
 
-State at handoff: **132/132 tests passing** (`uv run python -m app.tests`), tree clean.
+State at handoff: **134/134 tests passing** (`uv run python -m app.tests`), tree clean.
 
-This session shipped **Email Notifications on Publish** (the top-ranked NEXT TASK from the
-previous handoff). The feature is an **opt-in SMTP mailer** in `app/services/mail_service.py`
-that fires after `POST /instances/{id}/publish` and degrades to a strict no-op when SMTP is
-unconfigured — the same graceful-degradation posture as the Redis client:
+Two things shipped this session:
+
+**(A) Email Notifications on Publish** (the NEXT TASK from the previous handoff). An **opt-in
+SMTP mailer** in `app/services/mail_service.py` that fires after `POST /instances/{id}/publish`
+and degrades to a strict no-op when SMTP is unconfigured — the same graceful-degradation
+posture as the Redis client:
 
 1. **Config** (commit `cfb3320`) — `app/config.py` gained `EMAIL_ENABLED` (default `true`),
    `SMTP_HOST` (default empty), `SMTP_PORT` (587), `SMTP_USER`/`SMTP_PASSWORD` (optional login),
@@ -45,17 +50,52 @@ unconfigured — the same graceful-degradation posture as the Redis client:
 **Commits (in order):** `a7c6789` (incharge_email model/schema/migration), `cfb3320` (config +
 mailer), `570b43f` (router wiring), `81c9042` (tests), `77a7664` (docs).
 
+**(B) Design-decision tracking + real-transport verification** (this session's follow-up):
+
+1. **`documentation/design-decisions.md`** — new permanent ADR log (DD-001…DD-013) covering the
+   email decisions *and* decisions recovered from the overwritten handoffs (Redis flags/locking/
+   degradation, cross-timetable per-resource sets, global auth gate, exam-as-profile-mode,
+   CUSTOM enum hatches, `requirements_json` precedence, greedy-default posture). It also lists
+   **OPEN follow-ups** and a "past misses" audit (`.env.example` drift, decisions living only in
+   handoffs). `AGENTS.md` gained the mandatory rule: record decisions in the same commit, carry
+   OPEN items into the HANDOFF verbatim, resolve don't accumulate, `.env.example` for every new
+   `Settings` field, and honest testing statuses.
+2. **Live-delivery tests** — **2 new (132 → 134)**. `test_email_notifications.py` gained a
+   "live delivery" suite that is NOT mock-only: (a) a real daemon-thread run of
+   `dispatch_publish_notifications` against the SQLite pool (joined, asserts all three
+   deliveries), and (b) the real `smtplib` dialog (EHLO/MAIL/RCPT/DATA) against an in-process
+   loopback SMTP server (`socketserver`), asserting `From:`, `application/pdf` and all three
+   recipients arrive over the wire. So the mailer is now **Wire-verified** — only a real
+   external SMTP server (STARTTLS certs, auth, the network) remains for live verification.
+3. **`.env.example`** — added the missing `REDIS_URL`/`REDIS_ENABLED` (missed in the Redis
+   session) and the new `SMTP_*`/`EMAIL_ENABLED` vars.
+
+**Commits (in order, this part):** <commits to be written at session end>.
+
+## Open design decisions (from `documentation/design-decisions.md` — resolve these)
+
+1. **DD-004 follow-up** — promote mail gating to a `CollegeSettings.mail_enabled` flag, or keep
+   env-only? (Likely keep env-only until a college asks; but decide and record.)
+2. **DD-003 follow-up** — do publish notifications need a retry queue / per-recipient opt-out /
+   an admin `/notifications` endpoint? (Currently: log-and-drop.)
+3. **DD-001 follow-up** — when RBAC lands, replace `config_json["notification_emails"]` with
+   real HOD entities.
+4. **Verification debt** — the async/Celery and Redis paths are tested with
+   fakes/`task_always_eager`; a live Redis + live Postgres smoke test (`python run_tests.py`)
+   has not been run recently. Decide a cadence for the live smoke test.
+
 ## Context to read before starting
 
-- `AGENTS.md` (repo root) — environment, tests, commit rules.
+- `AGENTS.md` (repo root) — environment, tests, commit rules, and the **Design decisions** rule.
+- `documentation/design-decisions.md` — the permanent ADR log; read the OPEN section first.
 - `app/services/mail_service.py` — the mailer: `is_email_enabled`, `dispatch_publish_notifications`
   (thread spawner), `send_publish_notifications` (synchronous, testable), `_build_messages`,
   `_deliver` (the only place that touches `smtplib`).
 - `app/router/instances.py::publish_instance` — the guarded dispatch call after the commit.
 - `app/services/redis_client.py` — the degradation pattern `mail_service` mirrors.
 - `app/tests/test_email_notifications.py` — `_enable_email`/`_restore_email` helpers (mutate the
-  shared `app.config.settings`, restore in `finally`), `_generate_one`, and how the mailer is
-  mocked. `conftest.py` forces `EMAIL_ENABLED=False`.
+  shared `app.config.settings`, restore in `finally`), `_generate_one`, how the mailer is
+  mocked, and the live-delivery suite (tracked-thread join + `_SmtpServer` loopback).
 - Architecture doc **§7.7 (Email Notifications on Publish)** and **§8.9 (Notification config)**.
 
 ## NEXT TASK — Email Notifications is DONE. Next up: **API Polish**
@@ -95,21 +135,24 @@ Follow exactly; commit per concern (engine / API / tests / docs separate).
    Decide the JSON error shape: a consistent `{"detail": ...}` envelope (FastAPI default) vs a
    richer `{"error": {...}}` — pick one and enforce it in a global exception handler in
    `app/main.py` (the current 500 path already returns `{"detail": "Internal server error",
-   "request_id": ...}`).
+   "request_id": ...}`). **Record the error-shape decision in `design-decisions.md` (DD-NNN)
+   in the same commit.**
 2. **Versioning.** Decide `/api/v1/` prefix strategy: either a top-level `APIRouter(prefix="/api/v1")`
    aggregator mounted in `app/main.py`, or a per-router prefix change. Prefer the aggregator so
    existing router files stay untouched and the current `/docs` routes keep working. Consider a
    `v2` path param instead of hardcoding if that's simpler to test. Keep `/health` and `/auth/*`
-   where they are (exempt paths in the auth middleware).
+   where they are (exempt paths in the auth middleware). **Record the versioning decision in
+   `design-decisions.md` too.**
 3. **Tests.** Extend the suite: every newly-paginated list endpoint gets a `page`/`limit` +
    `X-Total-Count` assertion (there is already a pagination test in
    `app/tests/test_settings_and_assignments.py` — "list endpoints paginate and report
    X-Total-Count"); a global-error-shape test (an unhandled route returns the chosen envelope);
    a versioned-path smoke test (`GET /api/v1/...`). New test modules must be imported in
-   `app/tests/__main__.py`. Run `uv run python -m app.tests` — must stay 132/132 + new.
+   `app/tests/__main__.py`. Run `uv run python -m app.tests` — must stay 134/134 + new.
 4. **Docs.** Architecture §4 (endpoint listing — add the version prefix / error-envelope note),
    §7 (a new subsection if error middleware or versioning is non-trivial), and
-   `plan.md`/`progress.md` checkboxes in the same change.
+   `plan.md`/`progress.md` checkboxes in the same change. Update the OPEN items in
+   `design-decisions.md` if any get settled.
 5. **Commit & push**, then overwrite this HANDOFF with the new session summary + a fresh
    mini-plan for the *next* item (Frontend + Dockerization).
 
@@ -117,18 +160,24 @@ Follow exactly; commit per concern (engine / API / tests / docs separate).
 
 - Postgres runs on host port **5433** (`.env` sets `DB_PORT=5433`); Redis maps `6379`.
   Alembic head: **`f5a1b3c8e6d2`** (adds nullable `student_groups.incharge_email`). 22 tables.
+- **Design decisions are tracked in `documentation/design-decisions.md`, not in this file.**
+  Every new choice (or "considered and rejected") gets a DD-NNN entry in the same commit; the
+  HANDOFF must copy the OPEN items verbatim so they get resolved. Keep OPEN items few.
+- **New `Settings` fields must go in `.env.example` in the same commit** (real past miss — Redis
+  and SMTP flags shipped without it; both now fixed).
 - Tests: `uv run python -m app.tests` (not pytest). Add any router touched by tests to the
   patch loop in `app/tests/conftest.py`. New test modules must be imported in
-  `app/tests/__main__.py` to register their suites. **No Redis/Celery/SMTP in tests** — stub or
-  fake anything network-dependent.
+  `app/tests/__main__.py` to register their suites. **No *external* Redis/Celery/SMTP in tests**
+  — stub or fake anything that would touch the network; the live-delivery email tests use an
+  in-process loopback SMTP server (`socketserver`), which is local, not external.
 - **Redis and email are inert in tests by default**: `conftest.py` sets `REDIS_ENABLED=False` and
   `EMAIL_ENABLED=False`. A test that needs either enables it and MUST restore the shared
   `app.config.settings` attributes (and any module attribute, e.g. `redis_client._get_client`)
   in `finally`, or later tests see stale state.
 - **The mailer's only network touch is `mail_service._deliver`** — every other function composes
   messages offline. Composition tests patch `_deliver` (or `dispatch_publish_notifications`);
-  do not let a test enable SMTP without mocking delivery, or the suite will attempt a real send
-  if `.env` ever sets `SMTP_HOST`.
+  when a test runs the real background thread, keep the `_deliver` patch alive until the thread
+  has been joined (the live-delivery suite shows the pattern).
 - **The publish endpoint never fails on mail**: the router guards `dispatch_publish_notifications`
   in try/except, and the dispatch itself only starts a daemon thread. Keep it that way — a mail
   outage must never roll back or 500 a successful publish.
