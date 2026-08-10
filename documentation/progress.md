@@ -2,7 +2,7 @@
 
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
-**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, objective-based instance variation (best / minimize gaps), opt-in async generation (Celery/Redis), a Next.js admin frontend (Auth + Dashboard + Resource CRUD), and full-stack Dockerization.
+**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, objective-based instance variation (best / minimize gaps), opt-in async generation (Celery/Redis), a Next.js admin frontend (Auth + Dashboard + Resource CRUD), full-stack Dockerization, and a real-scale seeded college (12 departments, 576 subjects, 345 faculty, 192 groups, 204 rooms, 1152 assignments) that battle-tests the engine — greedy places a whole department's 288 sessions in ~4.3s and all exports hold up.
 **Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, PostgreSQL database via Docker, and a Next.js frontend interface for college admins.
 
 ---
@@ -124,6 +124,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 ### 🔵 Deployment & Final Polish
 - [x] **Full Stack Dockerization**: top-level `docker-compose.yml` (App, Frontend, PostgreSQL, Redis) + backend `Dockerfile` (uv, migrates on boot) + `frontend/Dockerfile` (standalone Next). `docker/docker-compose.yml` remains the backend-only dev infra (DD-018). *(`docker compose up` four-service bring-up pending on a free host port 3000 — see DD-018 follow-up.)*
+- [x] **Scale battle test**: `scripts/seed_demo.py` seeds a 12-department college modeled on the `sample/` TCET timetables (576 subjects, 345 faculty, 192 groups, 204 rooms, 1152 assignments, 108 profiles). `scripts/battle_test.py`, `scripts/api_drive.py`, `scripts/async_drive.py` run real generations (greedy + OR-Tools, sync + async Celery, generation lock, publish → cross-timetable safety) against live Postgres/Redis. Surfaced and fixed two real bugs: unfiltered multi-group PDF export (ReportLab `LayoutError`) now renders one grid per group, and `GenerationResponse` now reports `run_duration_ms`. See DD-020.
 - [ ] **README & Docs**: Setup guide, architecture diagram link, API examples.
 - [ ] **Historical Data Import**: Upload past semesters' timetables for pattern reference.
 - [ ] **ML Preference Learning (Phase 2)**: Learn from manual overrides to suggest constraints automatically.

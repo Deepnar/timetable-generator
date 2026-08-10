@@ -555,6 +555,11 @@ timetable-api/
 ├── tasks/
 │   └── generation.py                # run_generation Celery task + enqueue_generation()
 ├── worker.py                        # Celery app (celery -A app.worker:celery_app worker)
+├── scripts/                         # dev/testing tools (not part of the API surface)
+│   ├── seed_demo.py                 # seeds a 12-department TCET-style college (DD-020)
+│   ├── battle_test.py               # runs greedy/OR-Tools generations at scale
+│   ├── api_drive.py                 # drives the live HTTP API (generate/select/publish/export)
+│   └── async_drive.py               # exercises the real Celery worker + Redis async path
 ├── tests/
 │   ├── conftest.py                  # FastAPI TestClient over in-memory SQLite
 │   ├── test_runner.py               # @suite / @test decorators, seed_minimal()
@@ -816,6 +821,10 @@ GET    /export/instances/{id}/ical    Weekly-recurring .ics calendar (RFC 5545)
     #   ?year=       a whole year       ?department= a department
     # iCal only: ?term_start=YYYY-MM-DD&term_end=YYYY-MM-DD  (anchor + RRULE UNTIL)
     # An empty filter result is a 404 for CSV/iCal (PDF renders an empty grid).
+    # When the slots span multiple student groups (an unfiltered whole-department
+    # instance), the PDF renders one grid per group instead of cramming every
+    # group into one cell — a cell that tall would exceed the page frame and
+    # crash ReportLab (fixed in the scale battle test, DD-020).
 ```
 
 #### History & Reset
@@ -1386,6 +1395,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **API versioning + JSON error envelope** — the whole API is mounted at `/api/v1/` via one aggregator router (unversioned paths stay live); global handlers guarantee the `{"detail": ...}` envelope with `request_id` on 422/500 (§7.10).
 - **Frontend** — `frontend/` is a Next.js 14 App Router + TypeScript + Tailwind admin UI (DD-017): login (JWT in localStorage), dashboard (resource counts from `X-Total-Count` + recent runs from `GET /generate` + quick actions), and CRUD tables for rooms/faculty/groups/subjects driven by a shared `ResourceTable`. The browser calls `/api/v1/*` directly at `NEXT_PUBLIC_API_URL` (DD-019). Dockerized via `frontend/Dockerfile` (standalone Next image).
 - **Full-stack Dockerization** — top-level `docker-compose.yml` runs App + Frontend + PostgreSQL + Redis in one command (DD-018); backend `Dockerfile` uses the official uv image and runs `alembic upgrade head` before uvicorn. `docker/docker-compose.yml` stays the backend-only dev infra.
+- **Scale battle test** — `scripts/seed_demo.py` + `scripts/battle_test.py` + `scripts/api_drive.py` + `scripts/async_drive.py` verify the engine against a 12-department TCET-style college (576 subjects / 345 faculty / 192 groups / 204 rooms / 1152 assignments). Greedy places all 288 sessions of a whole-department profile in ~4.3s (all 12 departments); OR-Tools places all 36 sessions of a per-semester profile; the real Celery worker + Redis async path, the generation lock, and cross-timetable safety were all exercised live. Surfaced and fixed two scale bugs (multi-group PDF `LayoutError`; missing `run_duration_ms` on `GenerationResponse`) — see DD-020.
 
 ### 🟡 Partial — *working, but with documented gaps*
 

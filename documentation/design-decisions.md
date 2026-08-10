@@ -238,6 +238,38 @@ next session is pointed at them. See `AGENTS.md` → "Design decisions".
 
 ---
 
+## Scale testing the generation engine (2026-08-10)
+
+### DD-020 — A seeded full-college dataset + battle-test runner verify the engine at realistic scale
+- **Status:** Decided / Live-verified (real Postgres + real Redis + the real Celery worker).
+- **Context:** all 152 prior tests used tiny fixtures (1-2 divisions, a handful of sessions) that
+  prove *correctness* but never the *engine at realistic size*. A real TCET-style college needed to
+  be exercised to know whether greedy/OR-Tools scale and whether exports hold up.
+- **Decision:** `scripts/seed_demo.py` seeds a 12-department college modeled on the `sample/` TCET
+  timetables and syllabus PDFs: 576 subjects (8 sems x 6), 345 faculty (~40 in COMP, real TCET
+  names), 192 groups (2 divisions/sem), 204 rooms, 1152 subject-assignments, and 108 profiles
+  (DIVISION-scoped per dept/sem + DEPARTMENT-scoped per dept), wired to the real TCET time grid
+  (8 x 1h slots, 08:30 start, lunch after slot 4, Mon-Sat). `scripts/battle_test.py` runs real
+  generations through the same `Scheduler` the API uses; `scripts/api_drive.py` / `scripts/async_drive.py`
+  drive the live HTTP API including the real Celery worker + Redis async path.
+- **Findings:**
+  - Greedy places all 288 sessions of a whole-department profile in ~4-4.5s across all 12
+    departments; per-semester profiles place all 36 in <0.2s; 3 instances x 288 in ~12.3s.
+  - OR-Tools places all 36 sessions of a per-semester profile (5s CP-SAT timeout dominates);
+    whole-department OR-Tools is intentionally not exercised (the CP-SAT variable explosion is
+    not the intended use — greedy is the whole-dept preview solver).
+  - **Two real bugs surfaced and fixed:** unfiltered multi-group PDF export crashed with
+    ReportLab `LayoutError` (now one grid per group); `GenerationResponse` omitted
+    `run_duration_ms`. Tests added (154 total).
+  - Cross-timetable safety confirmed live: after publishing a department's instance, a re-run over
+    the same resources places fewer sessions (published reservations block reuse, per DD-008).
+  - The generation lock confirmed live: concurrent overlapping runs → one COMPLETED, one LOCKED.
+- **Rejected alternatives:** faking scale in the unit suite (the suite must stay fast and SQLite;
+  scale testing belongs in `scripts/`, not `app/tests/`); using the tiny CSV fixtures (they are 3-4
+  rows and cannot stress anything).
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -248,13 +280,13 @@ Address these in the next session; resolved ones move up into the log with their
    an admin `/notifications` endpoint? (Currently: log-and-drop.)
 3. **DD-001 follow-up** — when RBAC lands, replace `config_json["notification_emails"]` with
    real HOD entities.
-4. **Verification debt** — the async/Celery and Redis paths are tested with
-   fakes/`task_always_eager`. A live Redis and a live Postgres smoke test
-   (`python run_tests.py`) has not been run recently. Decide a cadence for the live smoke test.
-5. **DD-018 follow-up** — the four-service compose bring-up could not bind host port 3000 on the
+4. **DD-018 follow-up** — the four-service compose bring-up could not bind host port 3000 on the
    dev machine (occupied by another container); the frontend image itself was verified on an
    alternate port. Next session: run the full `docker compose up` on a free 3000 and confirm
    login → dashboard in a browser, then mark DD-018 Live-verified.
+5. **DD-020 follow-up** — the seeded dataset lives in the local Postgres; decide whether the seed
+   script + battle-test runner should be wired into CI or kept as local dev tooling. Also decide a
+   cadence for re-running the battle test (e.g. after any engine/solver change).
 
 ---
 

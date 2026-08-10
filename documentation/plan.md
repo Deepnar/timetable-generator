@@ -108,6 +108,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Full Stack Dockerization**
   - Create a top-level `docker-compose.yml` that spins up the entire application: **FastAPI Backend**, **Next.js Frontend**, **PostgreSQL Database**, and **Redis** in one command. (The current `docker/docker-compose.yml` only runs Postgres.)
   - **Shipped:** top-level `docker-compose.yml` + backend `Dockerfile` (uv image, migrates on boot) + `frontend/Dockerfile` (standalone Next image); live-verified API+Postgres+Redis in containers (DD-018, DD-019).
+- [x] **Scale battle test** — `scripts/seed_demo.py` seeds a 12-department TCET-style college; `scripts/battle_test.py` / `api_drive.py` / `async_drive.py` verify greedy (whole-dept 288 sessions in ~4.3s), OR-Tools (per-semester 36 sessions), the async Celery path, the generation lock, and cross-timetable safety against live Postgres/Redis. Two scale bugs found and fixed (multi-group PDF, `run_duration_ms`). See DD-020.
 - [ ] **README & Documentation**
   - Update `README.md` with setup instructions, architecture diagram link, and API examples.
   - Final code cleanup, type hinting pass, and docstrings.
