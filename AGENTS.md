@@ -127,15 +127,44 @@ Roadmap work runs in priority order (`documentation/progress.md` → "Newly Iden
    per the standing rules above. Push at the end of the session.
 3. **Write the handoff.** Overwrite `documentation/HANDOFF.md` so the next session starts with
    full context: what changed, what to read, and the next task. The git history preserves the
-   previous handoff.
+   previous handoff. The handoff MUST list the open design decisions from
+   `documentation/design-decisions.md` (see "Design decisions" below) so they are addressed,
+   not lost.
 4. **Keep docs in sync.** Update `documentation/timetable-generator-architecture.md`,
    `plan.md`, and `progress.md` with every change (mandatory, see below).
+
+## Design decisions (ADR log — mandatory)
+
+Product/architecture decisions are recorded in **`documentation/design-decisions.md`** — a
+living ADR-style log, not a commit message. Handoffs get overwritten every session; this file
+does not. Every entry carries a **status** (`Decided / Tested`, `Decided / Wire-verified`,
+`Decided / Live-verification pending`, `OPEN`).
+
+Rules:
+
+1. **Record it in the same commit.** Any design choice — especially one that rejects an
+   alternative — gets a numbered entry (DD-NNN) in `documentation/design-decisions.md` in the
+   same change that implements it. "Considered adding X, decided not to" is a decision too:
+   record it with the follow-up OPEN item.
+2. **Carry OPEN items into the HANDOFF.** When you overwrite `documentation/HANDOFF.md`,
+   copy the OPEN/follow-up decisions verbatim into it so the next session resolves them and
+   marks them done in the log.
+3. **Resolve, don't accumulate.** When a follow-up is settled, move the entry's status to the
+   resolved form and add one line on how it was resolved; keep OPEN items short and few.
+4. **New `Settings` fields go in `.env.example` too.** This was a real miss (Redis and SMTP
+   flags shipped without it); a new config field must appear in `.env.example` in the same
+   commit.
+5. **Testing honesty.** If a feature's tests only use fakes/mocks, mark the entry
+   `Live-verification pending` and say what a real dependency would still need to prove. Do not
+   claim "works" from mock coverage alone.
 
 ## Reference docs
 
 `documentation/` holds the deeper design material: `timetable-generator-architecture.md` (schema +
 endpoint + solver blueprint), `plan.md` (phased roadmap), `progress.md` (feature checklist),
-`AGENTS.md` (contributor guide), and `HANDOFF.md` (end-of-session context for the next session).
+`AGENTS.md` (contributor guide), `design-decisions.md` (ADR log — every product/architecture
+decision, with statuses and OPEN items), and `HANDOFF.md` (end-of-session context for the next
+session).
 `rough_plan.md` is a private, gitignored scratchpad
 kept locally only; it is not part of the repository. Treat the code as ground truth
 where these disagree.
