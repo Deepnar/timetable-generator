@@ -31,10 +31,16 @@ from app.models.generation import (
     VariationMode,
 )
 from app.services.settings_service import get_settings
+from app.services import redis_client
 from app.models.profiles import ResourceType
 from app.engine.profile_resolver import ProfileResolver
 from app.engine.solvers.greedy_solver import GreedySolver
 from app.engine.scorer import score_instance, ScoringContext
+
+
+class GenerationLockError(RuntimeError):
+    """Raised when a generation cannot run because another run is already
+    solving the same resources. The run row is marked FAILED before raising."""
 
 
 class Scheduler:
@@ -131,6 +137,26 @@ class Scheduler:
         if generation is None:
             raise ValueError(f"Generation run {generation_id} not found")
 
+        # Serialise generations over the same resource set: two concurrent
+        # solves would otherwise each compute their own (empty) published
+        # reservations and could both place the same faculty/room/group in the
+        # same slot. A Redis-disabled/unreachable setup degrades to running
+        # unlocked; a busy lock means another run already owns these resources,
+        # so this run is marked FAILED instead of racing it.
+        lock = self._acquire_resource_lock(generation)
+        if lock is False:
+            generation.generation_status = GenerationStatus.FAILED
+            generation.error_log = (
+                "Another generation over the same resources is already running"
+            )
+            generation.completed_at = datetime.utcnow()
+            generation.run_duration_ms = int((time.time() - start) * 1000)
+            self.db.commit()
+            raise GenerationLockError(
+                f"Another generation over the same resources is already running "
+                f"(run {generation_id} marked FAILED)"
+            )
+
         try:
             return self._solve(generation, start)
         except Exception as exc:
@@ -143,6 +169,31 @@ class Scheduler:
                 failed.run_duration_ms = int((time.time() - start) * 1000)
                 self.db.commit()
             raise
+        finally:
+            redis_client.release_lock(lock)
+
+    def _acquire_resource_lock(self, generation):
+        """Lock the union of the run's resource ids so a concurrent generation
+        cannot reuse the same faculty/room/group slots.
+
+        Returns the :class:`redis_client.Lock` when acquired, ``False`` when it
+        is already held, or ``None`` (run unlocked) when Redis is unavailable or
+        the input contract cannot be resolved (``_solve`` reports that failure
+        itself).
+        """
+        try:
+            resolved = ProfileResolver(self.db).resolve(
+                generation.profile_id, generation.combination_id
+            )
+        except ValueError:
+            return None
+        ids: set[int] = set()
+        for rt in ResourceType:
+            ids.update(resolved.resource_ids(rt))
+        key = "timetable:lock:generate:" + (
+            ",".join(str(i) for i in sorted(ids)) if ids else "empty"
+        )
+        return redis_client.acquire_lock(key)
 
     def _solve(
         self, generation: TimetableGeneration, start: float

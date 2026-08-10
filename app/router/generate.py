@@ -7,7 +7,7 @@ from app.models.admin import Admin
 from app.models.generation import TimetableGeneration
 from app.schemas.generation import GenerationRequest, GenerationResponse
 from app.utils.auth import get_current_admin
-from app.engine.scheduler import Scheduler
+from app.engine.scheduler import Scheduler, GenerationLockError
 from app.tasks.generation import enqueue_generation
 from app.config import settings
 import logging
@@ -45,6 +45,11 @@ def trigger_generation(
             variation=request.variation
         )
         return generation
+    except GenerationLockError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
