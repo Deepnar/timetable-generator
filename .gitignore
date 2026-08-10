@@ -42,3 +42,8 @@ Thumbs.db
 # Private brainstorming notes — kept locally, never tracked.
 # See README "Repository layout" for why.
 rough_plan.md
+
+# Local reference material (real college syllabi / timetables with personal
+# names) used to model seed data — kept out of the public repo. The seed
+# script embeds the extracted shape; sample/ is not read at runtime.
+sample/
