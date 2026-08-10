@@ -1,11 +1,18 @@
 """Email Notifications on Publish tests.
 
-The suite has no SMTP server, so every test either (a) enables the mailer and
-substitutes a fake delivery layer to capture composed messages, or (b) verifies
+The suite has no SMTP server, so most tests (a) enable the mailer and
+substitute a fake delivery layer to capture composed messages, or (b) verify
 the graceful-degradation path (email unconfigured -> publish sends nothing and
-never blocks). SMTP settings are mutated on the shared ``app.config.settings``
-object and restored in ``finally``.
+never blocks). The live-delivery suite goes further and proves the real
+transport: it runs the daemon-thread background path against the SQLite pool,
+and delivers over a genuine ``smtplib`` dialog to an in-process loopback SMTP
+server. SMTP settings are mutated on the shared ``app.config.settings`` object
+and restored in ``finally``.
 """
+import socket
+import socketserver
+import threading
+import time
 from unittest import mock
 
 from app.tests.test_runner import suite, test
@@ -241,3 +248,128 @@ def _email_degradation(s):
 
     return [t_noop_when_disabled, t_empty_when_disabled, t_publish_triggers,
             t_publish_never_blocked]
+
+
+class _SmtpHandler(socketserver.StreamRequestHandler):
+    """Speaks just enough SMTP for smtplib's EHLO/MAIL/RCPT/DATA/QUIT dialog,
+    appending each delivered message body to ``self.server.messages``."""
+
+    def handle(self):
+        self.wfile.write(b"220 localhost ESMTP\r\n")
+        while True:
+            line = self.rfile.readline()
+            if not line:
+                break
+            cmd = line.strip().upper()
+            if cmd.startswith(b"EHLO"):
+                self.wfile.write(b"250-localhost\r\n250 OK\r\n")
+            elif cmd.startswith(b"MAIL") or cmd.startswith(b"RCPT"):
+                self.wfile.write(b"250 OK\r\n")
+            elif cmd.startswith(b"DATA"):
+                self.wfile.write(b"354 End data with <CR><LF>.<CR><LF>\r\n")
+                body = b""
+                while True:
+                    chunk = self.rfile.readline()
+                    if chunk == b".\r\n":
+                        break
+                    body += chunk
+                self.server.messages.append(body)
+                self.wfile.write(b"250 OK\r\n")
+            elif cmd.startswith(b"QUIT"):
+                self.wfile.write(b"221 Bye\r\n")
+                break
+            else:
+                self.wfile.write(b"250 OK\r\n")
+
+
+class _SmtpServer(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+    def __init__(self):
+        super().__init__(("127.0.0.1", 0), _SmtpHandler)
+        self.messages = []
+
+
+@suite("Email Notifications on Publish — live delivery")
+def _email_live_delivery(s):
+    @test("dispatch runs the real background thread and delivers")
+    def t_background_thread(client):
+        from app.tests.test_runner import seed_minimal, login_token, auth_headers
+        ids = seed_minimal()
+        headers = auth_headers(login_token(client))
+        instance_id = _generate_one(client, headers, ids["profile"])
+        _set_incharge_email(ids["group"], "incharge@x.com")
+        _set_notification_emails(["hod@x.com"])
+
+        prev = _enable_email()
+        try:
+            sent = []
+            tracked = []
+
+            class _TrackingThread(threading.Thread):
+                def start(self):
+                    tracked.append(self)
+                    super().start()
+
+            # Keep the _deliver patch live until the worker thread finishes,
+            # or the background send would hit the real smtplib path.
+            with mock.patch("threading.Thread", new=_TrackingThread):
+                with mock.patch.object(mail_service, "_deliver",
+                                       side_effect=sent.append):
+                    mail_service.dispatch_publish_notifications(instance_id)
+                    assert len(tracked) == 1, "dispatch must spawn exactly one thread"
+                    assert tracked[0].daemon, "the notification thread must be a daemon"
+                    tracked[0].join(timeout=10)
+
+            assert not tracked[0].is_alive(), "the notification thread must finish"
+            assert {m["To"] for m in sent} == {
+                "alice@x.com", "hod@x.com", "incharge@x.com"
+            }, sent
+        finally:
+            _restore_email(prev)
+
+    @test("the real smtplib path delivers over the wire to an in-process server")
+    def t_wire_path(client):
+        from app.tests.test_runner import seed_minimal, login_token, auth_headers, TestingSessionLocal
+        from app.models.generation import TimetableInstance
+        ids = seed_minimal()
+        headers = auth_headers(login_token(client))
+        instance_id = _generate_one(client, headers, ids["profile"])
+        _set_incharge_email(ids["group"], "incharge@x.com")
+        _set_notification_emails(["hod@x.com"])
+
+        server = _SmtpServer()
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        prev = _enable_email()
+        settings.SMTP_HOST = "127.0.0.1"
+        settings.SMTP_PORT = server.server_address[1]
+        try:
+            db = TestingSessionLocal()
+            try:
+                instance = db.get(TimetableInstance, instance_id)
+                # No _deliver patch: the real smtplib dialog runs against the
+                # loopback server, proving EHLO/MAIL/RCPT/DATA actually work.
+                messages = mail_service.send_publish_notifications(instance, db)
+            finally:
+                db.close()
+            assert len(messages) == 3, "all three recipients are attempted"
+            assert len(server.messages) == 3, server.messages
+            tos = set()
+            for body in server.messages:
+                assert b"From: timetable@example.com" in body
+                assert b"application/pdf" in body, body[:200]
+                for line in body.split(b"\r\n"):
+                    if line.lower().startswith(b"to:"):
+                        tos.add(line.decode())
+            assert any("alice@x.com" in t for t in tos)
+            assert any("hod@x.com" in t for t in tos)
+            assert any("incharge@x.com" in t for t in tos)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+            _restore_email(prev)
+
+    return [t_background_thread, t_wire_path]

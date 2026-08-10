@@ -1155,8 +1155,11 @@ the same posture as the Redis client (§7.9):
 - **Never breaks the publish.** The router wraps the dispatch call in try/except, the dispatch
   itself only starts the thread, and `_deliver`/`send_publish_notifications` swallow and log per-
   recipient failures. A mail outage, a bad address, or a fully unconfigured SMTP all leave the
-  publish response untouched. The SQLite suite forces `EMAIL_ENABLED=false` in `conftest.py` and
-  tests composition against a mocked delivery layer (`app/tests/test_email_notifications.py`).
+  publish response untouched. The SQLite suite forces `EMAIL_ENABLED=false` in `conftest.py`;
+  composition is tested against a mocked delivery layer, and the transport itself is proven by
+  the live-delivery tests — a real daemon-thread background run and a genuine `smtplib` dialog
+  over an in-process loopback SMTP server (`app/tests/test_email_notifications.py`). Only a
+  real external SMTP server (STARTTLS certs, auth, the network) is left for live verification.
 
 Trigger points: only `POST /instances/{id}/publish`. There is no `/notifications` admin endpoint,
 no per-recipient opt-out, and no retry queue yet (a failed send is logged and dropped).
