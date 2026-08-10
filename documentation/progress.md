@@ -2,8 +2,8 @@
 
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
-**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, objective-based instance variation (best / minimize gaps), opt-in async generation (Celery/Redis); a frontend is planned.
-**Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, PostgreSQL database via Docker, and will soon integrate a frontend interface for college admins.
+**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, objective-based instance variation (best / minimize gaps), opt-in async generation (Celery/Redis), a Next.js admin frontend (Auth + Dashboard + Resource CRUD), and full-stack Dockerization.
+**Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, PostgreSQL database via Docker, and a Next.js frontend interface for college admins.
 
 ---
 
@@ -113,16 +113,17 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 ### 🟢 Full Stack Frontend Development (Next.js / React)
 *This is now a core part of this project, not an external consumer.*
-- [ ] **Frontend Initialization**: Setup Next.js app within the full-stack deployment pipeline.
-- [ ] **Auth & Dashboard**: Login page, JWT handling, stats view, quick actions.
-- [ ] **Resource Management Pages**: Tables with search/filter, CSV uploads, CRUD modals.
+- [x] **Frontend Initialization**: Setup Next.js app within the full-stack deployment pipeline. — `frontend/` (Next.js 14 App Router + TypeScript + Tailwind), `src/lib/api.ts` fetch client (JWT Bearer + `X-Total-Count`), `AuthProvider`, `ProtectedShell` guard (DD-017).
+- [x] **Auth & Dashboard**: Login page (`/auth/login` → JWT in localStorage), protected routes, stats view (resource counts), quick actions.
+- [x] **Resource Management Pages**: CRUD tables with server pagination + filters for Rooms, Faculty, Groups, Subjects (driven by the shared `ResourceTable`; adds `PUT /groups/{id}` for full CRUD parity).
+- [ ] **CSV upload modals** (part of Resource Management).
 - [ ] **Master Assignment Grid**: UI to map teachers → subjects → divisions.
 - [ ] **Profile & Constraint Builder**: Visual form for profiles and dynamic constraints.
 - [ ] **Generation Viewer**: Side-by-side instance comparison grid, progress bar for async runs.
 - [ ] **Instance Editor**: Click-to-edit slots with live conflict re-checking.
 
 ### 🔵 Deployment & Final Polish
-- [ ] **Full Stack Dockerization**: `Dockerfile` + top-level `docker-compose.yml` (App, Frontend, PostgreSQL, Redis). *(Today `docker/docker-compose.yml` runs only Postgres.)*
+- [x] **Full Stack Dockerization**: top-level `docker-compose.yml` (App, Frontend, PostgreSQL, Redis) + backend `Dockerfile` (uv, migrates on boot) + `frontend/Dockerfile` (standalone Next). `docker/docker-compose.yml` remains the backend-only dev infra (DD-018). *(`docker compose up` four-service bring-up pending on a free host port 3000 — see DD-018 follow-up.)*
 - [ ] **README & Docs**: Setup guide, architecture diagram link, API examples.
 - [ ] **Historical Data Import**: Upload past semesters' timetables for pattern reference.
 - [ ] **ML Preference Learning (Phase 2)**: Learn from manual overrides to suggest constraints automatically.

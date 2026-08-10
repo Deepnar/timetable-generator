@@ -193,6 +193,51 @@ next session is pointed at them. See `AGENTS.md` → "Design decisions".
 
 ---
 
+## Frontend & full-stack Dockerization (2026-08-10)
+
+### DD-017 — Frontend is a Next.js 14 App Router + TypeScript + Tailwind app in `frontend/`
+- **Status:** Decided / Tested (built, live-verified against the running API in the dockerized stack).
+- **Context:** the roadmap's Phase 4 (plan.md) calls for a full frontend for college admins.
+- **Decision:** `frontend/` is a hand-rolled Next.js 14 App Router app (TypeScript, Tailwind, `npm`),
+  client-side pages that fetch the versioned `/api/v1` endpoints directly. First slice = Auth
+  (login + JWT in localStorage), Dashboard (resource counts + recent generation runs + quick
+  actions), and Resource tables (rooms/faculty/groups/subjects with server pagination, filters,
+  create/edit/delete modals). Shared `ResourceTable` config drives the four CRUD pages.
+- **Rejected alternatives:** `create-next-app` scaffolding (interactive, noisier for a monorepo);
+  SSR-heavy data fetching (every route is behind JWT auth, so client-side keeps the token handling
+  in one place); a SPA framework like Vite+React (App Router gives the routing/middleware for free).
+
+### DD-018 — One top-level `docker-compose.yml` runs the whole stack; `docker/docker-compose.yml` stays backend-only dev infra
+- **Status:** Decided / Live-verification pending (both images build; the app service was
+  live-verified against Postgres+Redis; the full four-service bring-up was blocked only by a host
+  port conflict on :3000, not by the compose file).
+- **Context:** the roadmap wanted a one-command full-stack bring-up; only `docker/docker-compose.yml`
+  (Postgres + Redis) existed.
+- **Decision:** a top-level `docker-compose.yml` builds the backend (`Dockerfile`, uv official image,
+  entrypoint runs `alembic upgrade head` then uvicorn) and the frontend (`frontend/Dockerfile`,
+  multi-stage Next standalone) and runs App + Frontend + PostgreSQL + Redis with healthchecks.
+  `docker/docker-compose.yml` remains the lighter backend-only dev infra. No separate dev/prod
+  compose split yet — the top-level compose is both the demo and the deployment artifact; a prod
+  split (TLS, non-root images, nginx) is deferred to the README/deploy session.
+- **Rejected alternatives:** extending `docker/docker-compose.yml` into the full stack (that file is
+  meant to be the lightweight dev infra and is used by backend devs who run uvicorn on the host); a
+  separate `docker-compose.dev.yml` / `docker-compose.prod.yml` (no need yet — one file covers it).
+
+### DD-019 — The frontend calls the backend directly via `NEXT_PUBLIC_API_URL`, no Next rewrite proxy
+- **Status:** Decided / Live-verified (browser-facing login → versioned list/create ran against the
+  dockerized backend; CORS allow-list already covers `http://localhost:3000`).
+- **Context:** the frontend must reach the API; the API is already CORS-enabled for
+  `http://localhost:3000` and versioned under `/api/v1`.
+- **Decision:** the API client (`frontend/src/lib/api.ts`) builds full URLs from
+  `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`) and talks to `/api/v1/*` directly (plus
+  the root `/auth/login`). The Next image bakes the URL at build time via a build arg. No `next.config`
+  rewrites/proxy layer. Auth stays simple: the browser holds the JWT and sends it as a Bearer header.
+- **Rejected alternatives:** Next rewrites proxying `/api/*` → backend — adds a server-side hop,
+  complicates the versioned + root-auth path mix, and is unnecessary when CORS already permits the
+  frontend origin.
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -206,6 +251,10 @@ Address these in the next session; resolved ones move up into the log with their
 4. **Verification debt** — the async/Celery and Redis paths are tested with
    fakes/`task_always_eager`. A live Redis and a live Postgres smoke test
    (`python run_tests.py`) has not been run recently. Decide a cadence for the live smoke test.
+5. **DD-018 follow-up** — the four-service compose bring-up could not bind host port 3000 on the
+   dev machine (occupied by another container); the frontend image itself was verified on an
+   alternate port. Next session: run the full `docker compose up` on a free 3000 and confirm
+   login → dashboard in a browser, then mark DD-018 Live-verified.
 
 ---
 

@@ -176,6 +176,8 @@ Splitting per resource (rather than a single five-way tuple) is what makes
 | Observability    | Structured request logging, global audit middleware             |
 | Tests            | Hand-rolled in-process runner over FastAPI `TestClient` + SQLite |
 | Packaging        | [`uv`](https://github.com/astral-sh/uv) (`pyproject.toml`)       |
+| Frontend         | Next.js 14 (App Router) + TypeScript + Tailwind (`frontend/`)     |
+| Containerization | Multi-stage Dockerfiles + top-level `docker-compose.yml`          |
 
 ---
 
@@ -183,7 +185,8 @@ Splitting per resource (rather than a single five-way tuple) is what makes
 
 - Python **3.11+**
 - [`uv`](https://github.com/astral-sh/uv) (dependency manager)
-- Docker + Docker Compose (for PostgreSQL)
+- Node **18.17+** and npm (only for the `frontend/` admin UI)
+- Docker + Docker Compose (for PostgreSQL / full-stack)
 
 > `passlib` is intentionally **not** used — passlib 1.7.4 is incompatible
 > with modern bcrypt (≥ 4.1) and silently raises on every hash/verify. This
@@ -233,6 +236,40 @@ curl -X POST http://localhost:8000/auth/login \
 
 Use the returned bearer token on the **Authorize** button in `/docs` or in
 the `Authorization: Bearer …` header on subsequent requests.
+
+### Frontend (optional admin UI)
+
+A Next.js admin UI lives in `frontend/` (login, dashboard, and CRUD tables
+for rooms/faculty/groups/subjects). It calls the API directly at
+`NEXT_PUBLIC_API_URL` (default `http://localhost:8000` — see
+`frontend/.env.example`; the backend CORS allow-list covers
+`http://localhost:3000`).
+
+```bash
+# 1. Configure the API base URL (optional; defaults to localhost:8000)
+cp frontend/.env.example frontend/.env.local
+
+# 2. Install and run against the running backend
+cd frontend
+npm install
+npm run dev            # → http://localhost:3000  (log in with a registered admin)
+```
+
+### Full-stack Docker (App + Frontend + PostgreSQL + Redis)
+
+One command brings up the whole application:
+
+```bash
+docker compose up --build
+```
+
+- Frontend (Next.js) → <http://localhost:3000>
+- API (FastAPI) → <http://localhost:8000/docs>
+- Migrations run automatically on app boot (fresh DB → migrated schema).
+
+Register an admin at `POST /auth/register`, then log in at the frontend.
+`docker/docker-compose.yml` remains the lighter backend-only dev infra
+(Postgres + Redis) for developers who run uvicorn on the host.
 
 ---
 
@@ -351,8 +388,15 @@ app/
 │
 └── tests/                       # conftest.py + hand-rolled @suite/@test runner
 
+frontend/                        # Next.js 14 admin UI (Auth + Dashboard + Resource CRUD)
+└── src/
+    ├── app/                     # App Router pages (login, dashboard, rooms, faculty, groups, subjects)
+    ├── components/              # Navbar, ProtectedShell, DataTable, Modal, ResourceTable
+    └── lib/                     # api.ts (fetch client), auth.tsx (JWT context), types.ts
+
 alembic/versions/                # single linear chain
-docker/                          # docker-compose.yml (Postgres 15)
+docker/                          # docker-compose.yml (Postgres 15) + entrypoint.sh
+docker-compose.yml               # full stack: App + Frontend + PostgreSQL + Redis
 documentation/                   # architecture blueprint, plan, progress, contributor guide
 rough_plan.md                    # local-only brainstorming notes — gitignored, never tracked
 ```
@@ -422,12 +466,15 @@ Drawn from `documentation/timetable-generator-architecture.md` §9:
 1. **Async generation + WebSocket** for `POST /generate` (biggest UX blocker).
 2. **Wire the remaining `profile_parameters` to the engine** — many keys
    are stored but not read.
-3. **Fold soft scoring into the CP-SAT objective** (currently a post-hoc
-   ranker).
-4. **Objective-based instance variation** — replace seed-only diversity
-   with "best / minimise teacher gaps / minimise student gaps / random".
-5. **Frontend** (Next.js SPA) against this API.
-6. **Notification service** — email + push on publish.
+3. ~~**Fold soft scoring into the CP-SAT objective**~~ — ✅ done
+   (`app/engine/soft_objective.py`).
+4. ~~**Objective-based instance variation**~~ — ✅ done (`variation` field on
+   `POST /generate`).
+5. ~~**Frontend (first slice)**~~ — ✅ `frontend/` Next.js app: Auth, Dashboard,
+   Resource CRUD. Remaining UI (generation viewer, assignment grid, profile
+   builder, slot override) is tracked in `documentation/plan.md` Phase 4.
+6. ~~**Notification service**~~ — ✅ email on publish (§7.7); WebSocket/SSE
+   push remains open.
 7. **RBAC** — HOD / Teacher / Student user classes.
 8. **Genetic solver** — only if CP-SAT still leaves real departments
    unsolved.

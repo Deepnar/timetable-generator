@@ -500,6 +500,11 @@ timetable-api/
 ├── main.py                          # FastAPI app, middleware, audit, /health
 ├── config.py                        # pydantic-settings (DB_*, SECRET_KEY, ALGORITHM)
 ├── database.py                      # SQLAlchemy engine + SessionLocal + Base
+├── Dockerfile                       # uv-based backend image (alembic upgrade head → uvicorn)
+├── docker-compose.yml               # full stack: App + Frontend + PostgreSQL + Redis (DD-018)
+├── docker/
+│   ├── docker-compose.yml           # backend-only dev infra (Postgres + Redis on host ports)
+│   └── entrypoint.sh                # container entrypoint: migrations then uvicorn
 ├── models/                          # SQLAlchemy 2.0 mapped-column models (one file per entity)
 │   ├── admin.py
 │   ├── audit.py
@@ -523,8 +528,8 @@ timetable-api/
 │   ├── export.py                    # /export/instances/{id}/{pdf,csv,ical}
 │   ├── faculty.py                   # /faculty CRUD
 │   ├── faculty_availibility.py      # /faculty_availability CRUD  (filename typo, prefix is correct)
-│   ├── generate.py                  # POST /generate, GET /generate/{id}/status
-│   ├── groups.py                    # /groups CRUD
+│   ├── generate.py                  # GET /generate (list runs), POST /generate, GET /generate/{id}/status
+│   ├── groups.py                    # /groups CRUD (incl. PUT /groups/{id})
 │   ├── history.py                   # /history CRUD
 │   ├── import_csv.py                # POST /import/{rooms,faculty,groups,subjects}
 │   ├── instances.py                 # /instances/{generation_id}, /{instance_id}/{slots,select,publish}
@@ -557,12 +562,39 @@ timetable-api/
 └── utils/
     ├── auth.py                      # bcrypt (direct), JWT, get_current_admin
     └── pagination.py                # Pagination dataclass + paginate()
+frontend/                            # Next.js 14 admin UI (DD-017, DD-019)
+├── package.json / tsconfig.json / next.config.mjs
+├── tailwind.config.ts / postcss.config.mjs
+├── .env.example                     # NEXT_PUBLIC_API_URL (backend base URL)
+├── Dockerfile                       # multi-stage standalone image (bakes NEXT_PUBLIC_API_URL)
+├── public/                          # static assets (favicon)
+└── src/
+    ├── app/                         # App Router pages (all client components)
+    │   ├── layout.tsx               # root layout + AuthProvider
+    │   ├── page.tsx                 # / → redirect to /dashboard
+    │   ├── login/page.tsx           # /login → POST /auth/login, store JWT
+    │   ├── dashboard/page.tsx       # /dashboard — counts + recent runs + quick actions
+    │   ├── rooms/page.tsx           # /rooms — ResourceTable config
+    │   ├── faculty/page.tsx         # /faculty — ResourceTable config
+    │   ├── groups/page.tsx          # /groups — ResourceTable config
+    │   └── subjects/page.tsx        # /subjects — ResourceTable config
+    ├── components/
+    │   ├── Navbar.tsx               # top nav + sign-out
+    │   ├── ProtectedShell.tsx       # client auth guard + app shell
+    │   ├── DataTable.tsx            # generic paginated table (X-Total-Count)
+    │   ├── Modal.tsx                # generic modal
+    │   └── ResourceTable.tsx        # config-driven CRUD table (list + filters + modals)
+    └── lib/
+        ├── api.ts                   # fetch client: Bearer JWT, X-Total-Count, /api/v1 base
+        ├── auth.tsx                 # AuthProvider + useAuth (localStorage JWT)
+        └── types.ts                 # response types mirroring the Pydantic schemas
 ```
 
 The `engine/` tree intentionally does **not** have a `conflict_detector.py` or
 `genetic_solver.py` — cross-timetable conflicts live in `Scheduler._load_published_conflicts()`
 + `ConstraintChecker._check_published_conflicts()`, and only two solvers exist
-(greedy + OR-Tools). See §5 for the wiring.
+(greedy + OR-Tools). See §5 for the wiring. The frontend talks to the API directly
+(`NEXT_PUBLIC_API_URL`, DD-019) and the browser holds the JWT in localStorage.
 
 ### 4.2 Core Endpoints
 
@@ -594,8 +626,8 @@ DELETE /subjects/{id}                  Soft delete (is_active=false)
 GET    /groups                         List student groups (filter: year, department, group_type)
 GET    /groups/{id}                    Get one group
 POST   /groups                         Create group
+PUT    /groups/{id}                    Update group (full CRUD parity with rooms/faculty/subjects)
 DELETE /groups/{id}                    Soft delete (is_active=false)
-                                        # NOTE: no PUT /groups/{id} currently — add if needed.
 
 GET    /blackouts                      List room blackouts (paginated)
 GET    /blackouts/{id}                 Get one blackout
@@ -736,7 +768,15 @@ GET    /generate/{run_id}/status       Poll a run (PENDING/RUNNING/COMPLETED/FAI
                                         # or /generate/{run_id}/instances/{inst_id} endpoint;
                                         # instance listing lives at /instances/{generation_id}
                                         # and slot detail at /instances/{instance_id}/slots.
+GET    /generate                       List generation runs, newest first (skip/limit +
+                                        # X-Total-Count pagination, same contract as every
+                                        # other top-level list). Powers the frontend
+                                        # dashboard's "recent generation runs" panel.
 ```
+
+The optional admin UI (`frontend/`, §4.1) consumes this API at `/api/v1/*` through
+`frontend/src/lib/api.ts` (JWT Bearer from `/auth/login`, `X-Total-Count` for pagination).
+The browser calls the backend directly at `NEXT_PUBLIC_API_URL` — no proxy rewrite (DD-019).
 
 #### Instance Actions
 
@@ -1340,10 +1380,12 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **Health** — `GET /health` with Postgres reachability check.
 - **CSV import** — `/import/{rooms|faculty|groups|subjects}` and `/import/assignments` (dry-run + commit). All-or-nothing: any invalid row rejects the whole file (422, `inserted=0`).
 - **Reset** — `POST /reset/` (FULL_YEAR archives published + clears profiles; PROFILE_SPECIFIC clears only; SEMESTER no-op) plus `GET /reset/log`; `timetable_reset_log` row written for every reset.
-- **Pagination utility** — `app/utils/pagination.py` exposes `Pagination`, `pagination`, `paginate`; every top-level list endpoint (`rooms`, `faculty`, `groups`, `subjects`, `assignments`, `audit`, `profiles`, `constraints/hard`, `constraints/soft`, `history`, `blackouts`, `faculty_availability`) paginates with `?skip=`/`?limit=` and an `X-Total-Count` header (§4.2).
+- **Pagination utility** — `app/utils/pagination.py` exposes `Pagination`, `pagination`, `paginate`; every top-level list endpoint (`rooms`, `faculty`, `groups`, `subjects`, `assignments`, `audit`, `profiles`, `constraints/hard`, `constraints/soft`, `history`, `blackouts`, `faculty_availability`, `generate`) paginates with `?skip=`/`?limit=` and an `X-Total-Count` header (§4.2).
 - **Redis integration** — optional client (`app/services/redis_client.py`) with graceful degradation: generation-conflict locking (`409` on a busy run), response caching for rooms/subjects/profiles/settings (busted on write), and IP rate limiting on `/auth/login` + `/auth/register` (`429`). Gated by `REDIS_ENABLED` (§7.9).
 - **Email notifications on publish** — opt-in SMTP mailer (`app/services/mail_service.py`): on `POST /instances/{id}/publish`, faculty get their personal PDF, HOD/admins (`config_json["notification_emails"]`) the full-instance summary, and class incharges (`student_groups.incharge_email`, migration `f5a1b3c8e6d2`) their group's PDF. Delivery is a non-blocking daemon thread; unconfigured SMTP (`EMAIL_ENABLED=false` or empty `SMTP_HOST`/`SMTP_FROM`) is a strict no-op and mail failures never fail the publish (§7.7, §8.9).
 - **API versioning + JSON error envelope** — the whole API is mounted at `/api/v1/` via one aggregator router (unversioned paths stay live); global handlers guarantee the `{"detail": ...}` envelope with `request_id` on 422/500 (§7.10).
+- **Frontend** — `frontend/` is a Next.js 14 App Router + TypeScript + Tailwind admin UI (DD-017): login (JWT in localStorage), dashboard (resource counts from `X-Total-Count` + recent runs from `GET /generate` + quick actions), and CRUD tables for rooms/faculty/groups/subjects driven by a shared `ResourceTable`. The browser calls `/api/v1/*` directly at `NEXT_PUBLIC_API_URL` (DD-019). Dockerized via `frontend/Dockerfile` (standalone Next image).
+- **Full-stack Dockerization** — top-level `docker-compose.yml` runs App + Frontend + PostgreSQL + Redis in one command (DD-018); backend `Dockerfile` uses the official uv image and runs `alembic upgrade head` before uvicorn. `docker/docker-compose.yml` stays the backend-only dev infra.
 
 ### 🟡 Partial — *working, but with documented gaps*
 
@@ -1360,7 +1402,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **RBAC** — single-role `Admin` model; HOD/Teacher/Student users don't exist. (HOD *mail* recipients are configured via `config_json["notification_emails"]`, §7.7 — but there is no HOD login/role.)
 - **History restore** — read-only.
 - **Genetic solver** — `AlgorithmType` has only `GREEDY` and `OR_TOOLS`.
-- **Frontend** — backend only.
+- **Frontend depth** — the shipped UI covers Auth + Dashboard + Resource CRUD; the generation/instance viewer, assignment grid, profile/constraint builder, and slot override UI are still to come (plan.md Phase 4 remaining).
 
 ### Recommended Order for Remaining Work
 
@@ -1368,7 +1410,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 2. **Wire `profile_parameters` to the engine** — most of §8 is in the table but not in the solver.
 3. ~~**Fold soft scoring into the CP-SAT objective**~~ — ✅ done (`soft_objective.py`; `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`).
 4. ~~**Object-based instance variation**~~ — ✅ done (`variation` field on `POST /generate`; `random` / `best` / `minimize-teacher-gaps` / `minimize-student-gaps`, §5.3).
-5. **Frontend** — Next.js SPA using the API documented in §4.2.
+5. ~~**Frontend (first slice)**~~ — ✅ done (Auth + Dashboard + Resource CRUD, §4.1). Remaining UI: generation/instance viewer, assignment grid, profile/constraint builder, slot override (plan.md Phase 4).
 6. ~~**Notification service**~~ — ✅ done (email on publish, §7.7; WebSocket / SSE push remains open).
 7. **RBAC** — once a teacher/student app needs read scoping.
 8. **Genetic solver** — only if CP-SAT still leaves real departments unsolved.

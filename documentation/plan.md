@@ -69,15 +69,18 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 ## Phase 4: Full Stack Integration & Frontend Development
 *Goal: Provide a complete user experience within this single application.*
 
-- [ ] **Frontend Setup**
+- [x] **Frontend Setup**
   - Initialize Next.js/React frontend inside this project (or as a tightly coupled sibling).
   - Set up API client, authentication context, and routing.
-- [ ] **Auth & Dashboard**
+  - **Shipped (first slice):** `frontend/` — Next.js 14 App Router + TypeScript + Tailwind; `src/lib/api.ts` fetch client (JWT Bearer, `X-Total-Count`), `AuthProvider`, `ProtectedShell` route guard (DD-017, DD-019).
+- [x] **Auth & Dashboard**
   - Login page, JWT storage, protected routes.
   - Dashboard showing recent generation runs, system stats, and quick actions.
+  - **Shipped:** `/login` (posts to `/auth/login`, stores JWT), `/dashboard` (resource counts from `X-Total-Count`, recent runs from the new `GET /generate`, quick-action cards).
 - [ ] **Resource Management Pages**
   - Tables with search/filter, CSV upload modals, and CRUD forms for Rooms, Faculty, Groups, Subjects.
-  - **Master Assignment Grid**: UI to assign teachers to subjects and divisions (Phase 1's critical missing piece).
+  - **Shipped (part):** CRUD tables with server pagination + filters for Rooms, Faculty, Groups, Subjects (incl. new `PUT /groups/{id}`). **Remaining:** CSV upload modals, Master Assignment Grid.
+- [ ] **Master Assignment Grid**: UI to assign teachers to subjects and divisions (Phase 1's critical missing piece).
 - [ ] **Generation & Instance Viewer**
   - Trigger generation form with progress bar.
   - Side-by-side timetable grid viewer to compare instances.
@@ -102,8 +105,9 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 ## Phase 6: Deployment & Final Polish
 *Goal: Ship a stable, self-contained full-stack application.*
 
-- [ ] **Full Stack Dockerization**
+- [x] **Full Stack Dockerization**
   - Create a top-level `docker-compose.yml` that spins up the entire application: **FastAPI Backend**, **Next.js Frontend**, **PostgreSQL Database**, and **Redis** in one command. (The current `docker/docker-compose.yml` only runs Postgres.)
+  - **Shipped:** top-level `docker-compose.yml` + backend `Dockerfile` (uv image, migrates on boot) + `frontend/Dockerfile` (standalone Next image); live-verified API+Postgres+Redis in containers (DD-018, DD-019).
 - [ ] **README & Documentation**
   - Update `README.md` with setup instructions, architecture diagram link, and API examples.
   - Final code cleanup, type hinting pass, and docstrings.
