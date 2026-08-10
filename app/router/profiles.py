@@ -15,8 +15,11 @@ from ..schemas.profiles import (ProfileCreate, ProfileResponse,
                                    ProfileCombinationResolveResponse)
 from ..utils.auth import get_current_admin
 from ..engine.profile_resolver import ProfileResolver
+from ..services import redis_client
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
+
+_PROFILES_CACHE_PREFIX = "timetable:cache:profiles"
 
 # ── Profile CRUD ──────────────────────────────────────────
 
@@ -28,6 +31,13 @@ def get_profiles(
     is_archived: bool = False,
     db: Session = Depends(get_db)
 ):
+    cache_key = (
+        f"{_PROFILES_CACHE_PREFIX}:{academic_year}:{scope_type}:{department}:"
+        f"{is_archived}"
+    )
+    cached = redis_client.cache_serve_list(cache_key, None)
+    if cached is not None:
+        return cached
     query = select(TimetableProfile).where(
         TimetableProfile.is_active == True,
         TimetableProfile.is_archived == is_archived
@@ -38,7 +48,8 @@ def get_profiles(
         query = query.where(TimetableProfile.scope_type == scope_type)
     if department:
         query = query.where(TimetableProfile.department == department)
-    return db.scalars(query).all()
+    rows = db.scalars(query).all()
+    return redis_client.cacheable_list(cache_key, ProfileResponse, rows, None)
 
 # ── Profile Combination List & Resolve ─────────────────────
 # These live BEFORE /profiles/{id} so the literal "combinations" segment is
@@ -169,6 +180,7 @@ def create_profile(
     db.add(new_profile)
     db.commit()
     db.refresh(new_profile)
+    redis_client.cache_delete_prefix(_PROFILES_CACHE_PREFIX)
     return new_profile
 
 @router.put("/{id}", response_model=ProfileResponse)
@@ -188,6 +200,7 @@ def update_profile(
         setattr(profile, key, value)
     db.commit()
     db.refresh(profile)
+    redis_client.cache_delete_prefix(_PROFILES_CACHE_PREFIX)
     return profile
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -205,6 +218,7 @@ def archive_profile(
     profile.is_archived = True
     profile.is_active = False
     db.commit()
+    redis_client.cache_delete_prefix(_PROFILES_CACHE_PREFIX)
     return
 
 # ── Profile Resources ─────────────────────────────────────
