@@ -6,131 +6,132 @@ history preserves older handoffs.
 
 ## Session summary (committed & pushed)
 
-State at handoff: **125/125 tests passing** (`uv run python -m app.tests`), tree clean.
+State at handoff: **132/132 tests passing** (`uv run python -m app.tests`), tree clean.
 
-This session shipped **Redis Integration** (the top-ranked NEXT TASK from the previous
-handoff). All three open usages from progress.md are now implemented through one optional
-client, `app/services/redis_client.py`, which degrades gracefully when Redis is disabled or
-unreachable (no caching / no rate limiting / unlocked generation — never a 500):
+This session shipped **Email Notifications on Publish** (the top-ranked NEXT TASK from the
+previous handoff). The feature is an **opt-in SMTP mailer** in `app/services/mail_service.py`
+that fires after `POST /instances/{id}/publish` and degrades to a strict no-op when SMTP is
+unconfigured — the same graceful-degradation posture as the Redis client:
 
-1. **Generation-conflict locking** (commit `41fd7c2`) — `Scheduler.solve_generation()`
-   acquires `timetable:lock:generate:<sorted resource ids>` (the union of the resolved
-   profile/combination's room/faculty/group/subject ids) before solving. Two concurrent
-   runs over the same resources previously each computed their own empty published-
-   reservation set and could double-book. A busy lock marks the run `FAILED` with
-   `error_log` and the sync router returns **409** (`GenerationLockError` in
-   `app/engine/scheduler.py`); Redis down/disabled degrades to running unlocked. Lock TTL
-   600s, `release_lock` is a Lua compare-and-delete.
-2. **Response caching** (commit `b1681a0`) — `GET /rooms/`, `/subjects/`, `/profiles/`,
-   `/settings/` cache their serialized JSON under `timetable:cache:<collection>:<query
-   params>` for 60s; paginated hits restore the `X-Total-Count` header. Every matching
-   write busts the whole collection prefix.
-3. **Auth rate limiting** (commit `474dfcf`) — `/auth/login` (5/min) and `/auth/register`
-   (3/min) run a fixed-window counter per client IP → **429** when over. Inert without
-   Redis.
+1. **Config** (commit `cfb3320`) — `app/config.py` gained `EMAIL_ENABLED` (default `true`),
+   `SMTP_HOST` (default empty), `SMTP_PORT` (587), `SMTP_USER`/`SMTP_PASSWORD` (optional login),
+   `SMTP_FROM` (default empty). `is_email_enabled()` requires `EMAIL_ENABLED` **and** `SMTP_HOST`
+   **and** `SMTP_FROM`, so an unset `.env` is the default "mail off" state.
+2. **The mailer** (commit `cfb3320`) — on publish, three audiences, each getting one message
+   with a PDF attachment reusing the export layer (`generate_timetable_pdf`, no new rendering):
+   - *Faculty* — every faculty with a slot in the instance gets their **personal schedule PDF**;
+   - *HOD / admins* — addresses in `CollegeSettings.config_json["notification_emails"]` get the
+     **full-instance summary PDF** (the schema has no HOD table; the singleton's free-form
+     `config_json` is the designated contact-list store);
+   - *Class incharges* — every group with a non-null `student_groups.incharge_email` gets its
+     **group's schedule PDF** (column added by migration `f5a1b3c8e6d2`, nullable).
+   Delivery is stdlib `smtplib` (`STARTTLS` on 587, optional login), plain-text + HTML bodies.
+3. **Wiring** (commit `570b43f`) — `publish_instance` calls `dispatch_publish_notifications(id)`
+   after the commit, which spawns a daemon thread (never blocks the response) and is additionally
+   guarded in the router, so a mailer error can never fail a successful publish. `send_publish_
+   notifications` swallows per-recipient delivery failures and continues.
+4. **Tests** (commit `81c9042`) — **7 new (125 → 132)** in `app/tests/test_email_notifications.py`
+   (registered in `__main__.py`). `conftest.py` forces `EMAIL_ENABLED=false` so the suite never
+   touches a network. Tests enable the mailer, patch `mail_service._deliver` (or
+   `dispatch_publish_notifications`) and restore the shared `settings` object in `finally`.
+   Coverage: faculty→personal PDF / HOD→summary / incharge→group PDF (recipients, subjects,
+   `%PDF` attachments); no-slot recipients skipped; a raising delivery is logged not raised;
+   unconfigured SMTP never spawns a thread and returns `[]`; publish triggers the dispatch; a
+   raising dispatch still returns a 200 publish.
+5. **Docs** (commit `77a7664`) — architecture §4.2 (publish endpoint note), §7.7 rewritten from
+   "NOT implemented", new §8.9 notification config, §9 shipped/roadmap; `plan.md` Phase 5 and
+   `progress.md` checkboxes.
 
-**Config** — `app/config.py` gained `REDIS_URL` (default `redis://localhost:6379/0`) and
-`REDIS_ENABLED` (default `True`). The handoff's original suggestion to key everything off
-`ASYNC_GENERATION=false` was deliberately **not** followed: rate limiting and caching are
-useful regardless of async generation, so they get their own flag.
-
-**Tests** — **11 new (114 → 125)** in `app/tests/test_redis_integration.py` (registered in
-`app/tests/__main__.py`). The suite has no Redis: `REDIS_ENABLED` is forced off in
-`conftest.py`, and tests substitute a dict-backed `_FakeRedis` by monkeypatching
-`redis_client._get_client`. Coverage: lock acquire/release round-trips; a busy lock marks
-the run FAILED + `GenerationLockError`; HTTP 409 on a locked `POST /generate`; a downed
-Redis degrades to an unlocked solve (COMPLETED); room/settings cache serve + write-busting
-(stale list served after a direct DB insert, fresh after a router write); the fixed-window
-rate limiter (unit + 429 over HTTP).
-
-**Commits (in order):** `50d492f` (redis client + config), `41fd7c2` (lock engine + 409),
-`b1681a0` (caching), `474dfcf` (rate limiting), `f11511b` (tests), `d3d7f06` (docs).
+**Commits (in order):** `a7c6789` (incharge_email model/schema/migration), `cfb3320` (config +
+mailer), `570b43f` (router wiring), `81c9042` (tests), `77a7664` (docs).
 
 ## Context to read before starting
 
 - `AGENTS.md` (repo root) — environment, tests, commit rules.
-- `app/services/redis_client.py` — the optional client: `acquire_lock`/`release_lock`
-  (tri-state: `Lock` / `False` busy / `None` unavailable), `cache_get/set(_json)`,
-  `cache_delete_prefix`, `cacheable_list`/`cache_serve_list`, `check_rate_limit`.
-- `app/engine/scheduler.py` — `solve_generation` lock wiring, `_acquire_resource_lock`,
-  `GenerationLockError`.
-- `app/router/generate.py` (409), `app/router/auth.py` (`_rate_limit` dependency),
-  `app/router/rooms.py` / `subjects.py` / `profiles.py` / `settings.py` (cache pattern:
-  `_<COLLECTION>_CACHE_PREFIX`, `cache_serve_list` on hit, `cacheable_list` on miss, bust
-  on every write).
-- `app/tests/test_redis_integration.py` — the `_FakeRedis` + `_fake_redis()`/
-  `_restore_get_client()` helpers, plus `conftest.py`'s `REDIS_ENABLED=False`.
-- Architecture doc **§7.9 (Redis-backed Infrastructure)** and the endpoint notes in §4.2.
+- `app/services/mail_service.py` — the mailer: `is_email_enabled`, `dispatch_publish_notifications`
+  (thread spawner), `send_publish_notifications` (synchronous, testable), `_build_messages`,
+  `_deliver` (the only place that touches `smtplib`).
+- `app/router/instances.py::publish_instance` — the guarded dispatch call after the commit.
+- `app/services/redis_client.py` — the degradation pattern `mail_service` mirrors.
+- `app/tests/test_email_notifications.py` — `_enable_email`/`_restore_email` helpers (mutate the
+  shared `app.config.settings`, restore in `finally`), `_generate_one`, and how the mailer is
+  mocked. `conftest.py` forces `EMAIL_ENABLED=False`.
+- Architecture doc **§7.7 (Email Notifications on Publish)** and **§8.9 (Notification config)**.
 
-## NEXT TASK — Redis Integration is DONE. Next up: **Email Notifications on Publish**
+## NEXT TASK — Email Notifications is DONE. Next up: **API Polish**
 
 The remaining roadmap items in priority order (details in `documentation/progress.md`):
 
-1. **Email Notifications on Publish** — SMTP + mail to faculty (personal PDF), HOD
-   (summary), class incharges on `POST /instances/{id}/publish`. The export layer already
-   produces per-faculty PDFs (`/export/instances/{id}/pdf?faculty_id=`), so the PDF
-   attachment path exists; the mailer is the new piece.
-2. **API Polish** — pagination completeness, global error middleware, request
-   logging/audit, API versioning (`/api/v1/`). (Global auth gate + observability
-   middleware are done.)
-3. **Frontend (Next.js/React) + full-stack Dockerization** — the planned UI
+1. **API Polish** — pagination completeness (only `assignments`, `audit`, `faculty`, `groups`,
+   `rooms`, `subjects` list endpoints paginate today; `profiles`, `constraints`, `history`,
+   `room_blackout`, `faculty_availibility` do not), global error middleware (the observability
+   middleware in `app/main.py` already 500-wraps and logs; JSON error shape is inconsistent
+   across routers), request logging/audit (done), API versioning (`/api/v1/` — not started).
+2. **Frontend (Next.js/React) + full-stack Dockerization** — the planned UI
    (`documentation/plan.md` Phase 4 + progress.md 🟢) plus a top-level compose running
    App + Frontend + PostgreSQL + Redis.
-4. **Final polish** — README/setup guide, historical data import, ML preference learning
+3. **Final polish** — README/setup guide, historical data import, ML preference learning
    (Phase 2, from manual overrides).
 
 ## Remaining known items (see `documentation/progress.md`)
 
-- **Email Notifications on Publish** — SMTP, faculty/HOD/incharge mail on publish.
-- **API Polish** — pagination, global error middleware, request logging/audit, `/api/v1/`.
+- **API Polish** — pagination completeness, global error middleware, request logging/audit
+  (done), `/api/v1/` versioning.
 - **Frontend + full-stack Dockerization** — Next.js app + top-level compose.
 - **README & Docs, Historical Data Import, ML Preference Learning**.
-- **`TimetableType` still lacks a `CUSTOM` label** — roadmap levers 3/4 added `CUSTOM` to
-  `RoomType`/`SessionType` (the types the solver branches on); `timetable_generations.timetable_type`
-  is still `CLASS | FACULTY | ROOM | EVENT | EXAM | IP` (native enum). Add `CUSTOM` the same
-  way as `d7a3c5e9f1b2` if a caller needs a free-form timetable kind.
+- **Notification service extras** (beyond the shipped email path, §7.7): no `/notifications`
+  admin endpoint, no per-recipient opt-out, no retry queue (a failed send is logged and dropped),
+  no WebSocket/SSE push. `TimetableType.CUSTOM` is already in the code (commit `b9492be`) — the
+  older handoff's note about it being missing is stale.
 
-## MINI-PLAN for the next session (Email Notifications on Publish)
+## MINI-PLAN for the next session (API Polish)
 
 Follow exactly; commit per concern (engine / API / tests / docs separate).
 
-1. **Scope it.** Read `app/router/instances.py` (`publish_instance`), the export service
-   (`app/services/export_service.py` — per-faculty PDF + CSV/iCal), and the models for
-   faculty email/HOD/class-incharget contact fields. Decide the mail flow: what goes to whom,
-   when (trigger on publish), and how attachments are produced. Recommendation: a
-   `MailService` (`app/services/mail_service.py`) that sends on publish — faculty get their
-   personal PDF, HOD/class incharge a summary — and is **inert when SMTP is unconfigured**
-   (like the Redis client's graceful degradation; the test suite has no SMTP server).
-2. **Config.** Add `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM` (and a
-   master `EMAIL_ENABLED`) to `app/config.py`; empty/unset → mailer is a no-op. Consider a
-   `mail_enabled` flag on `CollegeSettings` too.
-3. **Build the mailer.** Compose HTML/summary bodies + attach the per-faculty PDF
-   (reuse `get_filtered_slots`/PDF rendering). Do NOT block the publish request on SMTP —
-   send best-effort in a background thread or the Celery worker, and log failures.
-4. **Wire into publish.** `POST /instances/{id}/publish` triggers the notifications after
-   the instance is published. Never break the publish on mail failure.
-5. **Tests.** New `app/tests/test_email_notifications.py` (register in `__main__.py`).
-   Mock the mailer / SMTP client so the suite needs no network; assert the right
-   recipients get the right payloads (faculty → personal PDF, HOD → summary) and that an
-   unconfigured SMTP degrades to no-op without erroring the publish. Run `uv run python -m
-   app.tests` — must stay 125/125 + new.
-6. **Docs.** Architecture §4.2 (publish endpoint note), a new §7.x (notifications), §8
-   config flags, and `plan.md`/`progress.md` checkboxes in the same change.
-7. **Commit & push**, then overwrite this HANDOFF with the new session summary + a fresh
-   mini-plan for the *next* item.
+1. **Scope it.** Audit which list endpoints still lack pagination (compare `rg -l "pagination"
+   app/router` against every router exposing a list GET — known gaps above). Read
+   `app/utils/pagination.py` (`Pagination` / `pagination` / `paginate`, `X-Total-Count` header)
+   and the routers that already use it (`app/router/rooms.py`, `audit.py`) as the template.
+   Decide the JSON error shape: a consistent `{"detail": ...}` envelope (FastAPI default) vs a
+   richer `{"error": {...}}` — pick one and enforce it in a global exception handler in
+   `app/main.py` (the current 500 path already returns `{"detail": "Internal server error",
+   "request_id": ...}`).
+2. **Versioning.** Decide `/api/v1/` prefix strategy: either a top-level `APIRouter(prefix="/api/v1")`
+   aggregator mounted in `app/main.py`, or a per-router prefix change. Prefer the aggregator so
+   existing router files stay untouched and the current `/docs` routes keep working. Consider a
+   `v2` path param instead of hardcoding if that's simpler to test. Keep `/health` and `/auth/*`
+   where they are (exempt paths in the auth middleware).
+3. **Tests.** Extend the suite: every newly-paginated list endpoint gets a `page`/`limit` +
+   `X-Total-Count` assertion (there is already a pagination test in
+   `app/tests/test_settings_and_assignments.py` — "list endpoints paginate and report
+   X-Total-Count"); a global-error-shape test (an unhandled route returns the chosen envelope);
+   a versioned-path smoke test (`GET /api/v1/...`). New test modules must be imported in
+   `app/tests/__main__.py`. Run `uv run python -m app.tests` — must stay 132/132 + new.
+4. **Docs.** Architecture §4 (endpoint listing — add the version prefix / error-envelope note),
+   §7 (a new subsection if error middleware or versioning is non-trivial), and
+   `plan.md`/`progress.md` checkboxes in the same change.
+5. **Commit & push**, then overwrite this HANDOFF with the new session summary + a fresh
+   mini-plan for the *next* item (Frontend + Dockerization).
 
 ## Gotchas
 
 - Postgres runs on host port **5433** (`.env` sets `DB_PORT=5433`); Redis maps `6379`.
-  Alembic head: `d7a3c5e9f1b2`. 22 tables.
+  Alembic head: **`f5a1b3c8e6d2`** (adds nullable `student_groups.incharge_email`). 22 tables.
 - Tests: `uv run python -m app.tests` (not pytest). Add any router touched by tests to the
   patch loop in `app/tests/conftest.py`. New test modules must be imported in
-  `app/tests/__main__.py` to register their suites. **No Redis/Celery/SMTP in tests** —
-  stub or fake anything network-dependent.
-- **Redis in tests is inert by default**: `conftest.py` sets `REDIS_ENABLED=False`. A test
-  that needs a live client assigns a fake via `redis_client._get_client` (see
-  `test_redis_integration.py`) and MUST restore it in `finally`, or later tests see stale
-  module state.
+  `app/tests/__main__.py` to register their suites. **No Redis/Celery/SMTP in tests** — stub or
+  fake anything network-dependent.
+- **Redis and email are inert in tests by default**: `conftest.py` sets `REDIS_ENABLED=False` and
+  `EMAIL_ENABLED=False`. A test that needs either enables it and MUST restore the shared
+  `app.config.settings` attributes (and any module attribute, e.g. `redis_client._get_client`)
+  in `finally`, or later tests see stale state.
+- **The mailer's only network touch is `mail_service._deliver`** — every other function composes
+  messages offline. Composition tests patch `_deliver` (or `dispatch_publish_notifications`);
+  do not let a test enable SMTP without mocking delivery, or the suite will attempt a real send
+  if `.env` ever sets `SMTP_HOST`.
+- **The publish endpoint never fails on mail**: the router guards `dispatch_publish_notifications`
+  in try/except, and the dispatch itself only starts a daemon thread. Keep it that way — a mail
+  outage must never roll back or 500 a successful publish.
 - **The lock is resource-keyed, not run-keyed**: two generations with disjoint resource
   sets run concurrently; overlapping sets are serialised. A busy lock marks the *second*
   run FAILED (409 sync / FAILED row async) — it does not queue.
@@ -155,8 +156,8 @@ Follow exactly; commit per concern (engine / API / tests / docs separate).
   `celery.current_app.conf.task_always_eager = True`. The generation lock applies in both
   modes because it lives in `solve_generation`.
 - **The auth gate is global**: tests that call a non-exempt route must pass
-  `auth_headers(login_token(client))`. Only `/health` and `/auth/*` are exempt. The new
-  auth rate limits are inert in tests (Redis off) but still apply via `request.client.host`
+  `auth_headers(login_token(client))`. Only `/health` and `/auth/*` are exempt. The auth
+  rate limits are inert in tests (Redis off) but still apply via `request.client.host`
   when a fake client is installed — restore it after the test.
 - **Variation semantics:** instance #1 is the deterministic baseline (seed `None`) unless
   `variation="best"`; gap criteria only reshape *seeded* re-rolls; keep `PLACEMENT_WEIGHT`
