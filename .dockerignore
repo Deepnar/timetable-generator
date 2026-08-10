@@ -1,0 +1,17 @@
+# Backend build context — keep the image lean.
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.env
+.env.*
+!.env.example
+frontend/
+node_modules/
+docker/docker-compose.yml
+documentation/
+rough_plan.md
+test_data/
+*.db
+*.sqlite3

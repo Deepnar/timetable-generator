@@ -1,0 +1,9 @@
+# Frontend build context — keep the image lean.
+node_modules/
+.next/
+out/
+build/
+.env
+.env.local
+.env.*.local
+.git/
