@@ -16,12 +16,13 @@ from app.tests.test_runner import suite, test
 from app.engine.constraint_checker import SlotCandidate
 
 
-def _seed_exam_subjects(n_subjects, *, term_start="2025-01-06"):
+def _seed_exam_subjects(n_subjects, *, term_start="2025-01-06", scope_exam=False):
     """One group, one teacher, one room, ``n_subjects`` exams, exam profile.
 
-    The profile carries ``session_type=EXAM`` and (optionally) ``term_start``;
-    each subject has a 1-hour assignment so exam mode produces one exam per
-    subject. Returns ids including the subject list.
+    The profile carries ``session_type=EXAM`` (or ``scope_type=EXAM`` when
+    ``scope_exam=True``, which the engine treats as an implicit exam mode) and
+    (optionally) ``term_start``; each subject has a 1-hour assignment so exam
+    mode produces one exam per subject. Returns ids including the subject list.
     """
     from app.tests.test_runner import (reset_db, ensure_settings, create_admin,
                                        TestingSessionLocal)
@@ -59,9 +60,11 @@ def _seed_exam_subjects(n_subjects, *, term_start="2025-01-06"):
             db.add(s); db.flush()
             subjects.append(s)
 
-        prof = TimetableProfile(name="Exam profile", scope_type=ScopeType.DIVISION,
-                                academic_year="2025-26", semester=3,
-                                department="CS", created_by=admin.id)
+        prof = TimetableProfile(
+            name="Exam profile",
+            scope_type=ScopeType.EXAM if scope_exam else ScopeType.DIVISION,
+            academic_year="2025-26", semester=3,
+            department="CS", created_by=admin.id)
         db.add(prof); db.flush()
 
         db.add(ProfileResource(profile_id=prof.id, resource_type=ResourceType.ROOM,
@@ -83,8 +86,9 @@ def _seed_exam_subjects(n_subjects, *, term_start="2025-01-06"):
         db.add(ProfileParameter(profile_id=prof.id, param_key="working_days",
                                 param_value='["MON","TUE","WED","THU","FRI"]',
                                 param_type=ParamType.JSON))
-        db.add(ProfileParameter(profile_id=prof.id, param_key="session_type",
-                                param_value="EXAM", param_type=ParamType.STRING))
+        if not scope_exam:
+            db.add(ProfileParameter(profile_id=prof.id, param_key="session_type",
+                                    param_value="EXAM", param_type=ParamType.STRING))
         if term_start:
             db.add(ProfileParameter(profile_id=prof.id, param_key="term_start",
                                     param_value=term_start,
@@ -187,6 +191,16 @@ def _phase2_exam_date_separation(s):
         assert len(slots) == 4, f"one exam per subject expected, got {len(slots)}"
         assert all(sl["session_type"] == "EXAM" for sl in slots), slots
         assert len({sl["subject_id"] for sl in slots}) == 4, slots
+
+    @test("scope_type=EXAM implies exam mode without the session_type param")
+    def t_exam_mode_by_scope(client):
+        from app.tests.test_runner import login_token, auth_headers
+        # scope_exam=True: no session_type param, the scope alone flips exam mode.
+        ids = _seed_exam_subjects(4, scope_exam=True)
+        headers = auth_headers(login_token(client))
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert len(slots) == 4, f"one exam per subject expected, got {len(slots)}"
+        assert all(sl["session_type"] == "EXAM" for sl in slots), slots
 
     @test("EXAM_DATE_SEPARATION spaces a group's exams by min_days (greedy)")
     def t_separation_greedy(client):
@@ -432,5 +446,6 @@ def _phase2_exam_date_separation(s):
             f"exam used branch B's teacher: {exam_faculty & b_faculty}"
         )
 
-    return [t_validator, t_scope, t_exam_mode_greedy, t_separation_greedy,
-            t_no_anchor, t_exam_mode_ortools, t_exempt_groups, t_mixed_branches]
+    return [t_validator, t_scope, t_exam_mode_greedy, t_exam_mode_by_scope,
+            t_separation_greedy, t_no_anchor, t_exam_mode_ortools,
+            t_exempt_groups, t_mixed_branches]

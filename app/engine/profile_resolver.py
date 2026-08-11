@@ -54,6 +54,10 @@ class ResolvedProfile:
     resources: dict
     hard_constraints: list
     soft_constraints: list
+    # The effective scope of the run: the highest-weight member's scope_type
+    # for a combination, or the single profile's for a plain run. Lets the
+    # engine branch on scope (e.g. scope_type == EXAM auto-enables exam mode).
+    scope_type: str | None = None
 
     def resource_ids(self, resource_type: ResourceType) -> list[int]:
         return self.resources.get(resource_type, [])
@@ -148,7 +152,19 @@ class ProfileResolver:
             resources=self._merge_resources(profile_ids),
             hard_constraints=self._merge_constraints(profile_ids, HardConstraint),
             soft_constraints=self._merge_constraints(profile_ids, SoftConstraint),
+            scope_type=self._merge_scope(profile_ids),
         )
+
+    def _merge_scope(self, profile_ids: list[int]) -> str | None:
+        """The effective scope: the highest-weight member's scope_type.
+
+        ``members`` was already sorted by (-weight, id), so the first profile
+        in the list is authoritative on scope collisions.
+        """
+        if not profile_ids:
+            return None
+        profile = self.db.get(TimetableProfile, profile_ids[0])
+        return getattr(profile.scope_type, "value", profile.scope_type) if profile else None
 
     def _merge_resources(self, profile_ids: list[int]) -> dict:
         resources: dict = {t: [] for t in ResourceType}

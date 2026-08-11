@@ -192,14 +192,18 @@ class GreedySolver:
     def _is_exam_mode(self) -> bool:
         """Whether this profile schedules EXAM sessions instead of classes.
 
-        A ``session_type`` parameter of ``"EXAM"`` switches the engine into
-        exam mode: every subject-assignment becomes exactly one exam session,
-        placed like any other slot but carrying ``SessionType.EXAM`` so
-        exam-specific rules (e.g. ``EXAM_DATE_SEPARATION``) can act on it. The
-        profile holds the groups taking exams, so one branch/year can run an
-        exam timetable while the others keep their published class timetable.
+        Either a ``session_type`` parameter of ``"EXAM"`` (the explicit form)
+        or a profile with ``scope_type == EXAM`` (the convenient form — an
+        admin picks the scope and exam mode is implied) switches the engine
+        into exam mode: every subject-assignment becomes exactly one exam
+        session, placed like any other slot but carrying ``SessionType.EXAM``
+        so exam-specific rules (e.g. ``EXAM_DATE_SEPARATION``) can act on it.
+        The profile holds the groups taking exams, so one branch/year can run
+        an exam timetable while the others keep their published class timetable.
         """
-        return self._get_param("session_type", None) == "EXAM"
+        if self._get_param("session_type", None) == "EXAM":
+            return True
+        return getattr(self.profile, "scope_type", None) == "EXAM"
 
     def _lab_block_lengths(self) -> dict[int, int]:
         """Map subject_id -> contiguous-block length from CONTIGUOUS_LAB_SLOTS.

@@ -1006,7 +1006,7 @@ In every non-`"best"` strategy, instance #1 stays the deterministic baseline; on
 
 ### 5.4 Exam scheduling (`EXAM_DATE_SEPARATION` + exam mode)
 
-Exams reuse the weekly-template engine rather than a dedicated table. A profile whose **`session_type` parameter is `"EXAM"`** runs in *exam mode*: `GreedySolver._build_sessions` expands each `subject_assignments` row into exactly **one** `SessionType.EXAM` session (not `weekly_hours` copies), placed like any other slot but exempt from the lab-room restriction. The generation is a separate run over the examing groups' profile — so one branch/year can sit exams while the others keep their published class timetable.
+Exams reuse the weekly-template engine rather than a dedicated table. A profile whose **`session_type` parameter is `"EXAM"`** — or whose **`scope_type` is `EXAM`** (the implied form; the resolver surfaces the effective scope to the solver) — runs in *exam mode*: `GreedySolver._build_sessions` expands each `subject_assignments` row into exactly **one** `SessionType.EXAM` session (not `weekly_hours` copies), placed like any other slot but exempt from the lab-room restriction. The generation is a separate run over the examing groups' profile — so one branch/year can sit exams while the others keep their published class timetable.
 
 Two pieces make that scenario work:
 
@@ -1406,7 +1406,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### 🟡 Partial — *working, but with documented gaps*
 
-- **Profile scope** — `ScopeType` enum has six values (DEPARTMENT/YEAR/DIVISION/EVENT/EXAM/CUSTOM) but only DEPARTMENT/YEAR/DIVISION have distinct solver branches; EVENT/EXAM/CUSTOM run through the same DEPARTMENT path.
+- **Profile scope** — `ScopeType` values: DEPARTMENT/YEAR/DIVISION share the class-timetable engine; **`EXAM` scope now implies exam mode** (`session_type` param no longer required, §5.4); **EVENT/CUSTOM are escape hatches** that run the same engine with custom data (e.g. an event profile whose "subjects" are the sessions to place in "rooms") rather than dedicated solver branches.
 - **Manual override** — re-validated by the constraint checker, but there is still no `DELETE /instances/{id}/slots/{slot_id}` and no `GET /instances/{id}/conflicts`.
 - **Export JSON** — there is no `/generate/export/json` route; consumers fetch slots via `GET /instances/{id}/slots` instead.
 - **Soft scoring in CP-SAT** — soft preferences are folded into the OR-Tools objective (`soft_objective.py`) and the greedy solver now also pursues them during placement (preference-aware scan); all six catalogued soft types have both a post-hoc scorer and a CP-SAT builder.
