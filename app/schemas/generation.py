@@ -73,11 +73,18 @@ class SlotResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class SlotOverride(BaseModel):
+class SlotOverrideDraft(BaseModel):
+    """Partial proposed slot state used by the revalidate endpoint.
+
+    Shares the mutable fields of ``SlotOverride`` but has no required reason,
+    because a revalidate is a dry-run of a move before it is committed.
+    """
     day_of_week: Optional[int] = None
     slot_number: Optional[int] = None
     start_time: Optional[time] = None
     end_time: Optional[time] = None
     room_id: Optional[int] = None
     faculty_id: Optional[int] = None
+
+class SlotOverride(SlotOverrideDraft):
     override_reason: str

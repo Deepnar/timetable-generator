@@ -1723,7 +1723,49 @@ def _phase5_override(s):
         assert kept["day_of_week"] == slots[-1]["day_of_week"], kept
         assert kept["is_manual_override"] is False
 
-    return [t_valid, t_conflict]
+    @test("a revalidate dry-run reports conflicts without saving")
+    def t_revalidate_conflict(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        headers = auth_headers(login_token(client))
+        inst_id, slots = _generate_slots(client, headers, ids["profile"])
+        target = slots[-1]
+        occupied = slots[1]
+        r = client.post(
+            f"/instances/{inst_id}/slots/{target['id']}/revalidate",
+            headers=headers,
+            json={"day_of_week": occupied["day_of_week"],
+                  "slot_number": occupied["slot_number"]},
+        )
+        assert r.status_code == 200, r.text
+        payload = r.json()
+        assert payload["slot_id"] == target["id"]
+        assert payload["violations"], payload
+        # The slot is untouched — no override reason, still the original spot.
+        r2 = client.get(f"/instances/{inst_id}/slots", headers=headers).json()
+        kept = next(sl for sl in r2 if sl["id"] == target["id"])
+        assert kept["day_of_week"] == slots[-1]["day_of_week"], kept
+        assert kept["is_manual_override"] is False
+
+    @test("a revalidate dry-run of a clean move reports no violations")
+    def t_revalidate_clean(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        headers = auth_headers(login_token(client))
+        inst_id, slots = _generate_slots(client, headers, ids["profile"])
+        target = slots[-1]
+        # Swap onto an unused (day, slot): only three slots exist in this
+        # instance, so (day3, sn1) is free and must revalidate clean.
+        r = client.post(
+            f"/instances/{inst_id}/slots/{target['id']}/revalidate",
+            headers=headers,
+            json={"day_of_week": 3, "slot_number": 1},
+        )
+        assert r.status_code == 200, r.text
+        payload = r.json()
+        assert payload["violations"] == [], payload
+
+    return [t_valid, t_conflict, t_revalidate_conflict, t_revalidate_clean]
 
 
 @suite("Phase 4 — Profile combination resolution")
