@@ -9,9 +9,10 @@ here). The OPEN items below are copied from it; resolve them and mark them done 
 
 ## Session summary (committed & pushed)
 
-State at handoff: **173/173 tests passing** (`uv run python -m app.tests`), frontend builds
-(`npm run build`), tree clean. This session completed **all six backend loose ends** (the user
-asked for "ALL of them" — RBAC included). Frontend stays on hold. Commits in order:
+State at handoff: **175/175 tests passing** (`uv run python -m app.tests`), frontend builds
+(`npm run build`), tree clean. This session completed **all six backend loose ends** (RBAC
+included) and then re-verified everything at scale with a new full-features-at-scale runner,
+which surfaced and fixed two more real bugs. Frontend stays on hold. Commits in order:
 
 1. **Make OR-Tools fail gracefully on an empty placement domain** (commit `784afe2`) — when every
    candidate is pruned, `PLACEMENT_WEIGHT * 0 == 0.0` (a bare float) crashed CP-SAT with
@@ -36,6 +37,19 @@ asked for "ALL of them" — RBAC included). Frontend stays on hold. Commits in o
 5. **Docs** (commit `123e614`) + **override_drive.py** (commit `4ebedbe`) — architecture/plan/
    progress updated for all of the above; `scripts/override_drive.py` verifies manual-override
    revalidation live (conflicting move → 409 with the violation, no-op → 200).
+6. **All six loose ends** (commits `ff0674e`→`f47f006`) — honest `hard_violations` (re-validated
+   with the full checker); OR-Tools relational models for `MAX_CONSECUTIVE_SAME_TEACHER`
+   (sliding-window CP-SAT) and confirmed `TEACHER_YEAR_RESTRICTION` was already statically
+   pruned; `scope_type=EXAM` implies exam mode; wired `solver_timeout_seconds` +
+   `diversity_threshold` params and added the `ALLOW_FREE_LAST_SLOT` data-driven rule; **RBAC**
+   (DD-021: role column, JWT role claim, `require_roles`, `/auth/me`, admin-only `/auth/users`).
+7. **Full-features-at-scale verification** (commits `dac418e`, `040ff87`, `05d92b4`) —
+   `scripts/full_stack_test.py` re-verifies every capability at whole-department scale (soft
+   pursuit, new rules, OR-Tools relational + fallback, honesty fields, RBAC, conflict audit,
+   real Celery async path). Surfaced and fixed two real bugs: **OR-Tools returned 0 slots** on a
+   big relational-rule profile when CP-SAT exceeded its budget before a first solution (now falls
+   back to greedy → 288/288 instead of empty), and **duplicate admin names returned 500** (now
+   409).
 
 The user explicitly asked for **no forced handoffs** — only commit/push when it makes sense for
 git/memory. This HANDOFF is written to preserve context; the next session should *continue the
