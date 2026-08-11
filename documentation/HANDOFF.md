@@ -9,10 +9,9 @@ here). The OPEN items below are copied from it; resolve them and mark them done 
 
 ## Session summary (committed & pushed)
 
-State at handoff: **164/164 tests passing** (`uv run python -m app.tests`), frontend builds
-(`npm run build`), tree clean. This session was **backend saleability hardening** (the user is
-planning to deploy/propose this to a real college; frontend work is on hold until the backend is
-proven). Commits in order:
+State at handoff: **173/173 tests passing** (`uv run python -m app.tests`), frontend builds
+(`npm run build`), tree clean. This session completed **all six backend loose ends** (the user
+asked for "ALL of them" — RBAC included). Frontend stays on hold. Commits in order:
 
 1. **Make OR-Tools fail gracefully on an empty placement domain** (commit `784afe2`) — when every
    candidate is pruned, `PLACEMENT_WEIGHT * 0 == 0.0` (a bare float) crashed CP-SAT with
@@ -76,32 +75,39 @@ same backend-hardening thread* rather than start fresh.
   (`_preference_scan`) so greedy pursues soft preferences during placement.
 - `app/engine/constraint_registry.py` — `MAX_DAILY_SUBJECTS` validator (`_max_daily_subjects`);
   `app/engine/solvers/or_tools_solver.py` models it + `EXAM_DATE_SEPARATION` relationally.
-- `app/engine/scheduler.py` — stamps `placement_warning` from the solver's `unplaced_count`;
+- `app/engine/scheduler.py` — stamps `placement_warning` from the solver's `unplaced_count`,
+  reads `diversity_threshold`, and computes honest `hard_violations` per instance;
   `app/models/generation.py` + `app/schemas/generation.py` carry the field.
+- `app/models/admin.py` + `app/utils/auth.py` + `app/router/auth.py` — RBAC (role enum, JWT role
+  claim, `require_roles`, `/auth/me`, `/auth/users`); migration `48c4fc85dd73`.
 - `scripts/override_drive.py` — live manual-override revalidation check.
 - Architecture doc **§4.1** (project tree incl. `scripts/`), **§4.2** (PDF export note, `GET /generate`,
-  `placement_warning`), **§9**.
+  `placement_warning`, `/auth/me`, `/auth/users`), **§5.4** (scope-driven exam mode), **§7.4**
+  (RBAC), **§8.2/8.3/8.6/8.7**, **§9**.
 
-## NEXT TASK — Continue backend saleability hardening (frontend stays on hold)
+## NEXT TASK — All six backend loose ends are done. Frontend (or more rules) next.
 
-The user is preparing to **deploy/propose this to a real college** and asked for **backend-only
-work, no frontend** until the backend is proven. This session hardened: robustness (OR-Tools empty
-domain), flexibility (all 6 soft constraints + greedy pursuit), the rules-change story
-(`MAX_DAILY_SUBJECTS` demonstrates adding a data-driven rule with zero schema changes), and
-visibility (`placement_warning`). Remaining backend gaps in rough priority:
+The user asked for **ALL** the backend loose ends. This session completed: OR-Tools empty-domain
+robustness; all six soft constraints (scorers + builders + greedy pursuit); `MAX_DAILY_SUBJECTS`
++ `ALLOW_FREE_LAST_SLOT` data-driven rules; OR-Tools relational models for
+`MAX_CONSECUTIVE_SAME_TEACHER` (and confirmed `TEACHER_YEAR_RESTRICTION` was already pruned
+statically); `scope_type=EXAM` implies exam mode; `solver_timeout_seconds` + `diversity_threshold`
+params wired; honest `hard_violations` + `placement_warning`; and **RBAC** (roles, JWT claim,
+`require_roles`, `/auth/me`, admin-only `/auth/users`).
 
-1. **More data-driven rules colleges actually ask for** — the registry makes adding one cheap and
-   it appears in `GET /constraints/types` automatically. Strong candidates: `MIN_FREE_SLOTS_PER_DAY`
-   (guarantee a minimum number of free slots per group), `MAX_CONSECUTIVE_SAME_GROUP` (cap a group's
-   back-to-back slots), `MAX_DAILY_HOURS` variants. Each needs a validator + catalog entry +
-   relational OR-Tools model (if committed-dependent) + test + docs.
-2. **`GET /instances/{id}/conflicts`** — the doc lists it as a gap; useful for a college to inspect
-   where an instance is tight.
-3. **`hard_violations` honesty** — it's declared but always 0 (the checker rejects invalid
-   placements, so committed slots genuinely have none). Either compute a real value or document that
-   it's structural-zero.
-4. **EVENT/EXAM/CUSTOM scope branches** — they reuse the DEPARTMENT path today.
-5. **RBAC** — deferred by the user (a later milestone; DD-001 follow-up depends on it).
+Genuinely remaining (in rough priority, none blocking a demo):
+1. **More data-driven rules** — `MIN_FREE_SLOTS_PER_WEEK` (guarantee free slots; best as a soft
+   scorer, not a hard rule), `MAX_CONSECUTIVE_SAME_GROUP`, `MAX_DAILY_HOURS`. The registry makes
+   each a small, self-contained add.
+2. **Teacher/student read-scoping** (DD-021 follow-up) — filter list endpoints by the caller's
+   identity. Best done with the frontend so the views each role needs are defined.
+3. **`GET /instances/{id}/conflicts`** — inspect where an instance is tight.
+4. **Notification extras** — `/notifications` endpoint, opt-out, retry queue.
+5. **`SEMESTER` reset is a no-op**; no `DELETE /instances/{id}/slots/...`.
+
+When the user is ready for the frontend: (a) restyle toward their reference UI (dark sidebar +
+accent vs editorial light — **ask which**), (b) the Generation & Instance Viewer. RBAC now gives
+the frontend a `/auth/me` role to branch on.
 
 When the user says the backend is done, the frontend tracks are: (a) restyle toward their reference
 UI (dark sidebar + accent vs editorial light — **ask which**), (b) the Generation & Instance Viewer.
@@ -114,8 +120,8 @@ UI (dark sidebar + accent vs editorial light — **ask which**), (b) the Generat
 - **README & Docs, Historical Data Import, ML Preference Learning**.
 - **Notification service extras** — no `/notifications` endpoint, no per-recipient opt-out,
   no retry queue, no WebSocket/SSE push.
-- **Minor engine gaps** (§9 Partial) — `ScopeType` EVENT/EXAM/CUSTOM reuse the DEPARTMENT solver
-  path; `SEMESTER` reset is accepted but a no-op; no `DELETE /instances/{id}/slots/...`,
+- **Minor engine gaps** (§9 Partial) — `SEMESTER` reset is accepted but a no-op; no
+  `DELETE /instances/{id}/slots/...`,
   no `GET /instances/{id}/conflicts`; WebSocket progress push for async runs.
 
 ## MINI-PLAN for the next session (frontend restyle + viewer)
@@ -147,7 +153,8 @@ Follow the repo's standing workflow (commit per concern; docs in sync; record AD
 ## Gotchas
 
 - Postgres runs on host port **5433** (`.env` sets `DB_PORT=5433`); Redis maps `6379`.
-  Alembic head: **`f5a1b3c8e6d2`** (adds nullable `student_groups.incharge_email`). 22 tables.
+  Alembic head: **`48c4fc85dd73`** (adds `admins.role` for RBAC; prior `1d8688977519` added
+  `placement_warning`). 22 tables.
 - **Design decisions are tracked in `documentation/design-decisions.md`, not in this file.**
   Every new choice (or "considered and rejected") gets a DD-NNN entry in the same commit; the
   HANDOFF must copy the OPEN items verbatim so they get resolved. Keep OPEN items few.
