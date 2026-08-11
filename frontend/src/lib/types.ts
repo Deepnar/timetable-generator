@@ -133,3 +133,43 @@ export interface SubjectAssignment {
   weekly_hours: number;
   load_share: number;
 }
+
+export interface ProfileResource {
+  id: number;
+  profile_id: number;
+  resource_type: string;
+  resource_id: number;
+}
+
+export interface ProfileParameter {
+  id: number;
+  profile_id: number;
+  param_key: string;
+  param_value: string;
+  param_type: string;
+  description: string | null;
+}
+
+export interface HardConstraint {
+  id: number;
+  profile_id: number | null;
+  constraint_type: string;
+  config_json: Record<string, unknown> | null;
+  description: string | null;
+  is_active: boolean;
+}
+
+export interface SoftConstraint {
+  id: number;
+  profile_id: number | null;
+  constraint_type: string;
+  config_json: Record<string, unknown> | null;
+  weight: number;
+  description: string | null;
+  is_active: boolean;
+}
+
+export interface ConstraintTypes {
+  hard: string[];
+  soft: string[];
+}

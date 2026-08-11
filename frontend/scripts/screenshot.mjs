@@ -31,6 +31,7 @@ const PAGES = [
   ["groups", "/groups"],
   ["subjects", "/subjects"],
   ["assignments", "/assignments"],
+  ["profiles", "/profiles"],
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -131,6 +132,17 @@ async function main() {
   }
   await send("Page.navigate", { url: `${FRONT}/exports` });
   await shot("exports");
+
+  // profiles — pick the first profile id via the API for the detail page
+  const profList = await fetch(`${API}/api/v1/profiles?limit=1`, {
+    headers: { Authorization: `Bearer ${await evalJs("localStorage.getItem('timetable_token')")}` },
+  }).then((r) => r.json()).catch(() => []);
+  if (Array.isArray(profList) && profList.length) {
+    await send("Page.navigate", { url: `${FRONT}/profiles/${profList[0].id}` });
+    await shot("profile-detail");
+  } else {
+    console.log("no profiles to capture");
+  }
 
   // rooms modal
   await send("Page.navigate", { url: `${FRONT}/rooms` });

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Play, RefreshCw, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
@@ -63,12 +63,23 @@ function RunCard({ id }: { id: number }) {
 }
 
 export default function GeneratePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading…</div>}>
+      <GenerateInner />
+    </Suspense>
+  );
+}
+
+function GenerateInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const qc = useQueryClient();
   const profiles = useProfiles({ limit: 200 });
   const generations = useGenerations({ limit: 20 });
 
-  const [profileId, setProfileId] = useState("");
+  // Preselect the profile when arriving from a profile detail page (?profile=N).
+  const prefillProfile = searchParams.get("profile");
+  const [profileId, setProfileId] = useState(prefillProfile ?? "");
   const [timetableType, setTimetableType] = useState("CLASS");
   const [algorithm, setAlgorithm] = useState("GREEDY");
   const [instances, setInstances] = useState(3);

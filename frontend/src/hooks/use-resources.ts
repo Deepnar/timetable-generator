@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueries, useQueryClient } from "@tanstack/rea
 import { apiGet, apiList, apiPost, apiPut, apiDelete, type ListParams } from "@/lib/api";
 import type {
   Room, Faculty, StudentGroup, Subject, Generation, Instance, Slot, Me, Profile,
-  SubjectAssignment,
+  SubjectAssignment, ProfileResource, ProfileParameter, HardConstraint, SoftConstraint,
+  ConstraintTypes,
 } from "@/lib/types";
 
 // Query keys
@@ -21,6 +22,12 @@ export const qk = {
   me: () => ["me"] as const,
   profiles: (p: ListParams) => ["profiles", p] as const,
   assignments: (p: ListParams) => ["assignments", p] as const,
+  profile: (id: number) => ["profile", id] as const,
+  profileResources: (id: number) => ["profile", id, "resources"] as const,
+  profileParameters: (id: number) => ["profile", id, "parameters"] as const,
+  hardConstraints: (p: ListParams) => ["constraints", "hard", p] as const,
+  softConstraints: (p: ListParams) => ["constraints", "soft", p] as const,
+  constraintTypes: () => ["constraint-types"] as const,
 };
 
 // Resources
@@ -83,6 +90,46 @@ export function useProfiles(params: ListParams) {
 // Subject assignments (who teaches what to which group)
 export function useAssignments(params: ListParams) {
   return useQuery({ queryKey: qk.assignments(params), queryFn: () => apiList<SubjectAssignment>("/api/v1/assignments", params) });
+}
+
+// Profile detail (single profile + its resources/parameters)
+export function useProfile(id: number | undefined) {
+  return useQuery({
+    queryKey: qk.profile(id ?? -1),
+    queryFn: () => apiGet<Profile>(`/api/v1/profiles/${id}`),
+    enabled: id != null,
+  });
+}
+export function useProfileResources(profileId: number | undefined) {
+  return useQuery({
+    queryKey: qk.profileResources(profileId ?? -1),
+    queryFn: () => apiGet<ProfileResource[]>(`/api/v1/profiles/${profileId}/resources`),
+    enabled: profileId != null,
+  });
+}
+export function useProfileParameters(profileId: number | undefined) {
+  return useQuery({
+    queryKey: qk.profileParameters(profileId ?? -1),
+    queryFn: () => apiGet<ProfileParameter[]>(`/api/v1/profiles/${profileId}/parameters`),
+    enabled: profileId != null,
+  });
+}
+
+// Constraints (scoped to a profile; omit the param for global rows)
+export function useHardConstraints(profileId: number | undefined) {
+  return useQuery({
+    queryKey: qk.hardConstraints({ profile_id: profileId }),
+    queryFn: () => apiList<HardConstraint>("/api/v1/constraints/hard", { profile_id: profileId, limit: 200 }),
+  });
+}
+export function useSoftConstraints(profileId: number | undefined) {
+  return useQuery({
+    queryKey: qk.softConstraints({ profile_id: profileId }),
+    queryFn: () => apiList<SoftConstraint>("/api/v1/constraints/soft", { profile_id: profileId, limit: 200 }),
+  });
+}
+export function useConstraintTypes() {
+  return useQuery({ queryKey: qk.constraintTypes(), queryFn: () => apiGet<ConstraintTypes>("/api/v1/constraints/types") });
 }
 
 // Mutations (CRUD)
