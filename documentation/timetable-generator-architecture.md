@@ -360,6 +360,7 @@ rule can be added without a schema migration.
 | `SUBJECT_TIME_PREFERENCE`         | `subject_id?`, `max_slot?`, `min_slot?`, `period?`, `boundary_slot?` | `_subject_time_preference`     |
 | `MAX_CONSECUTIVE_SAME_TEACHER`    | `max`, `faculty_id?`                                        | `_max_consecutive_same_teacher`    |
 | `MAX_DAILY_SUBJECTS`              | `max`, `group_id?`, `subject_id?`                           | `_max_daily_subjects` (also modelled relationally in OR-Tools) |
+| `ALLOW_FREE_LAST_SLOT`            | `slots_per_day`, `group_id?`, `day_of_week?`                | `_allow_free_last_slot` (per-candidate, pruned in OR-Tools) |
 | `TEACHER_YEAR_RESTRICTION`        | `faculty_id`, `allowed_years`                               | `_teacher_year_restriction`        |
 | `LAB_BATCH_ROTATION`              | `group_days: {"<group_id>": [day_of_week, ...]}`            | `_lab_batch_rotation` (inert unless the `enable_lab_batches` flag is on) |
 | `HOLIDAY_CALENDAR`                | `holidays: ["YYYY-MM-DD", ...]`                             | `_holiday_calendar`                |
@@ -668,8 +669,14 @@ PUT    /settings/                      Update one or more flags / config_json
 
 POST   /auth/register                  Create an admin (email + name unique); rate-limited to
                                         # 3 requests / 60s per IP → 429 (inert without Redis, §7.4)
+POST   /auth/users                     Admin-only (RBAC, DD-021): create a user with a specific
+                                        # role (hod/teacher/student); self-registration stays public
+                                        # and defaults to admin.
 POST   /auth/login                     Returns {"access_token", "token_type": "bearer"}; rate-limited
                                         # to 5 requests / 60s per IP → 429 (inert without Redis, §7.4)
+GET    /auth/me                        The authenticated caller's identity + role (for the frontend
+                                        # shell; RBAC role rides in the JWT and gates endpoints via
+                                        # require_roles).
 
 POST   /import/rooms                   Bulk import rooms via CSV (multipart file; optional `equipment_json` JSON column)
 POST   /import/faculty                 Bulk import faculty via CSV
@@ -1157,7 +1164,7 @@ There is **no `GET /instances/{id}/conflicts` endpoint** — once a candidate pa
 
 ### 7.4 Row-Level Access Control — *NOT implemented*
 
-**Authentication is global** (implemented): a middleware (`require_auth` in `app/main.py`) rejects every route without a valid admin JWT except `/health` and `/auth/*` (see §4.2). There is a single `Admin` model with no roles/permissions, no HOD/Teacher/Student user classes, and no per-resource filtering — any authenticated admin can read and mutate everything. The full RBAC matrix shown in earlier versions of this doc is **aspirational** — it is collected into the `profiles` table's `department` column only as a free-text label, not an enforced scope.
+**Authentication is global** (implemented): a middleware (`require_auth` in `app/main.py`) rejects every route without a valid admin JWT except `/health` and `/auth/*` (see §4.2). **Role-based access control** (DD-021): the `Admin` model carries a `role` (`admin`/`hod`/`teacher`/`student`, default `admin`), the JWT rides the role claim, `GET /auth/me` exposes it, and a `require_roles(...)` dependency 403s endpoints finer than the global gate. Admin-only `POST /auth/users` provisions non-admin roles. Teacher/student **read-scoping** (only your own schedule / your group's published timetable) is a documented follow-up once the frontend defines which views each role needs.
 
 ### 7.5 Audit Trail — *implemented*
 
@@ -1299,8 +1306,8 @@ These are not profile parameters in the key/value sense — they are constraints
 
 | Key                          | Wired? |
 |------------------------------|--------|
-| `max_daily_subjects`         | ❌ not read — group subjects per day are not capped |
-| `allow_free_last_slot`       | ❌ not enforced |
+| `max_daily_subjects`         | ✅ as the `MAX_DAILY_SUBJECTS` data-driven rule (config `max`) |
+| `allow_free_last_slot`       | ✅ as the `ALLOW_FREE_LAST_SLOT` data-driven rule (config `slots_per_day`) |
 | `min_free_slots_per_week`    | ❌ not enforced |
 | `SAME_SUBJECT_SAME_DAY` (constraint) | ✅ prevents a group from having the same subject twice on the same day |
 
@@ -1326,22 +1333,23 @@ Today's `ProfileScope` enum only has `DEPARTMENT | YEAR | DIVISION` (see §6.1).
 
 | Key                          | Wired? |
 |------------------------------|--------|
-| `solver_timeout_seconds`     | ❌ ignored — `ORToolsSolver.max_time_seconds = 5.0` is a class constant. The router does not pass a request-side override. |
-| `diversity_threshold`        | ❌ ignored — `_DIVERSITY_MIN_DISTANCE = 1` is a module constant in `scheduler.py`. |
+| `solver_timeout_seconds`     | ✅ read — a profile parameter that overrides `ORToolsSolver.max_time_seconds = 5.0`. |
+| `diversity_threshold`        | ✅ read — a profile parameter that overrides `_DIVERSITY_MIN_DISTANCE = 1` (how many placements must differ for two instances to count as distinct). |
 | `instances_to_generate`      | ✅ read from `POST /generate` request body (`instances_per_generation`), not from `profile_parameters`. |
 | `variation`                  | ✅ read from `POST /generate` request body (`variation`), not from `profile_parameters` (§5.3). |
 
 ### 8.7 Soft-Constraint Scoring
 
-Two soft scorers are implemented (`app/engine/scorer.py` — `SOFT_CONSTRAINT_REGISTRY`), and both also have CP-SAT objective builders (`app/engine/soft_objective.py` — `SOFT_OBJECTIVE_REGISTRY`):
+All six catalogued soft types have both a post-hoc scorer (`app/engine/scorer.py` — `SOFT_CONSTRAINT_REGISTRY`) and a CP-SAT objective builder (`app/engine/soft_objective.py` — `SOFT_OBJECTIVE_REGISTRY`), and the greedy solver pursues them during placement via a preference-aware scan:
 
 - `TEACHER_PREFERS_MORNING` — weights morning slots over afternoon slots; `config_json.boundary_slot` (default 4), optional `faculty_id`.
 - `MINIMIZE_STUDENT_FREE_SLOTS` — penalises gaps between a group's first and last scheduled slot in a day.
-- `MINIMIZE_TEACHER_FREE_SLOTS` — teacher-side mirror: penalises gaps between a teacher's first and last scheduled slot in a day.
+- `MINIMIZE_TEACHER_FREE_SLOTS` — teacher-side mirror.
+- `AVOID_CONSECUTIVE_SAME_SUBJECT` — penalises back-to-back same-subject sessions for a group (usually inert under the structural `SAME_SUBJECT_SAME_DAY` rule).
+- `DISTRIBUTE_SUBJECTS_EVENLY` — rewards spreading a subject's sessions across distinct weekdays.
+- `BALANCE_TEACHER_LOAD` — rewards an even spread of each teacher's load across days.
 
 The two gap rules double as the objective terms behind the `variation="minimize-teacher-gaps"` / `"minimize-student-gaps"` strategies (§5.3): a run with those variations folds the matching span term into the OR-Tools objective even when the profile defines no such soft rule.
-
-Other soft candidates from the registry (`AVOID_CONSECUTIVE_SAME_SUBJECT`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD`) are **catalogued** but their scorers/objective builders are not registered — enabling them in `constraint_rules` has no effect on `instance.soft_score`.
 
 ### 8.8 Calendar-date anchoring (`term_start`)
 
@@ -1403,6 +1411,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **Frontend** — `frontend/` is a Next.js 14 App Router + TypeScript + Tailwind admin UI (DD-017): login (JWT in localStorage), dashboard (resource counts from `X-Total-Count` + recent runs from `GET /generate` + quick actions), and CRUD tables for rooms/faculty/groups/subjects driven by a shared `ResourceTable`. The browser calls `/api/v1/*` directly at `NEXT_PUBLIC_API_URL` (DD-019). Dockerized via `frontend/Dockerfile` (standalone Next image).
 - **Full-stack Dockerization** — top-level `docker-compose.yml` runs App + Frontend + PostgreSQL + Redis in one command (DD-018); backend `Dockerfile` uses the official uv image and runs `alembic upgrade head` before uvicorn. `docker/docker-compose.yml` stays the backend-only dev infra.
 - **Scale battle test** — `scripts/seed_demo.py` + `scripts/battle_test.py` + `scripts/api_drive.py` + `scripts/async_drive.py` verify the engine against a 12-department TCET-style college (576 subjects / 345 faculty / 192 groups / 204 rooms / 1152 assignments). Greedy places all 288 sessions of a whole-department profile in ~4.3s (all 12 departments); OR-Tools places all 36 sessions of a per-semester profile; the real Celery worker + Redis async path, the generation lock, and cross-timetable safety were all exercised live. Surfaced and fixed two scale bugs (multi-group PDF `LayoutError`; missing `run_duration_ms` on `GenerationResponse`) — see DD-020.
+- **Backend saleability hardening** — the follow-up pass closed the remaining loose ends: all six soft constraint types ship scorers + CP-SAT builders and greedy pursues them during placement; OR-Tools models `MAX_CONSECUTIVE_SAME_TEACHER`, `MAX_DAILY_SUBJECTS`, and `EXAM_DATE_SEPARATION` relationally; `scope_type=EXAM` implies exam mode; `solver_timeout_seconds` / `diversity_threshold` profile params are read; `ALLOW_FREE_LAST_SLOT` and `MAX_DAILY_SUBJECTS` are new data-driven rules; `placement_warning` and honest `hard_violations` surface on runs/instances; and RBAC (roles + `require_roles` + `/auth/me` + `/auth/users`) landed.
 
 ### 🟡 Partial — *working, but with documented gaps*
 
@@ -1416,7 +1425,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 - **Async / Celery generation** — opt-in via `ASYNC_GENERATION=true`; `POST /generate` returns 202 PENDING and a worker runs `solve_generation()`, flipping the run to COMPLETED/FAILED with `error_log` (§7.1). *Remaining:* WebSocket progress push, Celery result inspection via the API.
 - **Profile shift** — front-end is on its own.
-- **RBAC** — single-role `Admin` model; HOD/Teacher/Student users don't exist. (HOD *mail* recipients are configured via `config_json["notification_emails"]`, §7.7 — but there is no HOD login/role.)
+- **RBAC read-scoping** — roles exist (DD-021: admin/hod/teacher/student, JWT role claim, `require_roles`, `/auth/me`, admin-only `/auth/users`), but teacher/student reads are not yet filtered to their own schedule/group. (HOD *mail* recipients are still configured via `config_json["notification_emails"]`, §7.7 — re-pointing the mailer at HOD-role accounts is a DD-001 follow-up.)
 - **History restore** — read-only.
 - **Genetic solver** — `AlgorithmType` has only `GREEDY` and `OR_TOOLS`.
 - **Frontend depth** — the shipped UI covers Auth + Dashboard + Resource CRUD; the generation/instance viewer, assignment grid, profile/constraint builder, and slot override UI are still to come (plan.md Phase 4 remaining).
@@ -1429,7 +1438,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 4. ~~**Object-based instance variation**~~ — ✅ done (`variation` field on `POST /generate`; `random` / `best` / `minimize-teacher-gaps` / `minimize-student-gaps`, §5.3).
 5. ~~**Frontend (first slice)**~~ — ✅ done (Auth + Dashboard + Resource CRUD, §4.1). Remaining UI: generation/instance viewer, assignment grid, profile/constraint builder, slot override (plan.md Phase 4).
 6. ~~**Notification service**~~ — ✅ done (email on publish, §7.7; WebSocket / SSE push remains open).
-7. **RBAC** — once a teacher/student app needs read scoping.
+7. ~~**RBAC**~~ — ✅ roles exist (DD-021); the remaining teacher/student read-scoping is listed under 🟡 Partial.
 8. **Genetic solver** — only if CP-SAT still leaves real departments unsolved.
 
 

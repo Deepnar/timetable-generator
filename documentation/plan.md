@@ -102,6 +102,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - `GET /health` endpoint for deployment monitoring.
   - API versioning — `/api/v1/` aggregator (unversioned paths kept live).
 - [x] **Global Auth Gate** — every route (except `/health` + `/auth/*`) requires a valid admin JWT via a single `require_auth` middleware in `app/main.py`, replacing the per-route "mutations only" posture. New routers/endpoints cannot accidentally be left public; OpenAPI docs are gated too. (Phase 1/5 auth hardening, see architecture §4.2.)
+- [x] **RBAC** — `Admin.role` (`admin`/`hod`/`teacher`/`student`), JWT role claim, `require_roles(...)` dependency, `GET /auth/me`, admin-only `POST /auth/users` (DD-021). Teacher/student read-scoping is a follow-up.
 
 ## Phase 6: Deployment & Final Polish
 *Goal: Ship a stable, self-contained full-stack application.*
