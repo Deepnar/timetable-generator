@@ -66,7 +66,9 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Cross-Timetable Contamination Fix**: Scheduler now fetches all `PUBLISHED` slots before running a new generation, preventing double-bookings across separate timetable runs.
 
 ### Generation Workflow & Instances
-- [x] **Generation Trigger**: `POST /generate` accepts profile/combination, runs solver synchronously (default) or asynchronously via Celery/Redis when `ASYNC_GENERATION=true` (returns 202 PENDING; see "Async Generation" below).
+- [x] **Generation Workflow & Instances**
+  - [x] **Generation Trigger**: `POST /generate` accepts profile/combination, runs solver synchronously (default) or asynchronously via Celery/Redis when `ASYNC_GENERATION=true` (returns 202 PENDING; see "Async Generation" below).
+  - [x] **Placement visibility**: a run that completes but cannot place every session stamps `placement_warning` (e.g. "N session(s) could not be placed") on the generation row and API response, so oversubscribed profiles are visible instead of silent COMPLETED.
 - [x] **Instance Management**: View generated instances, select a candidate, publish to live system.
 - [x] **Manual Slot Override**: Edit individual slots post-generation (`PATCH /instances/{id}/slots/{slot_id}`). ✅ Overrides are now re-validated by the full constraint checker before saving (a conflict returns 409 and leaves the slot untouched).
 

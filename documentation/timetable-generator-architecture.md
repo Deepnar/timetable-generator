@@ -770,6 +770,11 @@ POST   /generate                       Trigger a generation run (synchronous or 
     (§7.4): 409, and the run row is marked FAILED with error_log.
 
 GET    /generate/{run_id}/status       Poll a run (PENDING/RUNNING/COMPLETED/FAILED)
+                                        # A COMPLETED run that could not place every
+                                        # session carries placement_warning (e.g.
+                                        # "N session(s) could not be placed"), so
+                                        # oversubscribed profiles are visible, not
+                                        # silent COMPLETED.
                                         # NOTE: there is no GET /generate/{run_id}/instances
                                         # or /generate/{run_id}/instances/{inst_id} endpoint;
                                         # instance listing lives at /instances/{generation_id}
@@ -864,7 +869,7 @@ GET    /audit                          List most-recent-first audit entries
 `POST /generate` runs either **inline** (default, `ASYNC_GENERATION=false`) or through a **Celery worker** (`ASYNC_GENERATION=true`, §7.1). The run logic lives entirely in `Scheduler` (`app/engine/scheduler.py`), split into two entry points so the same code serves both modes:
 
 - `Scheduler.create_generation(...)` — resolves the input contract and persists the `PENDING` run row (raising 404 on a missing/inactive profile or combination up front).
-- `Scheduler.solve_generation(run_id)` — loads the run row, re-resolves the profile from it, solves, and flips the row to `COMPLETED` (or `FAILED` + `error_log`), stamping `run_duration_ms`. It is what the worker calls.
+- `Scheduler.solve_generation(run_id)` — loads the run row, re-resolves the profile from it, solves, and flips the row to `COMPLETED` (or `FAILED` + `error_log`), stamping `run_duration_ms`. It is what the worker calls. When a completed run dropped sessions (oversubscribed profile, no matching room), the solver's `unplaced_count` is written to `placement_warning` so the API surfaces it.
 - `Scheduler.run(...)` — `create_generation` + `solve_generation` in one call; the synchronous HTTP path.
 
 Step-by-step:
