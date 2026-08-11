@@ -1147,6 +1147,68 @@ def _phase3_ortools_robustness(s):
     return [t_ortools_empty_domain, t_no_warning, t_hard_violations]
 
 
+@suite("Phase 5 — Role-based access control (RBAC)")
+def _phase5_rbac(s):
+    def _login(client, email="admin@example.com", password="admin123"):
+        r = client.post("/auth/login", json={"email": email, "password": password})
+        assert r.status_code == 200, r.text
+        return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    @test("auth/me reports the caller's role")
+    def t_me(client):
+        from app.tests.test_runner import reset_db, create_admin
+        reset_db(); create_admin()
+        headers = _login(client)
+        r = client.get("/auth/me", headers=headers)
+        assert r.status_code == 200, r.text
+        assert r.json()["role"] == "admin", r.json()
+
+    @test("admin can create teacher and student users")
+    def t_create_users(client):
+        from app.tests.test_runner import reset_db, create_admin
+        reset_db(); create_admin()
+        headers = _login(client)
+        for role in ("teacher", "student", "hod"):
+            r = client.post("/auth/users", headers=headers, json={
+                "name": f"User {role}", "email": f"{role}@tcet.edu.in",
+                "password": "pass123", "role": role,
+            })
+            assert r.status_code == 201, (role, r.text)
+            assert r.json()["role"] == role, r.json()
+
+    @test("a teacher cannot create users (403)")
+    def t_teacher_forbidden(client):
+        from app.tests.test_runner import reset_db, create_admin
+        reset_db(); create_admin()
+        admin = _login(client)
+        r = client.post("/auth/users", headers=admin, json={
+            "name": "Teacher", "email": "teacher@tcet.edu.in",
+            "password": "pass123", "role": "teacher",
+        })
+        assert r.status_code == 201, r.text
+        teacher = _login(client, "teacher@tcet.edu.in", "pass123")
+        r = client.post("/auth/users", headers=teacher, json={
+            "name": "Nope", "email": "nope@tcet.edu.in",
+            "password": "x", "role": "admin",
+        })
+        assert r.status_code == 403, r.text
+
+    @test("a teacher still passes the global auth gate on reads")
+    def t_teacher_reads(client):
+        from app.tests.test_runner import reset_db, create_admin
+        reset_db(); create_admin()
+        admin = _login(client)
+        client.post("/auth/users", headers=admin, json={
+            "name": "Teacher", "email": "teacher@tcet.edu.in",
+            "password": "pass123", "role": "teacher",
+        })
+        teacher = _login(client, "teacher@tcet.edu.in", "pass123")
+        r = client.get("/rooms/", headers=teacher)
+        assert r.status_code == 200, r.text
+
+    return [t_me, t_create_users, t_teacher_forbidden, t_teacher_reads]
+
+
 @suite("Phase 3 — Instance diversity")
 def _phase3_diversity(s):
     @test("requesting several instances yields non-identical timetables")

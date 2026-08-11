@@ -270,6 +270,30 @@ next session is pointed at them. See `AGENTS.md` → "Design decisions".
 
 ---
 
+## RBAC (2026-08-11)
+
+### DD-021 — Role-based access control on the `Admin` model with role claims in the JWT
+- **Status:** Decided / Tested (four RBAC tests, 173 total).
+- **Context:** the product is single-role today — every `Admin` can do everything, and there is no
+  way to give a college HODs/teachers/students scoped logins. The user explicitly wants RBAC before
+  deployment.
+- **Decision:** add a `role` column to `admins` (migration `48c4fc85dd73`), values `admin` /
+  `hod` / `teacher` / `student`, defaulting to `admin` so existing rows and the public
+  self-registration path keep working. The JWT carries the role claim; `require_roles(...)` is a
+  dependency that 403s when the token's role isn't allowed (no DB hit). `GET /auth/me` exposes the
+  caller's identity + role for the frontend shell. Admin-only `POST /auth/users` provisions
+  non-admin roles. The global auth gate still requires a valid token; `require_roles` adds the
+  finer per-endpoint gates.
+- **Follow-up (open):** teacher/student **read-scoping** — a teacher should only see their own
+  schedule and a student only their group's published timetable. That means filtering every list
+  endpoint by the caller's identity, which is a larger surface best done with the frontend (which
+  will drive which views each role sees). The role infrastructure + `/auth/me` are the foundation.
+- **Rejected alternatives:** separate `hod`/`teacher`/`student` tables (overkill — the Admin table
+  already carries identity + auth; roles are a column, not entities); cookie sessions (JWT is the
+  existing mechanism and already rides the global middleware).
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -278,8 +302,9 @@ Address these in the next session; resolved ones move up into the log with their
    keep env-only? (Likely keep env-only until a college asks; but decide and record.)
 2. **DD-003 follow-up** — do publish notifications need a retry queue / per-recipient opt-out /
    an admin `/notifications` endpoint? (Currently: log-and-drop.)
-3. **DD-001 follow-up** — when RBAC lands, replace `config_json["notification_emails"]` with
-   real HOD entities.
+3. **DD-001 follow-up** — RBAC now exists (DD-021): the publish mailer can be re-pointed from
+   `config_json["notification_emails"]` to real HOD-role accounts. Worth doing when the
+   notifications endpoint lands.
 4. **DD-018 follow-up** — the four-service compose bring-up could not bind host port 3000 on the
    dev machine (occupied by another container); the frontend image itself was verified on an
    alternate port. Next session: run the full `docker compose up` on a free 3000 and confirm
@@ -287,6 +312,8 @@ Address these in the next session; resolved ones move up into the log with their
 5. **DD-020 follow-up** — the seeded dataset lives in the local Postgres; decide whether the seed
    script + battle-test runner should be wired into CI or kept as local dev tooling. Also decide a
    cadence for re-running the battle test (e.g. after any engine/solver change).
+6. **DD-021 follow-up** — teacher/student read-scoping (see the DD-021 entry): filter list
+   endpoints by the caller's identity once the frontend defines which views each role needs.
 
 ---
 

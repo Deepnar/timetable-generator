@@ -3,8 +3,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.database import get_db
 from app.models.admin import Admin
-from app.schemas.admin import AdminCreate, AdminResponse, AdminLogin, Token
-from app.utils.auth import hash_password, verify_password, create_access_token
+from app.schemas.admin import (
+    AdminCreate, AdminResponse, AdminLogin, Token, MeResponse,
+)
+from app.utils.auth import (
+    hash_password, verify_password, create_access_token,
+    get_current_admin, require_roles,
+)
 from app.services import redis_client
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -43,7 +48,38 @@ def register_admin(admin: AdminCreate, db: Session = Depends(get_db)):
     new_admin = Admin(
         email=admin.email,
         password=hash_password(admin.password),
-        name=admin.name
+        name=admin.name,
+        role=admin.role,
+    )
+    db.add(new_admin)
+    db.commit()
+    db.refresh(new_admin)
+    return new_admin
+
+@router.post("/users", response_model=AdminResponse,
+             status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_roles("admin"))])
+def create_user(admin: AdminCreate, db: Session = Depends(get_db),
+                _current: Admin = Depends(get_current_admin)):
+    """Admin-only: create a user with a specific role (hod/teacher/student).
+
+    Self-registration stays public and defaults to admin; provisioning
+    non-admin roles goes through this endpoint so a college can hand out
+    scoped logins without exposing registration.
+    """
+    existing = db.scalars(
+        select(Admin).where(Admin.email == admin.email)
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered"
+        )
+    new_admin = Admin(
+        email=admin.email,
+        password=hash_password(admin.password),
+        name=admin.name,
+        role=admin.role,
     )
     db.add(new_admin)
     db.commit()
@@ -61,5 +97,12 @@ def login(credentials: AdminLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid credentials"
         )
-    token = create_access_token({"admin_id": admin.id})
+    token = create_access_token(
+        {"admin_id": admin.id}, role=getattr(admin.role, "value", admin.role)
+    )
     return {"access_token": token, "token_type": "bearer"}
+
+@router.get("/me", response_model=MeResponse)
+def me(current: Admin = Depends(get_current_admin)):
+    """The authenticated caller's identity + role (for the frontend shell)."""
+    return current

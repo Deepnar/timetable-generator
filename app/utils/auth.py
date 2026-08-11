@@ -30,8 +30,9 @@ def verify_password(plain: str, hashed: str) -> bool:
     except (ValueError, TypeError):
         return False
 
-def create_access_token(data: dict) -> str:
+def create_access_token(data: dict, role: str = "admin") -> str:
     to_encode = data.copy()
+    to_encode.update({"role": role})
     expire = datetime.utcnow() + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
@@ -83,3 +84,31 @@ def get_current_admin(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return admin
+
+
+def token_role(token: str) -> str | None:
+    """The role claim from a bearer token (best-effort, no DB hit)."""
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        return payload.get("role")
+    except JWTError:
+        return None
+
+
+def require_roles(*allowed: str):
+    """Dependency factory: 403 unless the token's role is in ``allowed``.
+
+    Used on endpoints that are finer-grained than the global auth gate (which
+    only checks "is there a valid token"). The role rides in the JWT so this
+    needs no DB lookup.
+    """
+    def dep(credentials=Depends(security)) -> None:
+        role = token_role(credentials.credentials)
+        if role is None or role not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions for this role",
+            )
+    return dep
