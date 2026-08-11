@@ -196,9 +196,14 @@ async def observability(request: Request, call_next):
 
 
 # CORS is registered last so it wraps everything (headers on error responses too).
+# Origins come from the CORS_ORIGINS setting (comma-separated), so a deployed
+# frontend origin is configurable without a code change; the dev defaults cover
+# localhost:3000/3001.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        o.strip() for o in app_settings.CORS_ORIGINS.split(",") if o.strip()
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
+    # Comma-separated list of allowed browser origins (CORS). Dev frontends on
+    # 3000/3001 are the default; add the deployed frontend origin in production.
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
