@@ -122,11 +122,12 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Frontend Initialization**: Setup Next.js app within the full-stack deployment pipeline. — `frontend/` (Next.js 14 App Router + TypeScript + Tailwind), `src/lib/api.ts` fetch client (JWT Bearer + `X-Total-Count`), `AuthProvider`, `ProtectedShell` guard (DD-017).
 - [x] **Editorial-light restyle**: the admin UI is themed with warm canvas, white shadow-separated cards, serif display headings, uppercase tracked labels, and charcoal accents (`tailwind.config.ts`, `globals.css`, all components/pages). A raw-CDP screenshot harness (`frontend/scripts/screenshot.mjs`) performs a real login and captures every page for visual verification via the vision skill; it surfaced and fixed the auth-init race and a title-singularization bug.
 - [x] **Auth & Dashboard**: Login page (`/auth/login` → JWT in localStorage), protected routes, stats view (resource counts), quick actions.
-- [x] **Resource Management Pages**: CRUD tables with server pagination + filters for Rooms, Faculty, Groups, Subjects (driven by the shared `ResourceTable`; adds `PUT /groups/{id}` for full CRUD parity).
+- [x] **Resource Management Pages**: CRUD tables with server pagination + filters and **drill-down navigation** (category tiles, facet rail, breadcrumbs, URL state) for Rooms, Faculty, Groups, Subjects (driven by the shared `ResourcePage`; adds `PUT /groups/{id}` for full CRUD parity). Drill-down probes surfaced and fixed the CORS `X-Total-Count` exposure bug.
+- [x] **Generation & Instance Viewer (read path)**: `/generate` (profile picker, solver radio, instance count, run cards with 2s status polling — `placement_warning`/`error_log` surfaced), `/instances` (all-instances list via the new `GET /instances/` endpoint, status badges, scores), `/instances/[id]` (the **TimetableGrid**: pure-CSS day×slot grid with sticky headers, subject-hued color coding, row-spanning lab blocks, faculty/room/group per cell, PDF/CSV/iCal/Select/Publish actions), and `/exports` hub.
 - [ ] **CSV upload modals** (part of Resource Management).
 - [ ] **Master Assignment Grid**: UI to map teachers → subjects → divisions.
 - [ ] **Profile & Constraint Builder**: Visual form for profiles and dynamic constraints.
-- [ ] **Generation Viewer**: Side-by-side instance comparison grid, progress bar for async runs.
+- [ ] **Compare mode**: Side-by-side instance comparison grid.
 - [ ] **Instance Editor**: Click-to-edit slots with live conflict re-checking.
 
 ### 🔵 Deployment & Final Polish
