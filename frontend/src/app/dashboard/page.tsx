@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { apiList } from "@/lib/api";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+} from "recharts";
+import { ArrowRight, DoorOpen, Users, GraduationCap, BookOpen } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import type { Generation, Room, Faculty, StudentGroup, Subject } from "@/lib/types";
+import { ROLE_LABELS, type Role } from "@/lib/roles";
+import { useGenerations, useRooms, useSubjects, useGroups, useFaculty } from "@/hooks/use-resources";
+import { chartColor } from "@/lib/chart-colors";
 import { ProtectedShell } from "@/components/ProtectedShell";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorBanner } from "@/components/ui/error-banner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CalendarDays } from "lucide-react";
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800",
@@ -14,188 +23,156 @@ const STATUS_STYLES: Record<string, string> = {
   FAILED: "bg-red-100 text-red-800",
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin",
-  hod: "Department Head",
-  teacher: "Teacher",
-  student: "Student",
-};
-
-function HBar({ label, value, max, color = "bg-ink" }: { label: string; value: number; max: number; color?: string }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="w-40 shrink-0 truncate text-ink-soft">{label}</span>
-      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-canvas-deep">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="w-8 shrink-0 text-right tabular-nums text-ink">{value}</span>
+    <div className="rounded-md border bg-surface p-5 shadow-sm">
+      <h2 className="display mb-4 text-lg text-ink">{title}</h2>
+      {children}
     </div>
+  );
+}
+
+function HBars({ data }: { data: { label: string; value: number }[] }) {
+  if (data.length === 0) return <p className="py-8 text-center text-sm text-muted-foreground">No data yet.</p>;
+  return (
+    <div className="h-52">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }}>
+          <CartesianGrid horizontal={false} stroke="#E7E5E4" strokeDasharray="3 3" />
+          <XAxis type="number" tick={{ fontSize: 12 }} />
+          <YAxis type="category" dataKey="label" width={130} interval={0} tick={{ fontSize: 12 }} />
+          <Tooltip cursor={{ fill: "#F5F3EF" }} />
+          <Bar dataKey="value" radius={[0, 3, 3, 0]}>
+            {data.map((_, i) => <Cell key={i} fill={chartColor(i)} />)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function StatLink({ href, label, value, icon: Icon }: { href: string; label: string; value: number | string; icon: React.ElementType }) {
+  return (
+    <Link href={href} className="group rounded-md border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-3xl font-medium tabular-nums text-ink">{value}</div>
+          <div className="mt-1 eyebrow">{label}</div>
+        </div>
+        <Icon className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+      </div>
+    </Link>
   );
 }
 
 export default function DashboardPage() {
   const { me } = useAuth();
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [runs, setRuns] = useState<Generation[]>([]);
-  const [roomsByType, setRoomsByType] = useState<[string, number][]>([]);
-  const [subjectsBySem, setSubjectsBySem] = useState<[string, number][]>([]);
-  const [groupsByDept, setGroupsByDept] = useState<[string, number][]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const rooms = useRooms({ limit: 200 });
+  const subjects = useSubjects({ limit: 200 });
+  const groups = useGroups({ limit: 200 });
+  const faculty = useFaculty({ limit: 200 });
+  const generations = useGenerations({ limit: 10 });
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [rooms, faculty, groups, subjects, generations] = await Promise.all([
-          apiList<Room>("/api/v1/rooms/", { limit: 200 }),
-          apiList<Faculty>("/api/v1/faculty/", { limit: 200 }),
-          apiList<StudentGroup>("/api/v1/groups/", { limit: 200 }),
-          apiList<Subject>("/api/v1/subjects/", { limit: 200 }),
-          apiList<Generation>("/api/v1/generate/", { limit: 10 }),
-        ]);
-        if (cancelled) return;
-        setCounts({
-          rooms: rooms.total,
-          faculty: faculty.total,
-          groups: groups.total,
-          subjects: subjects.total,
-        });
-        setRuns(generations.rows);
+  const error = rooms.error ?? subjects.error ?? groups.error ?? faculty.error ?? generations.error;
+  const anyLoading = rooms.isLoading || subjects.isLoading || groups.isLoading || faculty.isLoading;
 
-        // charts
-        const byType = new Map<string, number>();
-        for (const r of rooms.rows) byType.set(r.room_type, (byType.get(r.room_type) ?? 0) + 1);
-        setRoomsByType(Array.from(byType.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6));
+  const roomsByType = Object.entries(
+    rooms.data?.rows.reduce<Record<string, number>>((acc, r) => {
+      acc[r.room_type] = (acc[r.room_type] ?? 0) + 1;
+      return acc;
+    }, {}) ?? {},
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([label, value]) => ({ label: label.replace("_", " "), value }));
 
-        const bySem = new Map<number, number>();
-        for (const s of subjects.rows) bySem.set(s.semester, (bySem.get(s.semester) ?? 0) + 1);
-        setSubjectsBySem(Array.from(bySem.entries()).sort((a, b) => a[0] - b[0]).map(([k, v]) => [`Sem ${k}`, v]));
+  const subjectsBySem = Object.entries(
+    subjects.data?.rows.reduce<Record<string, number>>((acc, s) => {
+      const k = `Sem ${s.semester}`;
+      acc[k] = (acc[k] ?? 0) + 1;
+      return acc;
+    }, {}) ?? {},
+  )
+    .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+    .map(([label, value]) => ({ label, value }));
 
-        const byDept = new Map<string, number>();
-        for (const g of groups.rows) byDept.set(g.department, (byDept.get(g.department) ?? 0) + 1);
-        setGroupsByDept(Array.from(byDept.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5));
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load dashboard");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const groupsByDept = Object.entries(
+    groups.data?.rows.reduce<Record<string, number>>((acc, g) => {
+      acc[g.department] = (acc[g.department] ?? 0) + 1;
+      return acc;
+    }, {}) ?? {},
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label, value]) => ({ label, value }));
 
-  const statCards = [
-    { label: "Rooms", value: counts.rooms ?? "…", href: "/rooms" },
-    { label: "Faculty", value: counts.faculty ?? "…", href: "/faculty" },
-    { label: "Groups", value: counts.groups ?? "…", href: "/groups" },
-    { label: "Subjects", value: counts.subjects ?? "…", href: "/subjects" },
-  ];
-
-  const maxRooms = Math.max(1, ...roomsByType.map(([, v]) => v));
-  const maxSem = Math.max(1, ...subjectsBySem.map(([, v]) => v));
-  const maxDept = Math.max(1, ...groupsByDept.map(([, v]) => v));
-  const chartColors = ["bg-ink", "bg-stone-400", "bg-stone-300"];
+  const runs = generations.data?.rows ?? [];
 
   return (
     <ProtectedShell>
       <div className="flex flex-col gap-6">
-        <div className="flex items-end justify-between">
-          <div>
-            {me && (
-              <p className="eyebrow mb-1">
-                {ROLE_LABELS[me.role] ?? me.role} view
-              </p>
-            )}
-            <h1 className="display text-3xl text-ink">Overview</h1>
-            <p className="mt-1 text-sm text-ink-faint">Institution resources and recent generation runs.</p>
-          </div>
+        <div>
+          {me && <p className="eyebrow mb-1">{ROLE_LABELS[me.role as Role] ?? me.role} view</p>}
+          <h1 className="display text-3xl text-ink">Overview</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Institution resources and recent generation runs.</p>
         </div>
 
-        {error && (
-          <div className="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <ErrorBanner message="Failed to load dashboard" onRetry={() => { rooms.refetch(); subjects.refetch(); groups.refetch(); generations.refetch(); }} />}
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {statCards.map((card) => (
-            <Link
-              key={card.label}
-              href={card.href}
-              className="rounded-sm bg-white p-5 shadow-card transition hover:shadow-lift"
-            >
-              <div className="text-3xl font-medium text-ink">{card.value}</div>
-              <div className="mt-1 eyebrow">{card.label}</div>
-            </Link>
-          ))}
+          {anyLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)
+          ) : (
+            <>
+            <StatLink href="/rooms" label="Rooms" value={rooms.data?.total ?? 0} icon={DoorOpen} />
+            <StatLink href="/faculty" label="Faculty" value={faculty.data?.total ?? 0} icon={Users} />
+            <StatLink href="/groups" label="Groups" value={groups.data?.total ?? 0} icon={GraduationCap} />
+            <StatLink href="/subjects" label="Subjects" value={subjects.data?.total ?? 0} icon={BookOpen} />
+            </>
+          )}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-sm bg-white p-6 shadow-card">
-            <h2 className="display mb-4 text-lg text-ink">Rooms by type</h2>
-            {roomsByType.length === 0 ? (
-              <p className="text-sm text-ink-faint">No rooms yet.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {roomsByType.map(([label, value], i) => (
-                  <HBar key={label} label={label} value={value} max={maxRooms}
-                        color={chartColors[i % chartColors.length]} />
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-sm bg-white p-6 shadow-card">
-            <h2 className="display mb-4 text-lg text-ink">Subjects by semester</h2>
-            {subjectsBySem.length === 0 ? (
-              <p className="text-sm text-ink-faint">No subjects yet.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {subjectsBySem.map(([label, value], i) => (
-                  <HBar key={label} label={label} value={value} max={maxSem}
-                        color={chartColors[i % chartColors.length]} />
-                ))}
-              </div>
-            )}
-          </section>
+          <ChartCard title="Rooms by type">
+            {anyLoading ? <Skeleton className="h-52" /> : <HBars data={roomsByType} />}
+          </ChartCard>
+          <ChartCard title="Subjects by semester">
+            {anyLoading ? <Skeleton className="h-52" /> : <HBars data={subjectsBySem} />}
+          </ChartCard>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-sm bg-white p-6 shadow-card">
-            <h2 className="display mb-4 text-lg text-ink">Groups by department</h2>
-            {groupsByDept.length === 0 ? (
-              <p className="text-sm text-ink-faint">No groups yet.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {groupsByDept.map(([label, value], i) => (
-                  <HBar key={label} label={label} value={value} max={maxDept}
-                        color={chartColors[i % chartColors.length]} />
-                ))}
-              </div>
-            )}
-          </section>
+          <ChartCard title="Groups by department">
+            {anyLoading ? <Skeleton className="h-52" /> : <HBars data={groupsByDept} />}
+          </ChartCard>
 
-          <section className="rounded-sm bg-white p-6 shadow-card">
+          <div className="rounded-md border bg-surface p-5 shadow-sm">
             <h2 className="display mb-4 text-lg text-ink">Recent generation runs</h2>
-            {runs.length === 0 ? (
-              <p className="text-sm text-ink-faint">No runs yet.</p>
+            {generations.isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8" />)}
+              </div>
+            ) : runs.length === 0 ? (
+              <EmptyState
+                icon={CalendarDays}
+                title="No runs yet"
+                body="Configure a profile and generate your first timetable."
+              />
             ) : (
-              <ul className="divide-y divide-accent-line">
+              <ul className="divide-y divide-border">
                 {runs.map((run) => (
                   <li key={run.id} className="flex items-center justify-between py-2.5 text-sm">
-                    <div>
+                    <div className="min-w-0">
                       <span className="font-medium text-ink">Run #{run.id}</span>
-                      <span className="ml-2 text-ink-faint">
+                      <span className="ml-2 text-muted-foreground">
                         {run.academic_year} · {run.timetable_type}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-ink-soft">
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="text-muted-foreground">
                         {run.instances_produced}/{run.instances_requested} inst
                       </span>
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[run.generation_status] ?? "bg-canvas-deep text-ink-soft"}`}
-                      >
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[run.generation_status] ?? "bg-muted text-muted-foreground"}`}>
                         {run.generation_status}
                       </span>
                     </div>
@@ -203,7 +180,10 @@ export default function DashboardPage() {
                 ))}
               </ul>
             )}
-          </section>
+            <Link href="/generate" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              New generation <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
       </div>
     </ProtectedShell>

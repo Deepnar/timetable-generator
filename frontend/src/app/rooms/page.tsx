@@ -1,25 +1,13 @@
 "use client";
 
-import { ResourceTable, type FieldConfig } from "@/components/ResourceTable";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ResourcePage, type FieldConfig } from "@/components/ResourcePage";
 import { ProtectedShell } from "@/components/ProtectedShell";
+import { Badge } from "@/components/ui/badge";
+import { useRooms } from "@/hooks/use-resources";
 import type { Room } from "@/lib/types";
 
 const ROOM_TYPES = ["CLASSROOM", "LAB", "SEMINAR_HALL", "AUDITORIUM", "CUSTOM"];
-
-function TypeBadge({ value }: { value: string }) {
-  const styles: Record<string, string> = {
-    CLASSROOM: "bg-sky-100 text-sky-800",
-    LAB: "bg-violet-100 text-violet-800",
-    SEMINAR_HALL: "bg-amber-100 text-amber-800",
-    AUDITORIUM: "bg-emerald-100 text-emerald-800",
-    CUSTOM: "bg-canvas-deep text-ink-soft",
-  };
-  return (
-    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[value] ?? "bg-canvas-deep text-ink-soft"}`}>
-      {value.replace("_", " ")}
-    </span>
-  );
-}
 
 const FIELDS: FieldConfig[] = [
   { name: "name", label: "Name", type: "text", required: true },
@@ -28,28 +16,67 @@ const FIELDS: FieldConfig[] = [
   { name: "capacity", label: "Capacity", type: "number", required: true, min: 0 },
   { name: "building", label: "Building", type: "text" },
   { name: "floor", label: "Floor", type: "number", min: 0 },
-  { name: "has_projector", label: "Projector", type: "checkbox" },
-  { name: "has_ac", label: "Air conditioned", type: "checkbox" },
+  { name: "has_projector", label: "Projector", type: "switch" },
+  { name: "has_ac", label: "Air conditioned", type: "switch" },
+];
+
+const ROOM_TONES: Record<string, "info" | "success" | "warning" | "neutral"> = {
+  CLASSROOM: "info",
+  LAB: "success",
+  SEMINAR_HALL: "warning",
+  AUDITORIUM: "neutral",
+  CUSTOM: "neutral",
+};
+
+const columns: ColumnDef<Room, unknown>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => <span className="font-medium text-ink">{row.original.name}</span>,
+  },
+  {
+    accessorKey: "room_code",
+    header: "Code",
+    cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.room_code}</span>,
+  },
+  {
+    accessorKey: "room_type",
+    header: "Type",
+    cell: ({ row }) => (
+      <Badge variant={ROOM_TONES[row.original.room_type] ?? "neutral"}>
+        {row.original.room_type.replace("_", " ")}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "capacity",
+    header: "Capacity",
+    meta: { align: "right" },
+    cell: ({ row }) => <span className="tabular-nums">{row.original.capacity}</span>,
+  },
+  {
+    accessorKey: "building",
+    header: "Building",
+    cell: ({ row }) => row.original.building ?? "—",
+  },
+  {
+    accessorKey: "amenities",
+    header: "Amenities",
+    cell: ({ row }) => {
+      const parts = [row.original.has_projector && "Projector", row.original.has_ac && "AC"].filter(Boolean);
+      return <span className="text-muted-foreground">{parts.join(" · ") || "—"}</span>;
+    },
+  },
 ];
 
 export default function RoomsPage() {
   return (
     <ProtectedShell>
-      <ResourceTable<Room>
+      <ResourcePage<Room>
         title="Rooms"
         endpoint="/api/v1/rooms"
-        columns={[
-          { key: "name", label: "Name", render: (r) => <span className="font-medium text-ink">{r.name}</span> },
-          { key: "room_code", label: "Code", render: (r) => <span className="text-ink-faint">{r.room_code}</span> },
-          { key: "room_type", label: "Type", render: (r) => <TypeBadge value={r.room_type} /> },
-          { key: "capacity", label: "Capacity", render: (r) => <span className="tabular-nums">{r.capacity}</span> },
-          { key: "building", label: "Building", render: (r) => r.building ?? "—" },
-          { key: "amenities", label: "Amenities", render: (r) => (
-            <span className="text-ink-faint">
-              {[r.has_projector && "Projector", r.has_ac && "AC"].filter(Boolean).join(" · ") || "—"}
-            </span>
-          ) },
-        ]}
+        query={useRooms}
+        columns={columns}
         fields={FIELDS}
         filters={[{ name: "room_type", label: "Room type", options: ROOM_TYPES }]}
         summary={(rows) => {
@@ -59,18 +86,12 @@ export default function RoomsPage() {
           return [
             { label: "Rooms", value: rows.length },
             { label: "Seats", value: totalCap },
-                        ...Array.from(byType.entries()).map(([k, v]) => ({ label: k.replace("_", " "), value: v })),
+            ...Array.from(byType.entries()).map(([k, v]) => ({ label: k.replace("_", " "), value: v })),
           ];
         }}
         createPayload={() => ({
-          name: "",
-          room_code: "",
-          room_type: "CLASSROOM",
-          capacity: 40,
-          building: "",
-          floor: null,
-          has_projector: false,
-          has_ac: false,
+          name: "", room_code: "", room_type: "CLASSROOM", capacity: 40,
+          building: "", floor: null, has_projector: false, has_ac: false,
         })}
         toPayload={(form) => ({
           name: String(form.name ?? ""),
@@ -83,14 +104,9 @@ export default function RoomsPage() {
           has_ac: Boolean(form.has_ac),
         })}
         toForm={(room) => ({
-          name: room.name,
-          room_code: room.room_code,
-          room_type: room.room_type,
-          capacity: room.capacity,
-          building: room.building ?? "",
-          floor: room.floor ?? "",
-          has_projector: room.has_projector,
-          has_ac: room.has_ac,
+          name: room.name, room_code: room.room_code, room_type: room.room_type,
+          capacity: room.capacity, building: room.building ?? "", floor: room.floor ?? "",
+          has_projector: room.has_projector, has_ac: room.has_ac,
         })}
       />
     </ProtectedShell>

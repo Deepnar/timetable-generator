@@ -67,6 +67,15 @@ async function main() {
 
   await send("Page.enable");
 
+  // --- login page ---
+  await send("Page.navigate", { url: `${FRONT}/login` });
+  await sleep(3500);
+  {
+    const shot = await send("Page.captureScreenshot", { format: "png" });
+    writeFileSync(resolve(OUT, "login.png"), Buffer.from(shot.data, "base64"));
+    console.log("saved login");
+  }
+
   // --- real login via form ---
   await send("Page.navigate", { url: `${FRONT}/login` });
   await sleep(3000);

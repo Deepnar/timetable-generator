@@ -1,7 +1,11 @@
 "use client";
 
-import { ResourceTable, type FieldConfig } from "@/components/ResourceTable";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ResourcePage, type FieldConfig } from "@/components/ResourcePage";
 import { ProtectedShell } from "@/components/ProtectedShell";
+import { Avatar, AvatarFallback, initialsFor } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useFaculty } from "@/hooks/use-resources";
 import type { Faculty } from "@/lib/types";
 
 const FIELDS: FieldConfig[] = [
@@ -12,33 +16,53 @@ const FIELDS: FieldConfig[] = [
   { name: "max_hours_per_day", label: "Max hours / day", type: "number", min: 0 },
 ];
 
-const INITIALS = (name: string) =>
-  name.split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+const columns: ColumnDef<Faculty, unknown>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-3">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback>{initialsFor(row.original.name)}</AvatarFallback>
+        </Avatar>
+        <span className="font-medium text-ink">{row.original.name}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>,
+  },
+  {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => (
+      <Badge variant="neutral">{row.original.department}</Badge>
+    ),
+  },
+  {
+    accessorKey: "max_hours_per_week",
+    header: "Hrs/week",
+    meta: { align: "right" },
+    cell: ({ row }) => <span className="tabular-nums">{row.original.max_hours_per_week}</span>,
+  },
+  {
+    accessorKey: "max_hours_per_day",
+    header: "Hrs/day",
+    meta: { align: "right" },
+    cell: ({ row }) => <span className="tabular-nums">{row.original.max_hours_per_day}</span>,
+  },
+];
 
 export default function FacultyPage() {
   return (
     <ProtectedShell>
-      <ResourceTable<Faculty>
+      <ResourcePage<Faculty>
         title="Faculty"
         endpoint="/api/v1/faculty"
-        columns={[
-          { key: "name", label: "Name", render: (f) => (
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-canvas-deep text-xs font-medium text-ink-soft">
-                {INITIALS(f.name)}
-              </span>
-              <span className="font-medium text-ink">{f.name}</span>
-            </div>
-          )},
-          { key: "email", label: "Email", render: (f) => <span className="text-ink-soft">{f.email}</span> },
-          { key: "department", label: "Department", render: (f) => (
-            <span className="inline-block rounded-full bg-canvas-deep px-2 py-0.5 text-xs font-medium text-ink-soft">
-              {f.department}
-            </span>
-          )},
-          { key: "max_hours_per_week", label: "Hrs/week", render: (f) => <span className="tabular-nums">{f.max_hours_per_week}</span> },
-          { key: "max_hours_per_day", label: "Hrs/day", render: (f) => <span className="tabular-nums">{f.max_hours_per_day}</span> },
-        ]}
+        query={useFaculty}
+        columns={columns}
         fields={FIELDS}
         filters={[{ name: "department", label: "Department" }]}
         summary={(rows) => {
@@ -48,15 +72,11 @@ export default function FacultyPage() {
           return [
             { label: "Faculty", value: rows.length },
             { label: "Weekly capacity", value: totalHrs },
-                        ...Array.from(byDept.entries()).slice(0, 3).map(([k, v]) => ({ label: k, value: v })),
+            ...Array.from(byDept.entries()).slice(0, 3).map(([k, v]) => ({ label: k, value: v })),
           ];
         }}
         createPayload={() => ({
-          name: "",
-          email: "",
-          department: "",
-          max_hours_per_week: 20,
-          max_hours_per_day: 5,
+          name: "", email: "", department: "", max_hours_per_week: 20, max_hours_per_day: 5,
         })}
         toPayload={(form) => ({
           name: String(form.name ?? ""),
@@ -66,11 +86,8 @@ export default function FacultyPage() {
           max_hours_per_day: Number(form.max_hours_per_day ?? 5),
         })}
         toForm={(faculty) => ({
-          name: faculty.name,
-          email: faculty.email,
-          department: faculty.department,
-          max_hours_per_week: faculty.max_hours_per_week,
-          max_hours_per_day: faculty.max_hours_per_day,
+          name: faculty.name, email: faculty.email, department: faculty.department,
+          max_hours_per_week: faculty.max_hours_per_week, max_hours_per_day: faculty.max_hours_per_day,
         })}
       />
     </ProtectedShell>

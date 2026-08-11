@@ -1,7 +1,10 @@
 "use client";
 
-import { ResourceTable, type FieldConfig } from "@/components/ResourceTable";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ResourcePage, type FieldConfig } from "@/components/ResourcePage";
 import { ProtectedShell } from "@/components/ProtectedShell";
+import { Badge } from "@/components/ui/badge";
+import { useGroups } from "@/hooks/use-resources";
 import type { StudentGroup } from "@/lib/types";
 
 const GROUP_TYPES = ["DIVISION", "BATCH", "YEAR", "DEPARTMENT", "CUSTOM"];
@@ -16,32 +19,58 @@ const FIELDS: FieldConfig[] = [
   { name: "incharge_email", label: "Incharge email", type: "text" },
 ];
 
-const GROUP_STYLES: Record<string, string> = {
-  DIVISION: "bg-sky-100 text-sky-800",
-  BATCH: "bg-violet-100 text-violet-800",
-  YEAR: "bg-amber-100 text-amber-800",
-  DEPARTMENT: "bg-emerald-100 text-emerald-800",
-  CUSTOM: "bg-canvas-deep text-ink-soft",
+const GROUP_TONES: Record<string, "info" | "success" | "warning" | "neutral"> = {
+  DIVISION: "info",
+  BATCH: "success",
+  YEAR: "warning",
+  DEPARTMENT: "neutral",
+  CUSTOM: "neutral",
 };
+
+const columns: ColumnDef<StudentGroup, unknown>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => <span className="font-medium text-ink">{row.original.name}</span>,
+  },
+  {
+    accessorKey: "group_type",
+    header: "Type",
+    cell: ({ row }) => (
+      <Badge variant={GROUP_TONES[row.original.group_type] ?? "neutral"}>{row.original.group_type}</Badge>
+    ),
+  },
+  {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.department}</span>,
+  },
+  {
+    accessorKey: "year",
+    header: "Year",
+    cell: ({ row }) => row.original.year ?? "—",
+  },
+  {
+    accessorKey: "semester",
+    header: "Sem",
+    cell: ({ row }) => row.original.semester ?? "—",
+  },
+  {
+    accessorKey: "strength",
+    header: "Strength",
+    meta: { align: "right" },
+    cell: ({ row }) => <span className="tabular-nums">{row.original.strength}</span>,
+  },
+];
 
 export default function GroupsPage() {
   return (
     <ProtectedShell>
-      <ResourceTable<StudentGroup>
+      <ResourcePage<StudentGroup>
         title="Groups"
         endpoint="/api/v1/groups"
-        columns={[
-          { key: "name", label: "Name", render: (g) => <span className="font-medium text-ink">{g.name}</span> },
-          { key: "group_type", label: "Type", render: (g) => (
-            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${GROUP_STYLES[g.group_type] ?? "bg-canvas-deep text-ink-soft"}`}>
-              {g.group_type}
-            </span>
-          )},
-          { key: "department", label: "Department", render: (g) => <span className="text-ink-soft">{g.department}</span> },
-          { key: "year", label: "Year", render: (g) => g.year ?? "—" },
-          { key: "semester", label: "Sem", render: (g) => g.semester ?? "—" },
-          { key: "strength", label: "Strength", render: (g) => <span className="tabular-nums">{g.strength}</span> },
-        ]}
+        query={useGroups}
+        columns={columns}
         fields={FIELDS}
         filters={[
           { name: "group_type", label: "Group type", options: GROUP_TYPES },
@@ -54,17 +83,12 @@ export default function GroupsPage() {
           return [
             { label: "Groups", value: rows.length },
             { label: "Students", value: totalStudents },
-                        ...Array.from(byType.entries()).map(([k, v]) => ({ label: k.toLowerCase(), value: v })),
+            ...Array.from(byType.entries()).map(([k, v]) => ({ label: `${k.toLowerCase()}s`, value: v })),
           ];
         }}
         createPayload={() => ({
-          name: "",
-          group_type: "DIVISION",
-          department: "",
-          year: null,
-          semester: null,
-          strength: 60,
-          incharge_email: "",
+          name: "", group_type: "DIVISION", department: "", year: null, semester: null,
+          strength: 60, incharge_email: "",
         })}
         toPayload={(form) => ({
           name: String(form.name ?? ""),
@@ -76,13 +100,9 @@ export default function GroupsPage() {
           incharge_email: form.incharge_email ? String(form.incharge_email) : null,
         })}
         toForm={(group) => ({
-          name: group.name,
-          group_type: group.group_type,
-          department: group.department,
-          year: group.year ?? "",
-          semester: group.semester ?? "",
-          strength: group.strength,
-          incharge_email: group.incharge_email ?? "",
+          name: group.name, group_type: group.group_type, department: group.department,
+          year: group.year ?? "", semester: group.semester ?? "",
+          strength: group.strength, incharge_email: group.incharge_email ?? "",
         })}
       />
     </ProtectedShell>

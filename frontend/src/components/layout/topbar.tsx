@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ROLE_LABELS, type Role } from "@/lib/roles";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, initialsFor } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
 export function Topbar() {
@@ -26,7 +26,7 @@ export function Topbar() {
               </div>
             </div>
             <Avatar className="h-8 w-8">
-              <AvatarFallback>{me.name}</AvatarFallback>
+              <AvatarFallback>{initialsFor(me.name)}</AvatarFallback>
             </Avatar>
           </div>
         )}
