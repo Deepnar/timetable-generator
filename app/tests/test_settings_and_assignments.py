@@ -639,9 +639,28 @@ def _phase2_registry(s):
                 s["subject_id"])
         assert all(len(subjects) == 1 for subjects in by_day.values()), by_day
 
+    @test("ALLOW_FREE_LAST_SLOT keeps the last slot empty")
+    def t_free_last_slot(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        # seed_minimal uses slots_per_day=5; keep slot 5 free.
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "ALLOW_FREE_LAST_SLOT",
+            "config_json": {"slots_per_day": 5},
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen_slots(client, headers, ids["profile"])
+        assert len(slots) == 3, slots
+        assert all(s["slot_number"] < 5 for s in slots), (
+            [s["slot_number"] for s in slots]
+        )
+
     return [t_time_pref, t_consecutive, t_year,
             t_holiday, t_holiday_e2e, t_holiday_outside_term, t_holiday_no_anchor,
-            t_max_daily_subjects, t_max_daily_subjects_e2e]
+            t_max_daily_subjects, t_max_daily_subjects_e2e, t_free_last_slot]
 
 
 @suite("Phase 3 — Soft-constraint scoring")
@@ -1156,7 +1175,31 @@ def _phase3_diversity(s):
             ))
         assert len(signatures) >= 2, f"instances not diverse: {len(signatures)} distinct"
 
-    return [t_diverse]
+    @test("diversity_threshold profile param is accepted and read")
+    def t_diversity_threshold_param(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post(
+            f"/profiles/{ids['profile']}/parameters", headers=headers,
+            json={"param_key": "diversity_threshold", "param_value": "1",
+                  "param_type": "INT"},
+        )
+        assert r.status_code in (200, 201), r.text
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 3, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        insts = client.get(f"/instances/{gen['id']}", headers=headers).json()
+        assert len(insts) == 3, insts
+        # The param is accepted and the run completes; the diversity gate uses
+        # it (1 == the module default) instead of rejecting the profile.
+        assert gen["generation_status"] == "COMPLETED", gen
+
+    return [t_diverse, t_diversity_threshold_param]
 
 
 @suite("Phase 5 — Filtered exports (PDF/CSV/iCal)")

@@ -237,6 +237,14 @@ class Scheduler:
         accepted_signatures: list[frozenset] = []
         final_unplaced = 0
         variation = generation.variation
+        # A profile diversity_threshold parameter overrides the module default
+        # (how many placements must differ for two instances to count as
+        # distinct). Stored as a string; cast defensively.
+        try:
+            diversity_min = int(resolved.params.get("diversity_threshold",
+                                                    self._DIVERSITY_MIN_DISTANCE))
+        except (TypeError, ValueError):
+            diversity_min = self._DIVERSITY_MIN_DISTANCE
         for i in range(generation.instances_requested):
             instance = TimetableInstance(
                 generation_id=generation.id,
@@ -280,7 +288,7 @@ class Scheduler:
                 attempts.append((candidate, candidate_sig, score, solver.unplaced_count))
                 is_distinct = all(
                     self._hamming(candidate_sig, prev)
-                    >= self._DIVERSITY_MIN_DISTANCE
+                    >= diversity_min
                     for prev in accepted_signatures
                 )
                 if variation != VariationMode.BEST and is_distinct:
@@ -290,7 +298,7 @@ class Scheduler:
                 distinct = [
                     (c, sig, sc, u) for c, sig, sc, u in attempts
                     if all(
-                        self._hamming(sig, prev) >= self._DIVERSITY_MIN_DISTANCE
+                        self._hamming(sig, prev) >= diversity_min
                         for prev in accepted_signatures
                     )
                 ]

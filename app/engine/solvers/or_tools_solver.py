@@ -42,6 +42,20 @@ class ORToolsSolver(GreedySolver):
 
     max_time_seconds = 5.0
 
+    def _max_time_seconds(self) -> float:
+        """Resolve the CP-SAT time budget.
+
+        A profile ``solver_timeout_seconds`` parameter overrides the 5.0s class
+        default (stored as a string in ``profile_parameters``; cast defensively).
+        Lets a college trade speed for quality on big profiles without a code
+        change.
+        """
+        raw = self._get_param("solver_timeout_seconds", None)
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return self.max_time_seconds
+
     def solve(self) -> list[TimetableSlot]:
         from ortools.sat.python import cp_model  # local import; heavy dependency
 
@@ -175,7 +189,7 @@ class ORToolsSolver(GreedySolver):
         model.Maximize(objective)
 
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = self.max_time_seconds
+        solver.parameters.max_time_in_seconds = self._max_time_seconds()
         # A seed varies which optimal assignment is returned (diversity filter).
         if self.seed is not None:
             solver.parameters.random_seed = self.seed

@@ -280,6 +280,35 @@ def _max_daily_subjects(candidate, committed, config, ctx) -> Optional[str]:
     return None
 
 
+@hard_rule("ALLOW_FREE_LAST_SLOT")
+def _allow_free_last_slot(candidate, committed, config, ctx) -> Optional[str]:
+    """Keep the last slot of each day free (no session placed there).
+
+    config: ``{"slots_per_day": int, "group_id"?: int, "day_of_week"?: int}``.
+    ``slots_per_day`` defaults to 7 (the engine's default grid). A common
+    real-world preference ("no class in the last period") that is expressible
+    as a per-candidate check: a candidate whose ``slot_number`` equals the
+    day's last slot is rejected. A multi-slot block is rejected if *any* of
+    its slots touches the last slot.
+    """
+    config = config or {}
+    slots_per_day = config.get("slots_per_day", 7)
+    group_id = config.get("group_id")
+    day_of_week = config.get("day_of_week")
+    if group_id is not None and candidate.student_group_id != group_id:
+        return None
+    if day_of_week is not None and candidate.day_of_week != day_of_week:
+        return None
+    if candidate.slot_number is None:
+        return None
+    if candidate.slot_number + candidate.block_length - 1 >= slots_per_day:
+        return (
+            f"slot {candidate.slot_number} occupies the last slot "
+            f"(slot {slots_per_day}) of day {candidate.day_of_week}"
+        )
+    return None
+
+
 def _lab_batch_rotation(candidate, committed, config, ctx) -> Optional[str]:
     """Pin a group's (lab batch's) sessions to specific weekdays.
 
