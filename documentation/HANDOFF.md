@@ -10,9 +10,26 @@ here). The OPEN items below are copied from it; resolve them and mark them done 
 ## Session summary (committed & pushed)
 
 State at handoff: **175/175 tests passing** (`uv run python -m app.tests`), frontend builds
-(`npm run build`), tree clean. This session completed **all six backend loose ends** (RBAC
-included) and then re-verified everything at scale with a new full-features-at-scale runner,
-which surfaced and fixed two more real bugs. Frontend stays on hold. Commits in order:
+(`npm run build`), tree clean. This session started the **frontend**: an editorial-light restyle
+(user-selected direction), plus the "run it and see it" visual-verification loop the user asked
+for (headless-Chrome screenshots reviewed through the vision skill). The screenshot loop surfaced
+and fixed two real frontend bugs, and the backend gained a configurable CORS origins setting.
+Commits in order:
+
+0. **CORS origins configurable** (commit `d763a8f`) — the allow-list was hardcoded to
+   `localhost:3000`, blocking any other dev origin; now driven by `CORS_ORIGINS` (default
+   `localhost:3000,localhost:3001`), documented in `.env.example`.
+1. **Editorial-light restyle + screenshot harness** (commit `ecf2d03`) — theme tokens (warm
+   canvas, white shadow-separated cards, serif display headings, charcoal accents), all
+   components/pages restyled, and `frontend/scripts/screenshot.mjs` (raw CDP over system Chrome,
+   real login + per-page capture). Surfaced and fixed: an auth-init race (ProtectedShell briefly
+   redirected to /login on navigation with a stored token) and a singularization bug
+   ("facult" for Faculty).
+2. **Docs** (commit `ff0ca05`) — architecture §4.1/§9, progress.md note the restyle + harness.
+
+Prior to this session, the same thread had completed all six backend loose ends and re-verified
+them at scale (`scripts/full_stack_test.py`), surfacing two more backend bugs (see the earlier
+commits in the log).
 
 1. **Make OR-Tools fail gracefully on an empty placement domain** (commit `784afe2`) — when every
    candidate is pruned, `PLACEMENT_WEIGHT * 0 == 0.0` (a bare float) crashed CP-SAT with
@@ -99,38 +116,31 @@ same backend-hardening thread* rather than start fresh.
   `placement_warning`, `/auth/me`, `/auth/users`), **§5.4** (scope-driven exam mode), **§7.4**
   (RBAC), **§8.2/8.3/8.6/8.7**, **§9**.
 
-## NEXT TASK — All six backend loose ends are done. Frontend (or more rules) next.
+## NEXT TASK — Frontend started (editorial-light restyle done). Next: the Generation & Instance Viewer.
 
-The user asked for **ALL** the backend loose ends. This session completed: OR-Tools empty-domain
-robustness; all six soft constraints (scorers + builders + greedy pursuit); `MAX_DAILY_SUBJECTS`
-+ `ALLOW_FREE_LAST_SLOT` data-driven rules; OR-Tools relational models for
-`MAX_CONSECUTIVE_SAME_TEACHER` (and confirmed `TEACHER_YEAR_RESTRICTION` was already pruned
-statically); `scope_type=EXAM` implies exam mode; `solver_timeout_seconds` + `diversity_threshold`
-params wired; honest `hard_violations` + `placement_warning`; and **RBAC** (roles, JWT claim,
-`require_roles`, `/auth/me`, admin-only `/auth/users`).
+The backend loose ends are done and verified at scale. The frontend restyle (editorial-light,
+user-selected) is shipped and visually verified via the screenshot harness. The natural next
+slice is the **Generation & Instance Viewer** (plan.md Phase 4):
 
-Genuinely remaining (in rough priority, none blocking a demo):
-1. **More data-driven rules** — `MIN_FREE_SLOTS_PER_WEEK` (guarantee free slots; best as a soft
-   scorer, not a hard rule), `MAX_CONSECUTIVE_SAME_GROUP`, `MAX_DAILY_HOURS`. The registry makes
-   each a small, self-contained add.
-2. **Teacher/student read-scoping** (DD-021 follow-up) — filter list endpoints by the caller's
-   identity. Best done with the frontend so the views each role needs are defined.
-3. **`GET /instances/{id}/conflicts`** — inspect where an instance is tight.
-4. **Notification extras** — `/notifications` endpoint, opt-out, retry queue.
-5. **`SEMESTER` reset is a no-op**; no `DELETE /instances/{id}/slots/...`.
+- A "trigger generation" form (`POST /api/v1/generate/` with profile/combination select,
+  timetable_type, instances, algorithm, variation).
+- Instance list (`GET /api/v1/instances/{generation_id}`) and a slots grid
+  (`GET /api/v1/instances/{instance_id}/slots`) — day × slot layout.
+- Poll `GET /api/v1/generate/{id}/status` for async runs; surface `run_duration_ms` and
+  `placement_warning`.
+- Reuse the screenshot harness (`npm run screenshot` → `frontend/scripts/screenshot.mjs`) to
+  visually verify each new page through the vision skill.
 
-When the user is ready for the frontend: (a) restyle toward their reference UI (dark sidebar +
-accent vs editorial light — **ask which**), (b) the Generation & Instance Viewer. RBAC now gives
-the frontend a `/auth/me` role to branch on.
-
-When the user says the backend is done, the frontend tracks are: (a) restyle toward their reference
-UI (dark sidebar + accent vs editorial light — **ask which**), (b) the Generation & Instance Viewer.
+Also open: CSV upload modals, Master Assignment Grid, Profile & Constraint Builder, Instance
+Editor (slot override UI), and the backend follow-ups (more rules, read-scoping, `/conflicts`,
+notification extras). The screenshot harness currently targets `:3001` (port 3000 is occupied on
+this machine by an unrelated container) — set `FRONT_URL` if the frontend runs elsewhere.
 
 ## Remaining known items (see `documentation/progress.md`)
 
-- **Frontend depth** — shipped: Auth + Dashboard + Resource CRUD. Remaining (plan.md Phase 4):
-  CSV upload modals, Master Assignment Grid, Profile & Constraint Builder, Generation Viewer
-  (side-by-side grid + progress), Instance Editor (slot override UI). Plus the restyle above.
+- **Frontend depth** — shipped: Auth + Dashboard + Resource CRUD (restyled editorial-light).
+  Remaining (plan.md Phase 4): CSV upload modals, Master Assignment Grid, Profile & Constraint
+  Builder, Generation Viewer (side-by-side grid + progress), Instance Editor (slot override UI).
 - **README & Docs, Historical Data Import, ML Preference Learning**.
 - **Notification service extras** — no `/notifications` endpoint, no per-recipient opt-out,
   no retry queue, no WebSocket/SSE push.
