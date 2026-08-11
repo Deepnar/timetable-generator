@@ -23,11 +23,12 @@ def get_rooms(
     room_type: Optional[RoomType] = None,
     min_capacity: Optional[int] = None,
     building: Optional[str] = None,
+    search: Optional[str] = None,
     page: Pagination = Depends(pagination),
     db: Session = Depends(get_db),
 ):
     cache_key = (
-        f"{_ROOMS_CACHE_PREFIX}:{room_type}:{min_capacity}:{building}:"
+        f"{_ROOMS_CACHE_PREFIX}:{room_type}:{min_capacity}:{building}:{search}:"
         f"{page.skip}:{page.limit}"
     )
     cached = redis_client.cache_serve_list(cache_key, response)
@@ -40,6 +41,11 @@ def get_rooms(
         query = query.where(models.Room.capacity >= min_capacity)
     if building:
         query = query.where(models.Room.building == building)
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            models.Room.name.ilike(pattern) | models.Room.room_code.ilike(pattern)
+        )
     rows = paginate(db, query, page, response)
     return redis_client.cacheable_list(
         cache_key, schemas.RoomResponse, rows, response)

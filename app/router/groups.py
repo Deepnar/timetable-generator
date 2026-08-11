@@ -22,6 +22,7 @@ def get_groups(response: Response,
     year: Optional[int] = None,
     department: Optional[str] = None,
     group_type: Optional[GroupType] = None,
+    search: Optional[str] = None,
     page: Pagination = Depends(pagination),
     db: Session = Depends(get_db)):
     query = select(models.StudentGroup).where(models.StudentGroup.is_active == True)
@@ -31,6 +32,9 @@ def get_groups(response: Response,
         query = query.where(models.StudentGroup.department == department)
     if group_type:
         query = query.where(models.StudentGroup.group_type == group_type)
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(models.StudentGroup.name.ilike(pattern))
     return paginate(db, query, page, response)
 
 @router.get("/{id}", response_model=schemas.StudentGroupResponse)

@@ -1484,6 +1484,24 @@ def _phase5_polish(s):
         assert client.get("/rooms/?limit=0", headers=headers).status_code == 422
         assert client.get("/rooms/?limit=9999", headers=headers).status_code == 422
 
+    @test("text search narrows resource lists server-side")
+    def t_search(client):
+        headers = _fresh(client)
+        for i in range(3):
+            assert _make_room(client, headers, i).status_code == 201
+        # name match
+        r = client.get("/rooms/?search=RC1", headers=headers)
+        assert r.status_code == 200, r.text
+        assert r.headers.get("x-total-count") == "1", r.text
+        assert r.json()[0]["name"] == "R1", r.text
+        # no match -> zero
+        r = client.get("/rooms/?search=zzz", headers=headers)
+        assert r.headers.get("x-total-count") == "0", r.text
+        assert r.json() == [], r.text
+        # composes with an existing filter
+        r = client.get("/rooms/?search=R2&room_type=CLASSROOM", headers=headers)
+        assert r.headers.get("x-total-count") == "1", r.text
+
     @test("mutations are recorded in the audit trail with a request id")
     def t_audit(client):
         headers = _fresh(client)
@@ -1496,7 +1514,7 @@ def _phase5_polish(s):
             for e in entries
         ), entries
 
-    return [t_pagination, t_limit_validation, t_audit]
+    return [t_pagination, t_limit_validation, t_search, t_audit]
 
 
 @suite("Phase 5 — Global auth gate")

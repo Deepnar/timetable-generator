@@ -23,10 +23,11 @@ def get_subjects(response: Response,
     semester: Optional[int] = None,
     department: Optional[str] = None,
     requires_lab: Optional[bool] = None,
+    search: Optional[str] = None,
     page: Pagination = Depends(pagination),
     db: Session = Depends(get_db)):
     cache_key = (
-        f"{_SUBJECTS_CACHE_PREFIX}:{semester}:{department}:{requires_lab}:"
+        f"{_SUBJECTS_CACHE_PREFIX}:{semester}:{department}:{requires_lab}:{search}:"
         f"{page.skip}:{page.limit}"
     )
     cached = redis_client.cache_serve_list(cache_key, response)
@@ -39,6 +40,11 @@ def get_subjects(response: Response,
         query = query.where(models.Subject.department == department)
     if requires_lab is not None:
         query = query.where(models.Subject.requires_lab == requires_lab)
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            models.Subject.name.ilike(pattern) | models.Subject.subject_code.ilike(pattern)
+        )
     rows = paginate(db, query, page, response)
     return redis_client.cacheable_list(
         cache_key, schemas.SubjectResponse, rows, response)

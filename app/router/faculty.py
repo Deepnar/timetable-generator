@@ -19,11 +19,17 @@ router = APIRouter(
 @router.get("/", response_model=list[schemas.FacultyResponse])
 def get_faculty(response: Response,
                 department: Optional[str] = None,
+                search: Optional[str] = None,
                 page: Pagination = Depends(pagination),
                 db: Session = Depends(get_db)):
     query = select(models.Faculty).where(models.Faculty.is_active == True)
     if department:
         query = query.where(models.Faculty.department == department)
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            models.Faculty.name.ilike(pattern) | models.Faculty.email.ilike(pattern)
+        )
     return paginate(db, query, page, response)
 
 @router.get("/{id}", response_model=schemas.FacultyResponse)
