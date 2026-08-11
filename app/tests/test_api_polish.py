@@ -140,8 +140,50 @@ def _pagination_suite(s):
         ids = [row["id"] for row in r.json()]
         assert ids == sorted(ids, reverse=True), r.text
 
+    @test("instances list paginates and filters by generation")
+    def t_instances(client):
+        seed_minimal()
+        from app.tests.conftest import TestingSessionLocal
+        from app.models.generation import (
+            TimetableGeneration, TimetableInstance, InstanceStatus,
+            TimetableType, AlgorithmType, VariationMode, GenerationStatus,
+        )
+        from app.models.admin import Admin
+        db = TestingSessionLocal()
+        try:
+            admin = db.query(Admin).first()
+            gens = []
+            for g in range(2):
+                gen = TimetableGeneration(
+                    profile_id=None, academic_year="2025-26", semester=3,
+                    timetable_type=TimetableType.CLASS,
+                    generation_status=GenerationStatus.COMPLETED,
+                    algorithm_used=AlgorithmType.GREEDY,
+                    variation=VariationMode.RANDOM,
+                    instances_requested=2, instances_produced=2,
+                    triggered_by=admin.id,
+                )
+                db.add(gen); db.flush()
+                gens.append(gen)
+                for n in (1, 2):
+                    db.add(TimetableInstance(
+                        generation_id=gen.id, instance_number=n,
+                        status=InstanceStatus.DRAFT,
+                    ))
+            db.commit()
+            g1 = gens[0].id
+        finally:
+            db.close()
+        headers = _login(client)
+        _assert_page(client, headers, "/instances/?", total=4)
+        # filter by a single generation
+        r = client.get(f"/instances/?generation_id={g1}", headers=headers)
+        assert r.status_code == 200, r.text
+        assert r.headers.get("x-total-count") == "2", r.text
+        assert all(i["generation_id"] == g1 for i in r.json()), r.text
+
     return [t_profiles, t_hard, t_soft, t_history, t_blackouts, t_availability,
-            t_generations]
+            t_generations, t_instances]
 
 
 @suite("Phase 5 — API polish (global error envelope)")

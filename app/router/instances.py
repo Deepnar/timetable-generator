@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.database import get_db
@@ -8,6 +8,7 @@ from app.models.generation import (TimetableInstance, TimetableSlot,
 from app.models.profiles import ResourceType
 from app.schemas.generation import InstanceResponse, SlotResponse, SlotOverride
 from app.utils.auth import get_current_admin
+from app.utils.pagination import Pagination, pagination, paginate
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.profile_resolver import ProfileResolver
 from app.engine.scheduler import Scheduler
@@ -19,6 +20,28 @@ import logging
 logger = logging.getLogger("timetable")
 
 router = APIRouter(prefix="/instances", tags=["Instances"])
+
+@router.get("/", response_model=list[InstanceResponse])
+def list_instances(
+    response: Response,
+    generation_id: int | None = None,
+    status_filter: str | None = None,
+    page: Pagination = Depends(pagination),
+    db: Session = Depends(get_db),
+):
+    """List every generated instance (optionally per generation/status), newest first.
+
+    Registered before ``/{generation_id}`` so the literal ``/`` list route is
+    not shadowed by the path param route. Paginated with X-Total-Count like
+    every other top-level list.
+    """
+    query = select(TimetableInstance).order_by(
+        TimetableInstance.id.desc())
+    if generation_id is not None:
+        query = query.where(TimetableInstance.generation_id == generation_id)
+    if status_filter is not None:
+        query = query.where(TimetableInstance.status == status_filter)
+    return paginate(db, query, page, response)
 
 @router.get("/{generation_id}", response_model=list[InstanceResponse])
 def get_instances(
