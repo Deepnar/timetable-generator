@@ -26,35 +26,37 @@ State at handoff: **179/179 tests passing** (`uv run python -m app.tests`), fron
 `admin@example.com` / `admin123` (admin) · `teacher1@tcet.edu.in` / `teach123` (teacher) ·
 `student1@tcet.edu.in` / `stud123` (student) · `hod@scale.edu.in` / `pass123` (HOD).
 
-**This session shipped Phase 4 (editing & comparison) of the design plan** (commits `624a1c6`,
-`bb6a2ac`, `365167e`):
+**This session finished the Phase-4 scheduling surfaces and built the profile/constraint
+builder**, plus recorded the founder's real-college scheduling rules as an OPEN design item:
 
-1. **Slot-revalidate dry-run endpoint** (`624a1c6`) — `POST /api/v1/instances/{id}/slots/{slotId}/revalidate`
-   accepts a `SlotOverrideDraft` (the `SlotOverride` mutable fields, no required reason) and
-   returns `{"slot_id", "violations": [...]}` with **200 even on conflicts** — so the UI can
-   gate Save behind a clean dry-run instead of parsing a 409. The override PATCH and this
-   endpoint share the extracted `_check_candidate` helper (the old `_revalidate_slot` is gone).
-   When only `slot_number` moves, start/end times are re-derived from the profile's time grid
-   (`_slot_time_grid`, mirroring the greedy solver's `_build_slot_times`) so the stored row
-   stays consistent without the client knowing `day_start_time`/durations. Two new tests
-   (179 total).
-2. **Compare mode** (`bb6a2ac`) — `/instances/compare?a=&b=` fetches both instances' `/slots`
-   lists and diffs them **client-side** (no backend compare endpoint — DD-023). Two
-   scroll-synced TimetableGrids with per-cell `added`/`removed`/`changed` markers (reusing the
-   shared subject color map), a summary bar (score/violation/moved deltas), and a click-to-scroll
-   diff list. Entry points from the instances list and the instance viewer.
-3. **Slot override UI** (`bb6a2ac`) — clicking a DRAFT/SELECTED cell in `/instances/[id]` opens
-   a fixed-position editor (day/slot/room/faculty selects + reason). A debounced revalidate
-   shows "no conflicts" (green) or the violation list (danger); Save is disabled until clean and
-   commits via the existing optimistic `useSlotOverride` mutation. PUBLISHED instances are
-   read-only with a warning banner. The screenshot harness now also captures the scheduling
-   pages (instances / detail / compare / exports).
+1. **Assignment grid** (commits `a53e69c`, `2170714`) — `/assignments`: subject × group matrix
+   scoped by department + semester (rows = subjects, columns = division groups), faculty
+   avatar + hours badge per cell, anchored cell editor over the existing `subject_assignments`
+   CRUD, per-subject coverage chips, and a least-loaded-faculty **Auto-fill** bulk action.
+2. **Profile & constraint builder** (commits `2a57e6e`, `1979d9d`) —
+   - `/profiles`: preset card grid (scope/semester/department badges, description, archive)
+     with a create drawer; creating jumps straight to the detail page.
+   - `/profiles/[id]`: four tabs — **Resources** (per-type shuttles over rooms/faculty/groups/
+     subjects with attached counts), **Parameters** (catalog-driven key/type/value rows with
+     JSON validation, inline edit), **Constraints** (hard + soft rows from `GET /constraints/types`,
+     inline soft-weight editing), **Runs** (the profile's generation history).
+   - The generate page now accepts `?profile=N` so the detail page's Generate button preselects,
+     and gained the `<Suspense>` wrapper `useSearchParams` needs during prerender. A `Tabs` UI
+     primitive joined the component kit (radix tabs was already a dependency).
+3. **DD-024 — domain reality check** (`1979d9d`) — the founder described the college's actual
+   rules, several of which are only partially modeled. **Recorded as OPEN, nothing built yet:**
+   batches (2 batches 2nd–4th yr, **3 in 1st yr**, with parallel 2h practicals — one batch on
+   one subject while another batch runs a different subject at the same time); max **one
+   practical subject per day**; per-subject **tutorial/practical/both** ties (two session
+   streams); **per-day time grids** (timings/breaks/lecture duration can vary by day, consistent
+   per department/year); and conflict checking against **ALL active timetables** (the loader only
+   reserves PUBLISHED slots today). See the DD-024 entry for verified next steps.
 
 **Backend reality that matters for the product**: rooms are a shared pool — the solver assigns a
 room per session from the subject's `requirements_json`, so a subject is taught in different
 rooms across the week (matches the user's college; no fixed classroom per subject). The engine,
-RBAC, exports, async generation, constraint registry, all six soft constraints, compare, and
-slot-override revalidation are built and tested.
+RBAC, exports, async generation, constraint registry, all six soft constraints, compare,
+slot-override revalidation, the assignment grid, and the profile builder are built and tested.
 
 ---
 
@@ -75,40 +77,43 @@ slot-override revalidation are built and tested.
 6. **DD-021 follow-up** — teacher/student read-scoping: filter list endpoints by the caller's
    identity once the frontend defines which views each role needs (the teacher portal will drive
    this).
-7. **DD-022 follow-up** — build order for the teacher-workload roadmap (after compare/slot-override
-   and the assignment grid): (1) teacher self-service schedule + own-slot exports, (2) the
-   `timetable_overrides` date-resolution layer + day card, (3) the change loop (room change +
-   cover + notifications).
+7. **DD-022 follow-up** — build order for the teacher-workload roadmap: (1) teacher self-service
+   schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
+   (3) the change loop (room change + cover + notifications). The strategist brief recommends
+   exactly this sequence; the assignment grid and profile builder have shipped and the teacher
+   portal is next.
 8. **DD-023 follow-up** — block-level overrides: the slot editor edits a single per-slot row, so
    moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
    whole block. Also re-check the client-side "moved session" heuristic when the teacher portal
    lands.
+9. **DD-024 (OPEN)** — the college's real rules: batches (2 batches 2nd–4th yr, 3 in 1st yr, with
+   parallel 2h practicals), max one practical subject per day, per-subject tutorial/practical
+   ties, per-day time grids (varied timings/breaks/lecture duration), and conflict checking
+   against ALL active timetables (not just PUBLISHED). Verify each against the real data, then
+   design — see the DD-024 entry for next steps.
 
 ---
 
-## Next task — assignment grid, then profile/constraint builder, then the teacher portal (DD-022)
+## Next task — teacher portal (DD-022 #1); then the DD-024 batch/domain layer
 
-Phase 4's editing & comparison is done. Remaining, in the recommended order:
+All of the scheduling + configuration surfaces from the design plan are now shipped. Remaining,
+in the recommended order:
 
-1. **Assignment grid** (`/assignments`) — subjects × groups matrix with faculty per cell.
-   Backend `subject_assignments` CRUD exists (`app/router/assignments.py`: list/create/update/
-   delete with `subject_id`/`faculty_id`/`group_id` filters). Design-plan spec: rows = subjects
-   grouped by semester, columns = groups, cell = faculty avatar + weekly-hours chip, CellPopover
-   to assign/edit, coverage chips, auto-suggest bulk fill. Data types needed: `Subject` has
-   `department`/`semester`, `StudentGroup` has `department`/`year`/`semester`/`strength`, and
-   `SubjectAssignment` carries `subject_id`/`faculty_id`/`group_id`/`weekly_hours`.
-2. **Profile & constraint builder** (`/profiles`, `/profiles/[id]`) — tabs (Resources |
-   Parameters | Constraints | Runs), resource shuttles, typed param fields, constraint rows with
-   soft-weight sliders, dirty bar, dry-run check. Backend endpoints all exist
-   (`app/router/profiles.py`, `app/router/constraints.py`); the design-plan phase-3 spec is in
-   `frontend-design-plan.md` (pages 8/9).
-3. **Teacher portal** (DD-022 #1) — `/my-schedule` (teacher sees only their slots, exports own
-   iCal/PDF), then the date-aware overlay + day card (#2), then the change loop (#3).
+1. **Teacher portal** (DD-022 #1) — `/my-schedule`: teacher sees only their slots (the exports
+   already accept `?faculty_id=`), exports own iCal/PDF, and a "today" card. Requires either
+   server-side caller scoping on the slots read (DD-021 follow-up) or a `GET /my/schedule`
+   endpoint — the design plan calls for confirming `app/router/instances.py` first. Then #2 (the
+   `timetable_overrides` date-resolution layer + day card), then #3 (the change loop).
+2. **DD-024 domain work** — the batch/tutorial/per-day-grid requirements the founder described.
+   This is a design exercise first (see the DD-024 entry): verify each rule against the real
+   college data, then decide the model (batch groups + parallel practicals, per-subject
+   tutorial/practical flags, per-day time grids, all-active-timetable conflict reservations).
+   It will touch `app/models/`, the greedy/OR-Tools solvers, the checker, and the seed.
+3. Optional polish: CSV upload modals on resource pages; WebSocket progress for async runs;
+   a `/constraints` reference catalog page (the data is already exposed via `GET /constraints/types`).
 
-Optional polish: CSV upload modals on resource pages; WebSocket progress for async runs.
-
-Keep the docs in sync (architecture §4.1/§4.4, plan.md, progress.md) and record any new
-decision in `design-decisions.md` (e.g. the assignment-grid bulk-suggest behavior).
+Keep the docs in sync (architecture §3/§4/§5/§8, plan.md, progress.md) and record any new
+decision in `design-decisions.md`.
 
 ---
 
@@ -147,7 +152,7 @@ Full backend verification: `uv run python -m app.tests` (179) · scale: `scripts
   server, `rm -rf frontend/.next`, restart dev. Also always restart dev after pulling/committing.
 - **The backend dev server runs WITHOUT `--reload`** (uvicorn started by `nohup` in this session
   to keep it stable). After editing backend code, restart it manually — a stale server silently
-  silently serves old routes (this session's revalidate endpoint 404'd until a restart).
+  serves old routes (the revalidate endpoint 404'd until a restart last session).
 - **Design decisions are tracked in `documentation/design-decisions.md`**, not in this file. Every
   new choice gets a DD-NNN entry in the same commit; the HANDOFF copies OPEN items verbatim.
 - **New `Settings` fields must go in `.env.example`** in the same commit (real past miss).
@@ -158,7 +163,8 @@ Full backend verification: `uv run python -m app.tests` (179) · scale: `scripts
 - **Error envelope**: every error returns `{"detail": ...}`; 422/500 add `request_id`. The CORS
   `expose_headers` now lets the browser read `X-Total-Count`/`X-Request-ID` — keep that.
 - **Frontend data fetching**: all via TanStack Query (`src/hooks/use-resources.ts`); pages are
-  `"use client"`. `useSearchParams` pages need a `<Suspense>` wrapper (see `/instances/compare`).
+  `"use client"`. `useSearchParams` pages need a `<Suspense>` wrapper (see `/instances/compare`
+  and `/generate`).
 - **Scale testing lives in `scripts/`, not `app/tests/`** (DD-020). Re-baseline after engine
   changes: `scripts/seed_demo.py --wipe` then `scripts/full_stack_test.py` (server up).
 - **The strategist agent** needs a fresh opencode session to appear in the `task` tool list (it
