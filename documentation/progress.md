@@ -124,11 +124,12 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Auth & Dashboard**: Login page (`/auth/login` → JWT in localStorage), protected routes, stats view (resource counts), quick actions.
 - [x] **Resource Management Pages**: CRUD tables with server pagination + filters and **drill-down navigation** (category tiles, facet rail, breadcrumbs, URL state) for Rooms, Faculty, Groups, Subjects (driven by the shared `ResourcePage`; adds `PUT /groups/{id}` for full CRUD parity). Drill-down probes surfaced and fixed the CORS `X-Total-Count` exposure bug.
 - [x] **Generation & Instance Viewer (read path)**: `/generate` (profile picker, solver radio, instance count, run cards with 2s status polling — `placement_warning`/`error_log` surfaced), `/instances` (all-instances list via the new `GET /instances/` endpoint, status badges, scores), `/instances/[id]` (the **TimetableGrid**: pure-CSS day×slot grid with sticky headers, subject-hued color coding, row-spanning lab blocks, faculty/room/group per cell, PDF/CSV/iCal/Select/Publish actions), and `/exports` hub.
+- [x] **Compare mode**: `/instances/compare?a=&b=` — two scroll-synced TimetableGrids with per-cell add/remove/change markers, a summary bar (score/violation/moved deltas), and a click-to-scroll diff list. The diff is computed client-side from the two `/slots` lists (no backend compare endpoint needed). Entry points from the instances list and the instance viewer.
+- [x] **Slot override UI**: click a DRAFT/SELECTED cell → anchored editor (day/slot/room/faculty selects + reason). A debounced `POST /instances/{id}/slots/{slotId}/revalidate` dry-run reports conflicts before saving; Save stays disabled until clean. Backend revalidate endpoint wraps `_check_candidate` (shared with the PATCH) and returns `{"slot_id", "violations"}` with 200 even on conflicts; a slot move re-derives start/end from the profile's time grid.
 - [ ] **CSV upload modals** (part of Resource Management).
 - [ ] **Master Assignment Grid**: UI to map teachers → subjects → divisions.
 - [ ] **Profile & Constraint Builder**: Visual form for profiles and dynamic constraints.
-- [ ] **Compare mode**: Side-by-side instance comparison grid.
-- [ ] **Instance Editor**: Click-to-edit slots with live conflict re-checking.
+- [ ] **Instance Editor**: Click-to-edit slots with live conflict re-checking. *(Core done — see "Slot override UI"; polish left.)*
 
 ### 🔵 Deployment & Final Polish
 - [x] **Full Stack Dockerization**: top-level `docker-compose.yml` (App, Frontend, PostgreSQL, Redis) + backend `Dockerfile` (uv, migrates on boot) + `frontend/Dockerfile` (standalone Next). `docker/docker-compose.yml` remains the backend-only dev infra (DD-018). *(`docker compose up` four-service bring-up pending on a free host port 3000 — see DD-018 follow-up.)*

@@ -321,6 +321,19 @@ next session is pointed at them. See `AGENTS.md` → "Design decisions".
 
 ---
 
+## Editing & comparison surfaces (2026-08-11)
+
+### DD-023 — Instance comparison is computed client-side; the only new backend is a slot-revalidate dry-run endpoint
+- **Status:** Decided / Tested (revalidate endpoint covered by the suite: 179/179; compare page verified live against seeded instances).
+- **Context:** the Phase 4 editing/comparison work needed (a) side-by-side instance diffing and (b) a slot-override UI whose Save button is gated behind a clean constraint check. The handoff suggested a compare endpoint "only if the diff can't be computed client-side from the two slot lists" — it can, so none was added.
+- **Decision:**
+  - **Compare is frontend-only.** `/instances/compare?a=&b=` fetches both instances' `/slots` lists and diffs them client-side: per-cell add/remove/change markers (reusing the TimetableGrid's color map), a summary bar (score/violation/moved deltas), and a click-to-scroll diff list. Two grids scroll-sync via shared container refs. The two candidate instances are themselves the "plan" — no backend state changes.
+  - **Slot override revalidation is a new endpoint.** `POST /instances/{id}/slots/{slotId}/revalidate` accepts a `SlotOverrideDraft` (the mutable fields of `SlotOverride` without the required reason) and returns `{"slot_id", "violations": [...]}` with **200 even on conflicts**, so the frontend can show "no conflicts" (green) or the violation list (danger) without persisting. The PATCH keeps 409-on-conflict semantics; both share the extracted `_check_candidate` helper. When a move only changes `slot_number`, the backend re-derives `start_time`/`end_time` from the profile's time grid (`_slot_time_grid`, mirroring the greedy solver) so the stored row stays consistent with `day_start_time`/`slots_per_day` without the client knowing those params.
+- **Rejected alternatives:** a backend compare/diff endpoint — the two `/slots` lists are already loadable and the diff is a pure function of them; a server-side diff adds an endpoint for logic that runs fine in the browser. Making the PATCH the only revalidation path — it 409s and would need the UI to parse the error body; a dedicated dry-run keeps the edit flow non-destructive.
+- **Follow-up (open):** slot override currently operates on the first slot of a merged lab block (a block is stored as per-slot rows); editing a whole block at once is a possible polish. Compare lacks a server-side "sessions by identity moved" computation — the client heuristic treats same-identity-at-different-position as moved, which is good enough for the admin surface but is worth re-checking when teacher/student portals (DD-022) land.
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -345,6 +358,10 @@ Address these in the next session; resolved ones move up into the log with their
    schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
    (3) the change loop (room change + cover + notifications). The strategist brief recommends
    exactly this sequence; revisit after the TimetableGrid ships.
+8. **DD-023 follow-up** — block-level overrides: the slot editor edits a single per-slot row, so
+   moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
+   whole block. Also re-check the client-side "moved session" heuristic when the teacher portal
+   lands.
 
 ---
 

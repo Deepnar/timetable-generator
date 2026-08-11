@@ -82,10 +82,11 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - Tables with search/filter, CSV upload modals, and CRUD forms for Rooms, Faculty, Groups, Subjects.
   - **Shipped:** CRUD tables with **drill-down navigation** (category tiles, facet rail, breadcrumbs, URL state) + server pagination/sorting/search for Rooms, Faculty, Groups, Subjects. **Remaining:** CSV upload modals, Master Assignment Grid.
 - [ ] **Master Assignment Grid**: UI to assign teachers to subjects and divisions (Phase 1's critical missing piece).
-- [x] **Generation & Instance Viewer** *(read path)*
+- [x] **Generation & Instance Viewer** *(read path + Phase 4 editing)*
   - Trigger generation form with progress bar.
-  - **Shipped:** `/generate` (profile picker, solver radio, instance count, run cards with 2s status polling), `/instances` (all-instances list), `/instances/[id]` (the **TimetableGrid**: day×slot grid with color coding, row-spanning lab blocks, faculty/room/group per cell, PDF/CSV/iCal/Select/Publish), and `/exports`.
-  - **Remaining:** side-by-side instance compare, slot-override UI (click-to-edit + revalidate).
+  - **Shipped:** `/generate` (profile picker, solver radio, instance count, run cards with 2s status polling), `/instances` (all-instances list), `/instances/[id]` (the **TimetableGrid**: day×slot grid with color coding, row-spanning lab blocks, faculty/room/group per cell, PDF/CSV/iCal/Select/Publish/Compare actions), and `/exports`.
+  - **Phase 4 editing & comparison shipped:** `/instances/compare` (two scroll-synced TimetableGrids with per-cell add/remove/change markers, a summary bar, and a click-to-scroll diff list — diff computed client-side from the two `/slots` lists) and the **slot-override UI** (click a DRAFT/SELECTED cell → anchored editor with day/slot/room/faculty + reason; debounced `POST …/slots/{id}/revalidate` dry-run gates Save; conflicts surface their violation list).
+  - **Remaining:** assignment grid, profile/constraint builder, teacher/student portals (DD-022).
 
 ## Phase 5: Enterprise Polish, Exports & Notifications
 *Goal: Production-grade APIs and stakeholder communication.*
