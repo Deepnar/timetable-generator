@@ -1144,7 +1144,31 @@ def _phase3_ortools_robustness(s):
         # The solver rejects invalid placements, so a clean run is 0.
         assert inst["hard_violations"] == 0, inst
 
-    return [t_ortools_empty_domain, t_no_warning, t_hard_violations]
+    @test("OR-Tools falls back to greedy when CP-SAT times out (no silent 0)")
+    def t_ortools_greedy_fallback(client):
+        """A big enough problem (relational rules, whole department) can exceed
+        the CP-SAT budget before a first solution; the solver must fall back to
+        greedy rather than return an empty instance. Force the fallback path
+        directly and assert it produces the greedy placements."""
+        from app.tests.test_runner import login_token, auth_headers
+        from app.engine.profile_resolver import ProfileResolver
+        from app.engine.solvers.or_tools_solver import ORToolsSolver
+        from app.tests.conftest import TestingSessionLocal
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        db = TestingSessionLocal()
+        try:
+            resolved = ProfileResolver(db).resolve(ids["profile"])
+            solver = ORToolsSolver(db=db, profile=resolved, instance_id=999)
+            slots = solver._greedy_fallback()
+            # greedy places all 3 sessions (the seed_minimal subject, 3h/week)
+            assert len(slots) == 3, f"expected 3 greedy slots, got {len(slots)}"
+        finally:
+            db.close()
+
+    return [t_ortools_empty_domain, t_no_warning, t_hard_violations,
+            t_ortools_greedy_fallback]
 
 
 @suite("Phase 5 — Role-based access control (RBAC)")

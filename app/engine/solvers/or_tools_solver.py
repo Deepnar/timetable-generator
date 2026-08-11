@@ -196,8 +196,11 @@ class ORToolsSolver(GreedySolver):
             solver.parameters.randomize_search = True
         status = solver.Solve(model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            self.unplaced_count = len(sessions)
-            return self.committed_slots
+            # CP-SAT found no feasible solution inside the time budget (big
+            # profiles with relational rules can exceed 5s before a first
+            # solution). Fall back to the greedy placement so the run is not
+            # silently empty — greedy is the guaranteed-feasible preview path.
+            return self._greedy_fallback()
 
         chosen = sorted(k for k, var in x.items() if solver.Value(var) == 1)
 
@@ -236,6 +239,20 @@ class ORToolsSolver(GreedySolver):
         placed_sessions = {k[0] for k in chosen}
         self.unplaced_count = len(sessions) - len(placed_sessions)
         return self.committed_slots
+
+    def _greedy_fallback(self):
+        """Run the greedy solver as a fallback when CP-SAT times out.
+
+        ``GreedySolver.solve()`` works on ``self.committed_slots``; reset it
+        (it should be empty on the no-feasible path, but be safe) and delegate
+        to the parent implementation so the greedy preview and OR-Tools share
+        the same placement/committed logic. The unplaced count comes from the
+        greedy run.
+        """
+        self.committed_slots = []
+        self.unplaced_count = 0
+        result = super().solve()
+        return result
 
     def _faculty(self, faculty_id):
         if not hasattr(self, "_fac_cache"):
