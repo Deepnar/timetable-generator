@@ -353,6 +353,34 @@ next session is pointed at them. See `AGENTS.md` → "Design decisions".
 
 ---
 
+## Single-college posture & data ownership (2026-08-11)
+
+### DD-025 — Build for one college at a time; everything college-specific is data, and class/batch structure is teacher-set with system suggestions
+- **Status:** Decided (product posture; no code yet — shapes DD-024 and every future engine change).
+- **Context:** the founder wants the product to serve a single college first and generalize later, only if a second college actually appears. They also keep remembering small real-world details (class strengths, batch splits, timings), and it is unclear who decides how a class is divided into batches — the teacher or the system.
+- **Decision:**
+  1. **Single-tenant by default; generalize only on demand.** Ship for one college. Every college-specific fact — departments, class strengths, batch counts, working days, per-day timings, break times, lecture durations, session patterns — is **data**, never hardcoded engine logic: `college_settings` rows (the id=1 singleton already embodies this), `student_groups`, `profile_parameters`. When a second college appears the move is additive (a real `colleges` table + `college_id` FKs + scoped queries), not a rewrite, precisely because nothing college-specific is baked into the solver/checker. Until then, no `college_id` columns and no multi-college plumbing.
+  2. **Class strength and batch division are teacher-set, system-suggested.** The college enters the real strength per group; the system *suggests* a split (e.g. `ceil(strength / min_capacity)` for a lab subject, or the batch counts from DD-024) but the teacher confirms or edits it, and the decision is **stored as data**, never recomputed silently. Batches are real `StudentGroup(group_type=BATCH)` rows the teacher maintains; the solver schedules against them but never invents them. This is the same "suggest, allow override" pattern as the assignment grid's Auto-fill.
+  3. **A capture log for remembered details.** Because the founder surfaces small facts incrementally, each new detail is logged in the section below with two tags — *system rule vs college data* and *teacher-set vs system-set* — and only promoted to code when it is stable and genuinely cross-college.
+- **Rejected alternatives:** a full multi-tenant schema now (YAGNI — no second college exists, and premature `college_id` FKs make every query heavier for zero benefit); the system auto-deciding batch splits (the college knows real enrollment and constraints the system cannot see — which students stay together, per-division lab capacity, who teaches which batch).
+
+### Founder detail log (capture — things remembered as we go)
+
+Rules: every detail gets two tags — **source** (`system rule` = solver/checker behavior, `college data` = rows an admin sets) and **ownership** (`teacher-set` = teacher/college enters it, `system-set` = engine computes it). Details are promoted to real design work via DD-024/DD-025; this log is the inbox, not the plan.
+
+| # | Detail (as remembered) | Source | Ownership | Home |
+|---|---|---|---|---|
+| 1 | Class split into batches: 2 for 2nd–4th yr, 3 in 1st yr | college data | teacher-set | DD-024 |
+| 2 | Parallel 2h practicals: one batch on subject A, another on subject B at the same time | system rule (solver) | — | DD-024 |
+| 3 | Max one practical subject per day | system rule (checker) | — | DD-024 |
+| 4 | Subjects tied to tutorial / practical / both | college data | teacher-set | DD-024 |
+| 5 | Timings can differ per day; consistent per department/year; breaks + lecture length vary | college data | teacher-set | DD-024 |
+| 6 | Number of students in the class (strength) | college data | teacher-set | DD-025 |
+| 7 | How batches are divided | college data | teacher-set (system suggests from strength/capacity) | DD-025 |
+| 8 | Conflicts must be checked against **all active** timetables, not just published | system rule | — | DD-024 |
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -385,7 +413,14 @@ Address these in the next session; resolved ones move up into the log with their
    parallel 2h practicals), max one practical subject per day, per-subject tutorial/practical
    ties, per-day time grids (varied timings/breaks/lecture duration), and conflict checking
    against ALL active timetables (not just PUBLISHED). Verify each against the real data, then
-   design — see the DD-024 entry for next steps.
+   design — see the DD-024 entry for next steps. **Implement under the DD-025 posture**: the
+   college data is teacher-set (system only suggests), and every detail goes through the founder
+   detail log before it becomes code.
+10. **DD-025 follow-up** — keep the single-college posture honest: as new features land, resist
+    hardcoding college-specific behavior; anything the college can differ on should be a data
+    row (settings / group / parameter), not engine logic. Revisit multi-tenant only when a second
+    college asks. The founder detail log is the inbox for remembered details — keep it pruned as
+    items get resolved into DD entries.
 
 ---
 

@@ -33,6 +33,11 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
   session streams; the time grid is one shared slot list, not per-day; and cross-timetable
   conflict reservations only cover PUBLISHED instances, not all active (DRAFT/SELECTED) ones.
   Verify each against real data, then design (see DD-024 next steps).
+- **DD-025 — single-college posture decided.** The product ships for one college; everything
+  college-specific is data (settings/groups/params), never hardcoded engine logic. Class strength
+  and batch division are teacher-set with system suggestions. A founder detail log captures
+  remembered real-world details until they become DD entries. Generalize to multi-tenant only
+  when a second college asks.
 
 - ~~**Room blackout check is effectively dead**~~ — ✅ FIXED: `room_blackouts` now supports recurring **weekday** blackouts (`day_of_week`), which the checker enforces against the recurring templates. Date-specific blackouts still await calendar-date materialization.
 - ~~**Faculty availability date-range ignored**~~ — ✅ FIXED: `effective_from`/`effective_to` are now nullable (migration `e9f4a2b6d8c0`) so timeless windows can be created via CRUD/CSV, and the checker consults them against each slot's materialized date. The solver anchors the weekly template with the new **`term_start`** profile parameter (see architecture §8.8) and stamps `TimetableSlot.slot_date`; a date-bounded window only blocks the week it covers, and a window with no bounds stays timeless.

@@ -90,7 +90,14 @@ slot-override revalidation, the assignment grid, and the profile builder are bui
    parallel 2h practicals), max one practical subject per day, per-subject tutorial/practical
    ties, per-day time grids (varied timings/breaks/lecture duration), and conflict checking
    against ALL active timetables (not just PUBLISHED). Verify each against the real data, then
-   design — see the DD-024 entry for next steps.
+   design — see the DD-024 entry for next steps. **Implement under the DD-025 posture**: the
+   college data is teacher-set (system only suggests), and every detail goes through the founder
+   detail log before it becomes code.
+10. **DD-025 follow-up** — keep the single-college posture honest: as new features land, resist
+    hardcoding college-specific behavior; anything the college can differ on should be a data
+    row (settings / group / parameter), not engine logic. Revisit multi-tenant only when a second
+    college asks. The founder detail log is the inbox for remembered details — keep it pruned as
+    items get resolved into DD entries.
 
 ---
 
@@ -109,6 +116,9 @@ in the recommended order:
    college data, then decide the model (batch groups + parallel practicals, per-subject
    tutorial/practical flags, per-day time grids, all-active-timetable conflict reservations).
    It will touch `app/models/`, the greedy/OR-Tools solvers, the checker, and the seed.
+   **Apply the DD-025 posture throughout**: college-specific facts are data rows the teacher
+   sets (system only suggests), never hardcoded engine logic; single-college for now, generalize
+   only when a second college asks.
 3. Optional polish: CSV upload modals on resource pages; WebSocket progress for async runs;
    a `/constraints` reference catalog page (the data is already exposed via `GET /constraints/types`).
 
