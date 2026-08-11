@@ -30,6 +30,7 @@ const PAGES = [
   ["faculty", "/faculty"],
   ["groups", "/groups"],
   ["subjects", "/subjects"],
+  ["assignments", "/assignments"],
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

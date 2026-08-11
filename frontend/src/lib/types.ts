@@ -124,3 +124,12 @@ export interface Profile {
   is_archived: boolean;
   created_at: string;
 }
+
+export interface SubjectAssignment {
+  id: number;
+  subject_id: number;
+  faculty_id: number | null;
+  group_id: number;
+  weekly_hours: number;
+  load_share: number;
+}

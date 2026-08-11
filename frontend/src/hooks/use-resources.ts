@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueries, useQueryClient } from "@tanstack/rea
 import { apiGet, apiList, apiPost, apiPut, apiDelete, type ListParams } from "@/lib/api";
 import type {
   Room, Faculty, StudentGroup, Subject, Generation, Instance, Slot, Me, Profile,
+  SubjectAssignment,
 } from "@/lib/types";
 
 // Query keys
@@ -19,6 +20,7 @@ export const qk = {
   instanceSlots: (instanceId: number) => ["instance", instanceId, "slots"] as const,
   me: () => ["me"] as const,
   profiles: (p: ListParams) => ["profiles", p] as const,
+  assignments: (p: ListParams) => ["assignments", p] as const,
 };
 
 // Resources
@@ -76,6 +78,11 @@ export function useMe() {
 // Profiles
 export function useProfiles(params: ListParams) {
   return useQuery({ queryKey: qk.profiles(params), queryFn: () => apiList<Profile>("/api/v1/profiles", params) });
+}
+
+// Subject assignments (who teaches what to which group)
+export function useAssignments(params: ListParams) {
+  return useQuery({ queryKey: qk.assignments(params), queryFn: () => apiList<SubjectAssignment>("/api/v1/assignments", params) });
 }
 
 // Mutations (CRUD)
