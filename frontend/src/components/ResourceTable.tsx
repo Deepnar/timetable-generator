@@ -36,6 +36,8 @@ interface ResourceTableProps<T extends { id: number }> {
   createPayload: () => Record<string, unknown>;
   toPayload: (form: Record<string, unknown>) => Record<string, unknown>;
   toForm: (row: T) => Record<string, unknown>;
+  /** Optional summary chips shown above the table (derived from the page rows). */
+  summary?: (rows: T[]) => { label: string; value: string | number }[];
 }
 
 function truthy(value: unknown): boolean {
@@ -118,6 +120,7 @@ export function ResourceTable<T extends { id: number }>({
   createPayload,
   toPayload,
   toForm,
+  summary,
 }: ResourceTableProps<T>) {
   const [rows, setRows] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
@@ -218,6 +221,20 @@ export function ResourceTable<T extends { id: number }>({
           + Add {singular(title)}
         </button>
       </div>
+
+      {summary && rows.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {summary(rows).map((s) => (
+            <div
+              key={s.label}
+              className="flex items-baseline gap-2 rounded-sm bg-white px-4 py-2 shadow-card"
+            >
+              <span className="text-lg font-medium tabular-nums text-ink">{s.value}</span>
+              <span className="eyebrow">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {filters.length > 0 && (
         <div className="mb-4 flex flex-wrap items-end gap-4 rounded-sm bg-white p-4 shadow-card">

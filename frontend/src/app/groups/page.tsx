@@ -16,6 +16,14 @@ const FIELDS: FieldConfig[] = [
   { name: "incharge_email", label: "Incharge email", type: "text" },
 ];
 
+const GROUP_STYLES: Record<string, string> = {
+  DIVISION: "bg-sky-100 text-sky-800",
+  BATCH: "bg-violet-100 text-violet-800",
+  YEAR: "bg-amber-100 text-amber-800",
+  DEPARTMENT: "bg-emerald-100 text-emerald-800",
+  CUSTOM: "bg-canvas-deep text-ink-soft",
+};
+
 export default function GroupsPage() {
   return (
     <ProtectedShell>
@@ -23,18 +31,32 @@ export default function GroupsPage() {
         title="Groups"
         endpoint="/api/v1/groups"
         columns={[
-          { key: "name", label: "Name", render: (g) => <span className="font-medium">{g.name}</span> },
-          { key: "group_type", label: "Type" },
-          { key: "department", label: "Department" },
+          { key: "name", label: "Name", render: (g) => <span className="font-medium text-ink">{g.name}</span> },
+          { key: "group_type", label: "Type", render: (g) => (
+            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${GROUP_STYLES[g.group_type] ?? "bg-canvas-deep text-ink-soft"}`}>
+              {g.group_type}
+            </span>
+          )},
+          { key: "department", label: "Department", render: (g) => <span className="text-ink-soft">{g.department}</span> },
           { key: "year", label: "Year", render: (g) => g.year ?? "—" },
           { key: "semester", label: "Sem", render: (g) => g.semester ?? "—" },
-          { key: "strength", label: "Strength" },
+          { key: "strength", label: "Strength", render: (g) => <span className="tabular-nums">{g.strength}</span> },
         ]}
         fields={FIELDS}
         filters={[
           { name: "group_type", label: "Group type", options: GROUP_TYPES },
           { name: "department", label: "Department" },
         ]}
+        summary={(rows) => {
+          const byType = new Map<string, number>();
+          const totalStudents = rows.reduce((a, g) => a + (g.strength ?? 0), 0);
+          for (const g of rows) byType.set(g.group_type, (byType.get(g.group_type) ?? 0) + 1);
+          return [
+            { label: "Groups", value: rows.length },
+            { label: "Students", value: totalStudents },
+                        ...Array.from(byType.entries()).map(([k, v]) => ({ label: k.toLowerCase(), value: v })),
+          ];
+        }}
         createPayload={() => ({
           name: "",
           group_type: "DIVISION",
