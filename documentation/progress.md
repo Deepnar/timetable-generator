@@ -127,7 +127,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Compare mode**: `/instances/compare?a=&b=` — two scroll-synced TimetableGrids with per-cell add/remove/change markers, a summary bar (score/violation/moved deltas), and a click-to-scroll diff list. The diff is computed client-side from the two `/slots` lists (no backend compare endpoint needed). Entry points from the instances list and the instance viewer.
 - [x] **Slot override UI**: click a DRAFT/SELECTED cell → anchored editor (day/slot/room/faculty selects + reason). A debounced `POST /instances/{id}/slots/{slotId}/revalidate` dry-run reports conflicts before saving; Save stays disabled until clean. Backend revalidate endpoint wraps `_check_candidate` (shared with the PATCH) and returns `{"slot_id", "violations"}` with 200 even on conflicts; a slot move re-derives start/end from the profile's time grid.
 - [ ] **CSV upload modals** (part of Resource Management).
-- [ ] **Master Assignment Grid**: UI to map teachers → subjects → divisions.
+- [x] **Assignment grid**: `/assignments` — a subject × group matrix scoped by department + semester (rows = subjects, columns = division groups), with faculty avatar + weekly-hours badge per cell, an anchored cell editor (assign/change faculty + hours, remove), per-subject coverage chips, and a least-loaded-faculty **Auto-fill unassigned** bulk action. Drives the same `subject_assignments` CRUD the solver reads.
 - [ ] **Profile & Constraint Builder**: Visual form for profiles and dynamic constraints.
 - [ ] **Instance Editor**: Click-to-edit slots with live conflict re-checking. *(Core done — see "Slot override UI"; polish left.)*
 

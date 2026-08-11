@@ -177,6 +177,10 @@ unchanged; this section is the build contract.
 | 4 | /instances/compare + slot override + revalidation | Fix a placement, revalidate, republish, diff |
 | 5 | /my-schedule, /my-timetable, /users, /settings | Teacher/student scoped logins; admin user/flag mgmt |
 
+> **Shipped so far:** Phases 1, 2, 4 (compare + slot override + revalidation), and Phase 3's
+> `/assignments` grid. Remaining Phase 3 items: `/profiles`, `/profiles/[id]`, `/constraints`.
+> Phase 5 (role-scoped views + users/settings) is the final push.
+
 ## 6. Verification loop (per page)
 
 Backend :8000 seeded · frontend dev :3001 · `node scripts/screenshot.mjs`

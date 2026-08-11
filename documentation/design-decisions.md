@@ -357,7 +357,7 @@ Address these in the next session; resolved ones move up into the log with their
 7. **DD-022 follow-up** — build order for the teacher-workload roadmap: (1) teacher self-service
    schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
    (3) the change loop (room change + cover + notifications). The strategist brief recommends
-   exactly this sequence; revisit after the TimetableGrid ships.
+   exactly this sequence; the assignment grid has shipped and the teacher portal is next.
 8. **DD-023 follow-up** — block-level overrides: the slot editor edits a single per-slot row, so
    moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
    whole block. Also re-check the client-side "moved session" heuristic when the teacher portal

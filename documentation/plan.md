@@ -81,7 +81,8 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 - [x] **Resource Management Pages**
   - Tables with search/filter, CSV upload modals, and CRUD forms for Rooms, Faculty, Groups, Subjects.
   - **Shipped:** CRUD tables with **drill-down navigation** (category tiles, facet rail, breadcrumbs, URL state) + server pagination/sorting/search for Rooms, Faculty, Groups, Subjects. **Remaining:** CSV upload modals, Master Assignment Grid.
-- [ ] **Master Assignment Grid**: UI to assign teachers to subjects and divisions (Phase 1's critical missing piece).
+- [x] **Master Assignment Grid**: UI to assign teachers to subjects and divisions (Phase 1's critical missing piece).
+  - **Shipped:** `/assignments` — subject × group matrix scoped by department + semester, faculty avatar + hours badge per cell, anchored cell editor (faculty/hours/remove), coverage chips, and a least-loaded-faculty Auto-fill for unassigned cells. Uses the existing `subject_assignments` CRUD.
 - [x] **Generation & Instance Viewer** *(read path + Phase 4 editing)*
   - Trigger generation form with progress bar.
   - **Shipped:** `/generate` (profile picker, solver radio, instance count, run cards with 2s status polling), `/instances` (all-instances list), `/instances/[id]` (the **TimetableGrid**: day×slot grid with color coding, row-spanning lab blocks, faculty/room/group per cell, PDF/CSV/iCal/Select/Publish/Compare actions), and `/exports`.
