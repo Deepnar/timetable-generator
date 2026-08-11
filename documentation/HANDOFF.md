@@ -9,47 +9,38 @@ here). The OPEN items below are copied from it; resolve them and mark them done 
 
 ## Session summary (committed & pushed)
 
-State at handoff: **154/154 tests passing** (`uv run python -m app.tests`), frontend builds
-(`npm run build`), tree clean. This session was the **backend battle test at realistic scale**
-(the pending item from the previous handoff). Commits in order:
+State at handoff: **164/164 tests passing** (`uv run python -m app.tests`), frontend builds
+(`npm run build`), tree clean. This session was **backend saleability hardening** (the user is
+planning to deploy/propose this to a real college; frontend work is on hold until the backend is
+proven). Commits in order:
 
-1. **Scale seed + battle-test tooling** (commit `b50fa52`) — `scripts/` added:
-   - `seed_demo.py` — seeds a 12-department college modeled on the `sample/` TCET timetables and
-     syllabus PDFs: **576 subjects** (8 sems x 6, real COMP codes/names where the PDFs had them),
-     **345 faculty** (~40 in COMP using real TCET names, generated for others), **192 groups**
-     (2 divisions/sem), **204 rooms** (10 classrooms + 6 labs + 1 seminar per dept), **1152
-     subject-assignments**, and **108 profiles** (DIVISION-scoped per dept/sem + DEPARTMENT-scoped
-     per dept), wired to the real time grid (`slots_per_day=8`, `day_start_time=08:30`, lunch after
-     slot 4, Mon-Sat, `term_start`).
-   - `battle_test.py` — runs generations through the same `Scheduler` the API uses (greedy +
-     OR-Tools, multi-instance, `--all-departments`).
-   - `api_drive.py` — drives the live HTTP API: generate → status → instances → select → publish →
-     csv/ical/pdf export.
-   - `async_drive.py` — exercises the real Celery worker + Redis async path (202 PENDING → poll →
-     COMPLETED).
-2. **Two scale bugs fixed** (commit `41f9053`) — found by the battle test:
-   - **PDF export 500'd at scale**: unfiltered multi-group instances (whole-department, 288 slots)
-     crammed every group into one slot/day cell, so a row exceeded the page frame and ReportLab
-     raised `LayoutError`. `generate_timetable_pdf` now renders **one grid per student group**
-     (the per-class format the sample timetables use). Covered by a new multi-group PDF test.
-   - **`GenerationResponse` omitted `run_duration_ms`** even though the model stamps it — the API
-     (and the frontend dashboard) couldn't report timing. Field added.
-3. **Docs** (commits `05c84e2`, `20ac133`) — **DD-020** records the scale-testing decision + findings;
-   the verification-debt OPEN item is resolved (real Redis + Postgres + Celery were all exercised
-   live). `progress.md`/`plan.md`/architecture mark the scale test shipped and document the
-   per-group PDF behavior. `sample/` (real college documents with personal names) is now gitignored
-   — the seed script embeds the extracted shape and never reads it.
+1. **Make OR-Tools fail gracefully on an empty placement domain** (commit `784afe2`) — when every
+   candidate is pruned, `PLACEMENT_WEIGHT * 0 == 0.0` (a bare float) crashed CP-SAT with
+   `TypeError`; now it short-circuits and returns zero slots like greedy.
+2. **Complete the soft-constraint system + make greedy pursue it** (commit `d83ee87`) —
+   `AVOID_CONSECUTIVE_SAME_SUBJECT`, `DISTRIBUTE_SUBJECTS_EVENLY`, and `BALANCE_TEACHER_LOAD`
+   were catalog-advertised but had no scorer and no CP-SAT builder (silent no-ops). Added all
+   three to `scorer.py` and `soft_objective.py`. Bigger impact: the default greedy solver
+   previously ignored soft preferences during placement (post-hoc scoring only); added a
+   preference-aware (day, slot) scan so greedy leans toward morning slots / fresh days / light
+   days. Verified live: with `TEACHER_PREFERS_MORNING(boundary 4)` on a whole department, greedy
+   moved 102 sessions into the morning (186/288 → 288/288).
+3. **Add MAX_DAILY_SUBJECTS data-driven rule** (commit `cdd1aeb`) — a common real-world college
+   rule ("don't give a class 5 subjects in one day") that the engine left unlimited. Registered as
+   a data-driven hard rule (config_json cap), auto-appears in `GET /constraints/types`, modelled
+   relationally in OR-Tools. This is the "rules change without schema changes" story in action.
+4. **Surface unplaced sessions** (commits `6ddea0a` + `7f25346`, migration `1d8688977519`) — a
+   COMPLETED run that dropped sessions only `print()`ed to stdout (silent data loss). Added
+   nullable `placement_warning` to `timetable_generations`; both solvers now report
+   `unplaced_count` and the scheduler stamps the warning on the run, so `POST /generate` and the
+   status endpoint report it.
+5. **Docs** (commit `123e614`) + **override_drive.py** (commit `4ebedbe`) — architecture/plan/
+   progress updated for all of the above; `scripts/override_drive.py` verifies manual-override
+   revalidation live (conflicting move → 409 with the violation, no-op → 200).
 
-**Scale findings (DD-020):**
-- Greedy places **all 288 sessions** of a whole-department profile in **~4.3-4.7s** across all 12
-  departments; per-semester profiles place all 36 in **<0.2s**; 3 instances x 288 in **~12.3s**.
-- OR-Tools places all 36 sessions of a per-semester profile (5s CP-SAT timeout dominates);
-  whole-department OR-Tools is intentionally not exercised (CP-SAT variable explosion — greedy is
-  the whole-dept preview solver).
-- Async path: `POST /generate` → 202 PENDING → real Celery worker → COMPLETED, 288 slots, `dur_ms`
-  stamped. Generation lock: concurrent overlapping runs → one COMPLETED, one LOCKED. Cross-timetable
-  safety: after publishing a department, a re-run places fewer sessions (published reservations block
-  reuse, per DD-008).
+The user explicitly asked for **no forced handoffs** — only commit/push when it makes sense for
+git/memory. This HANDOFF is written to preserve context; the next session should *continue the
+same backend-hardening thread* rather than start fresh.
 
 ## Open design decisions (from `documentation/design-decisions.md` — resolve these)
 
@@ -80,26 +71,40 @@ State at handoff: **154/154 tests passing** (`uv run python -m app.tests`), fron
 - `scripts/battle_test.py` / `api_drive.py` / `async_drive.py` — how to re-run the scale tests.
 - `app/services/export_service.py` — `generate_timetable_pdf` now renders one grid per group;
   `_build_grid` is the extracted per-group table builder.
-- Architecture doc **§4.1** (project tree incl. `scripts/`), **§4.2** (PDF export note), **§9**.
+- `app/engine/scorer.py` / `app/engine/soft_objective.py` — all six soft types ship scorers +
+  CP-SAT builders; `app/engine/solvers/greedy_solver.py` has the preference-aware scan
+  (`_preference_scan`) so greedy pursues soft preferences during placement.
+- `app/engine/constraint_registry.py` — `MAX_DAILY_SUBJECTS` validator (`_max_daily_subjects`);
+  `app/engine/solvers/or_tools_solver.py` models it + `EXAM_DATE_SEPARATION` relationally.
+- `app/engine/scheduler.py` — stamps `placement_warning` from the solver's `unplaced_count`;
+  `app/models/generation.py` + `app/schemas/generation.py` carry the field.
+- `scripts/override_drive.py` — live manual-override revalidation check.
+- Architecture doc **§4.1** (project tree incl. `scripts/`), **§4.2** (PDF export note, `GET /generate`,
+  `placement_warning`), **§9**.
 
-## NEXT TASK — Backend is battle-tested. Next up: **Frontend restyle + the next frontend slice**
+## NEXT TASK — Continue backend saleability hardening (frontend stays on hold)
 
-The user asked to only start frontend work once the backend was battle-tested — it now is. Two
-frontend tracks (in priority order):
+The user is preparing to **deploy/propose this to a real college** and asked for **backend-only
+work, no frontend** until the backend is proven. This session hardened: robustness (OR-Tools empty
+domain), flexibility (all 6 soft constraints + greedy pursuit), the rules-change story
+(`MAX_DAILY_SUBJECTS` demonstrates adding a data-driven rule with zero schema changes), and
+visibility (`placement_warning`). Remaining backend gaps in rough priority:
 
-1. **Restyle toward the user's reference UI.** The current frontend is a generic Tailwind slate
-   look (top navbar, bordered cards). The user's reference screenshots (reviewed this session via
-   the vision tool) show either an *editorial light* aesthetic (white cards on gray, strong
-   typographic hierarchy, shadow-separated surfaces, minimal color) or a *dark dashboard* with one
-   vivid accent (left sidebar, charcoal surfaces, uppercase tracked section labels). **The user has
-   not yet picked which** — ask (dark sidebar + accent vs editorial light) before restyling.
-   Implementation is in `frontend/tailwind.config.ts`, `src/app/globals.css`, `src/components/*`.
-2. **Next frontend slice (Generation & Instance Viewer)** — the highest-value missing UI (plan.md
-   Phase 4): a "trigger generation" form (`POST /api/v1/generate/` with profile/combination select,
-   timetable_type, instances, algorithm, variation), then instance list (`GET /api/v1/instances/
-   {generation_id}`) and a slots grid (`GET /api/v1/instances/{instance_id}/slots`), polling
-   `GET /api/v1/generate/{id}/status` for async runs. The API now reports `run_duration_ms` so the
-   viewer can show timing.
+1. **More data-driven rules colleges actually ask for** — the registry makes adding one cheap and
+   it appears in `GET /constraints/types` automatically. Strong candidates: `MIN_FREE_SLOTS_PER_DAY`
+   (guarantee a minimum number of free slots per group), `MAX_CONSECUTIVE_SAME_GROUP` (cap a group's
+   back-to-back slots), `MAX_DAILY_HOURS` variants. Each needs a validator + catalog entry +
+   relational OR-Tools model (if committed-dependent) + test + docs.
+2. **`GET /instances/{id}/conflicts`** — the doc lists it as a gap; useful for a college to inspect
+   where an instance is tight.
+3. **`hard_violations` honesty** — it's declared but always 0 (the checker rejects invalid
+   placements, so committed slots genuinely have none). Either compute a real value or document that
+   it's structural-zero.
+4. **EVENT/EXAM/CUSTOM scope branches** — they reuse the DEPARTMENT path today.
+5. **RBAC** — deferred by the user (a later milestone; DD-001 follow-up depends on it).
+
+When the user says the backend is done, the frontend tracks are: (a) restyle toward their reference
+UI (dark sidebar + accent vs editorial light — **ask which**), (b) the Generation & Instance Viewer.
 
 ## Remaining known items (see `documentation/progress.md`)
 
