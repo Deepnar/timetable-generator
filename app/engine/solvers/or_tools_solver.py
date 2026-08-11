@@ -148,6 +148,7 @@ class ORToolsSolver(GreedySolver):
             if fac and fac.max_hours_per_week:
                 model.Add(sum(vs) <= fac.max_hours_per_week)
 
+        self._add_max_consecutive_same_teacher(model, x, sessions, by_teacher_slot)
         self._add_max_daily_subjects(model, x, sessions, by_group_day)
         self._add_exam_separation(model, x, sessions)
 
@@ -228,6 +229,45 @@ class ORToolsSolver(GreedySolver):
         if faculty_id not in self._fac_cache:
             self._fac_cache[faculty_id] = self.db.get(Faculty, faculty_id)
         return self._fac_cache[faculty_id]
+
+    def _add_max_consecutive_same_teacher(self, model, x, sessions, by_teacher_slot):
+        """Model MAX_CONSECUTIVE_SAME_TEACHER as a relational CP-SAT rule.
+
+        The registry validator is committed-dependent, so OR-Tools previously
+        only caught it in the final pass — which *dropped* placements instead
+        of optimizing around the cap. A sliding-window constraint fixes that:
+        for each (faculty, day), every window of ``max + 1`` consecutive slots
+        may hold at most ``max`` sessions, so no teacher can sit ``max + 1``
+        back-to-back sessions. Blocks occupy every slot they span, which is
+        exactly how the validator counts a block run.
+        """
+        caps = []
+        for rule in self._load_hard_constraints():
+            rule_type = getattr(rule.constraint_type, "value", rule.constraint_type)
+            if rule_type != "MAX_CONSECUTIVE_SAME_TEACHER":
+                continue
+            cap = (getattr(rule, "config_json", None) or {}).get("max")
+            if cap:
+                caps.append(int(cap))
+        if not caps:
+            return
+        max_run = max(caps)  # the tightest cap governs every teacher
+
+        by_fac_day_slot: dict[tuple, dict[int, list]] = {}
+        for (fid, day, sn), vs in by_teacher_slot.items():
+            by_fac_day_slot.setdefault((fid, day), {}).setdefault(sn, []).extend(vs)
+
+        for (fid, day), slots in by_fac_day_slot.items():
+            ordered = sorted(slots)
+            for start in range(len(ordered) - max_run):
+                window = ordered[start:start + max_run + 1]
+                # only truly consecutive slots count as a run
+                if any(b != a + 1 for a, b in zip(window, window[1:])):
+                    continue
+                vars_in_window = []
+                for sn in window:
+                    vars_in_window.extend(slots[sn])
+                model.Add(sum(vars_in_window) <= max_run)
 
     def _add_max_daily_subjects(self, model, x, sessions, by_group_day):
         """Model MAX_DAILY_SUBJECTS as a relational CP-SAT rule.

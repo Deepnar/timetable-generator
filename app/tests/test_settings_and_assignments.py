@@ -1019,8 +1019,35 @@ def _phase3_ortools(s):
                 sl["subject_id"])
         assert all(len(subjects) == 1 for subjects in by_day.values()), by_day
 
+    @test("OR-Tools models MAX_CONSECUTIVE_SAME_TEACHER relationally")
+    def t_ortools_max_consecutive(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "MAX_CONSECUTIVE_SAME_TEACHER",
+            "config_json": {"max": 1},  # no two consecutive sessions per teacher
+        })
+        assert r.status_code == 201, r.text
+        slots = _gen(client, headers, ids["profile"], "OR_TOOLS")
+        assert slots, "expected slots"
+        # no (faculty, day) may hold adjacent slot numbers
+        from collections import defaultdict
+        by_fd: dict[tuple, list] = defaultdict(list)
+        for sl in slots:
+            if sl["faculty_id"] is not None and sl["day_of_week"] is not None:
+                by_fd[(sl["faculty_id"], sl["day_of_week"])].append(sl["slot_number"])
+        for nums in by_fd.values():
+            nums = sorted(nums)
+            assert all(b != a + 1 for a, b in zip(nums, nums[1:])), (
+                f"consecutive run for {nums}"
+            )
+
     return [t_ortools_basic, t_ortools_registry, t_ortools_soft_objective,
-            t_ortools_holiday, t_ortools_max_daily_subjects]
+            t_ortools_holiday, t_ortools_max_daily_subjects,
+            t_ortools_max_consecutive]
 
 
 @suite("Phase 3 — OR-Tools robustness")
