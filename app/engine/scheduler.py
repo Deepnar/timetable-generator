@@ -35,6 +35,7 @@ from app.services import redis_client
 from app.models.profiles import ResourceType
 from app.engine.profile_resolver import ProfileResolver
 from app.engine.solvers.greedy_solver import GreedySolver
+from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.scorer import score_instance, ScoringContext
 
 
@@ -307,6 +308,11 @@ class Scheduler:
             for slot in slots:
                 self.db.add(slot)
 
+            # Honest hard-violation count: re-validate the committed slots with
+            # the full checker (structural + registry + published conflicts).
+            instance.hard_violations = self._count_instance_violations(
+                slots, reserved_conflicts, resolved.hard_constraints)
+
             if score is not None:
                 instance.soft_score = score
                 best_score = score if best_score is None else max(best_score, score)
@@ -360,6 +366,44 @@ class Scheduler:
     def _hamming(a: frozenset, b: frozenset) -> int:
         """Number of placements that differ between two instances."""
         return len(a ^ b)
+
+    def _count_instance_violations(self, slots, reserved_conflicts, hard_constraints):
+        """Re-validate an instance's committed slots with the full checker.
+
+        The solver rejects invalid placements during solving, so committed
+        slots should carry zero hard violations — but this is the honest
+        count, computed by treating each slot as a candidate against the
+        instance's *other* slots (plus published cross-timetable reservations
+        and the profile's registry rules). If a bug ever lets an invalid slot
+        through, `instance.hard_violations` reflects it instead of the schema
+        default of 0.
+        """
+        if not slots:
+            return 0
+        violations = 0
+        for i, slot in enumerate(slots):
+            others = slots[:i] + slots[i + 1:]
+            candidate = SlotCandidate(
+                instance_id=slot.instance_id,
+                day_of_week=slot.day_of_week,
+                slot_number=slot.slot_number,
+                start_time=slot.start_time,
+                end_time=slot.end_time,
+                faculty_id=slot.faculty_id,
+                room_id=slot.room_id,
+                student_group_id=slot.student_group_id,
+                subject_id=slot.subject_id,
+                session_type=slot.session_type,
+                slot_date=slot.slot_date,
+                is_cross_department=False,
+                block_length=1,
+            )
+            checker = ConstraintChecker(
+                self.db, others, settings=get_settings(self.db),
+                reserved=reserved_conflicts, hard_constraints=hard_constraints,
+            )
+            violations += len(checker.check_all(candidate))
+        return violations
 
     def _load_published_conflicts(
         self, exempt_groups: set[int] | None = None

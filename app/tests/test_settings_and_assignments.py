@@ -1082,7 +1082,23 @@ def _phase3_ortools_robustness(s):
         assert gen["generation_status"] == "COMPLETED", gen
         assert gen["placement_warning"] is None, gen
 
-    return [t_ortools_empty_domain, t_no_warning]
+    @test("instance hard_violations is honestly computed (0 for clean solves)")
+    def t_hard_violations(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        inst = client.get(f"/instances/{gen['id']}", headers=headers).json()[0]
+        # The solver rejects invalid placements, so a clean run is 0.
+        assert inst["hard_violations"] == 0, inst
+
+    return [t_ortools_empty_domain, t_no_warning, t_hard_violations]
 
 
 @suite("Phase 3 — Instance diversity")
