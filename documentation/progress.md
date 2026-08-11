@@ -26,6 +26,14 @@ New engine capabilities added in the same pass (with tests):
 
 Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
+- **DD-024 — real-college scheduling rules are only partially modeled** (flagged by the founder;
+  see `design-decisions.md`). Batches (2 batches 2nd–4th yr, 3 in 1st yr; parallel 2h practicals
+  per batch) have a `BATCH` group_type but no seed/solver support; "max one practical subject per
+  day" is unenforced; subjects have no explicit tutorial/practical/`both` attribute driving two
+  session streams; the time grid is one shared slot list, not per-day; and cross-timetable
+  conflict reservations only cover PUBLISHED instances, not all active (DRAFT/SELECTED) ones.
+  Verify each against real data, then design (see DD-024 next steps).
+
 - ~~**Room blackout check is effectively dead**~~ — ✅ FIXED: `room_blackouts` now supports recurring **weekday** blackouts (`day_of_week`), which the checker enforces against the recurring templates. Date-specific blackouts still await calendar-date materialization.
 - ~~**Faculty availability date-range ignored**~~ — ✅ FIXED: `effective_from`/`effective_to` are now nullable (migration `e9f4a2b6d8c0`) so timeless windows can be created via CRUD/CSV, and the checker consults them against each slot's materialized date. The solver anchors the weekly template with the new **`term_start`** profile parameter (see architecture §8.8) and stamps `TimetableSlot.slot_date`; a date-bounded window only blocks the week it covers, and a window with no bounds stays timeless.
 - ~~**CSV import is not atomic**~~ — ✅ FIXED: `/import/{rooms,faculty,groups,subjects}` are now **all-or-nothing**. Every row is validated up front (required fields, duplicates within the file AND against the DB); any invalid row rejects the whole upload with `422` and `inserted=0`, so the DB never ends up holding rows the response didn't report. `import_rooms` also now requires a non-empty `room_code`.
@@ -128,7 +136,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Slot override UI**: click a DRAFT/SELECTED cell → anchored editor (day/slot/room/faculty selects + reason). A debounced `POST /instances/{id}/slots/{slotId}/revalidate` dry-run reports conflicts before saving; Save stays disabled until clean. Backend revalidate endpoint wraps `_check_candidate` (shared with the PATCH) and returns `{"slot_id", "violations"}` with 200 even on conflicts; a slot move re-derives start/end from the profile's time grid.
 - [ ] **CSV upload modals** (part of Resource Management).
 - [x] **Assignment grid**: `/assignments` — a subject × group matrix scoped by department + semester (rows = subjects, columns = division groups), with faculty avatar + weekly-hours badge per cell, an anchored cell editor (assign/change faculty + hours, remove), per-subject coverage chips, and a least-loaded-faculty **Auto-fill unassigned** bulk action. Drives the same `subject_assignments` CRUD the solver reads.
-- [ ] **Profile & Constraint Builder**: Visual form for profiles and dynamic constraints.
+- [x] **Profile & Constraint Builder**: `/profiles` (card grid of presets with create drawer + archive) and `/profiles/[id]` (four tabs: **Resources** per-type shuttles, **Parameters** catalog-driven key/value rows with JSON validation, **Constraints** hard + soft rows from the `GET /constraints/types` catalog with inline soft-weight editing, **Runs** generation history). The Generate button preselects the profile via `?profile=N`.
 - [ ] **Instance Editor**: Click-to-edit slots with live conflict re-checking. *(Core done — see "Slot override UI"; polish left.)*
 
 ### 🔵 Deployment & Final Polish

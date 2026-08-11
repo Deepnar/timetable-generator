@@ -334,6 +334,25 @@ next session is pointed at them. See `AGENTS.md` → "Design decisions".
 
 ---
 
+## Domain model reality-check (2026-08-11)
+
+### DD-024 — The college's real scheduling rules need a batch layer, session-type subject ties, and per-day time grids
+- **Status:** OPEN — flagged by the founder; **nothing built yet**, these are the "things to check and work on" for the next engine/domain sessions.
+- **Context:** the founder described how timetables actually work at the college, and several of these rules are only partially represented (or missing) in the current schema/engine:
+  1. **Batches, not just divisions.** A class is split into batches — **2 batches for 2nd–4th year, 3 batches in 1st year**. Practicals run one batch against one subject while another batch runs a different subject at the same time (2-hour parallel sessions). `student_groups.group_type` already has a `BATCH` enum value, but the seed only creates DIVISION groups and the solver schedules against the division, not batches.
+  2. **One practical subject per day, max.** Per group/batch, at most one practical (LAB) subject per calendar day. `SAME_SUBJECT_SAME_DAY` already caps one block of the same subject per day, but nothing prevents two *different* lab subjects on the same day.
+  3. **Subjects are tied to TUTORIAL and/or PRACTICAL.** A subject declares whether it has a tutorial, a practical, or both — each a distinct session stream. `SessionType.TUTORIAL` and `SessionType.LAB` exist as enum values, and `Subject.requirements_json` carries a `session_type`, but there is no per-subject "has tutorial / has practical / both" attribute driving two session streams.
+  4. **Time grid can differ per day.** College timings may vary day-to-day (per-department or per-year consistency), with different break times and per-lecture durations. The engine currently builds **one** slot grid (`_build_slot_times` in the greedy solver) shared across every working day — there is no per-day `{day: slots[]}` structure.
+  5. **Conflicts must be checked against ALL active timetables.** The cross-timetable reservation loader (`Scheduler._load_published_conflicts`) only reserves `PUBLISHED` slots. The founder wants the checker to refuse reuse against every *active* timetable (i.e. also DRAFT/SELECTED candidates, not just the published one).
+- **Rejected alternatives:** none yet — this is scoped as a verification + design exercise, not an implementation.
+- **Next steps (check each against the real data, then design):**
+  - Add batches as `StudentGroup(group_type=BATCH, parent_division?)` and decide whether a practical slot is scheduled per batch or per division (parallel 2h sessions imply per-batch slots, one lab subject per day).
+  - Extend the subject model with explicit tutorial/practical flags (or a small `subject_sessions` mapping) and let `subject_assignments` target batch/stream explicitly.
+  - Refactor the time-grid builder to `{day_of_week: [(start, end), ...]}` so each day can carry its own slots/breaks/durations; profile params become per-day.
+  - Change the conflict loader to take the set of "active" instance statuses (DRAFT/SELECTED/PUBLISHED) and add a college flag or profile param to choose the strictness.
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -362,6 +381,11 @@ Address these in the next session; resolved ones move up into the log with their
    moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
    whole block. Also re-check the client-side "moved session" heuristic when the teacher portal
    lands.
+9. **DD-024 (OPEN)** — the college's real rules: batches (2 batches 2nd–4th yr, 3 in 1st yr, with
+   parallel 2h practicals), max one practical subject per day, per-subject tutorial/practical
+   ties, per-day time grids (varied timings/breaks/lecture duration), and conflict checking
+   against ALL active timetables (not just PUBLISHED). Verify each against the real data, then
+   design — see the DD-024 entry for next steps.
 
 ---
 
