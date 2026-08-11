@@ -98,7 +98,7 @@ export function DataTable<T>({
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <TableRow key={headerGroup.id} className="border-b bg-muted/50 hover:bg-muted/50">
               {headerGroup.headers.map((header) => (
                 <TableHead key={header.id} className={header.column.columnDef.meta?.align === "right" ? "text-right" : undefined}>
                   {header.isPlaceholder
