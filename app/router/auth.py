@@ -45,6 +45,11 @@ def register_admin(admin: AdminCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered"
         )
+    if db.scalars(select(Admin).where(Admin.name == admin.name)).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Name already registered"
+        )
     new_admin = Admin(
         email=admin.email,
         password=hash_password(admin.password),
@@ -74,6 +79,11 @@ def create_user(admin: AdminCreate, db: Session = Depends(get_db),
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered"
+        )
+    if db.scalars(select(Admin).where(Admin.name == admin.name)).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Name already registered"
         )
     new_admin = Admin(
         email=admin.email,

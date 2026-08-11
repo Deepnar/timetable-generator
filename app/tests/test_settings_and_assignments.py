@@ -1230,7 +1230,24 @@ def _phase5_rbac(s):
         r = client.get("/rooms/", headers=teacher)
         assert r.status_code == 200, r.text
 
-    return [t_me, t_create_users, t_teacher_forbidden, t_teacher_reads]
+    @test("a duplicate name returns 409, not a 500")
+    def t_dup_name(client):
+        from app.tests.test_runner import reset_db, create_admin
+        reset_db(); create_admin()
+        admin = _login(client)
+        r = client.post("/auth/users", headers=admin, json={
+            "name": "Dup Name", "email": "dup1@tcet.edu.in",
+            "password": "pass123", "role": "teacher",
+        })
+        assert r.status_code == 201, r.text
+        # same name, different email -> the name unique constraint would 500
+        r = client.post("/auth/users", headers=admin, json={
+            "name": "Dup Name", "email": "dup2@tcet.edu.in",
+            "password": "pass123", "role": "teacher",
+        })
+        assert r.status_code == 409, r.text
+
+    return [t_me, t_create_users, t_teacher_forbidden, t_teacher_reads, t_dup_name]
 
 
 @suite("Phase 3 — Instance diversity")
