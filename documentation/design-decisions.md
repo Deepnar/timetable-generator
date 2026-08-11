@@ -294,6 +294,33 @@ next session is pointed at them. See `AGENTS.md` → "Design decisions".
 
 ---
 
+## Teacher-workload product direction (2026-08-11)
+
+### DD-022 — The product is positioned "for teachers"; the roadmap is a live date-aware layer + a change loop
+- **Status:** Decided (strategy brief from a `deepseek-v4-pro` strategist subagent; not yet built).
+- **Context:** the founder wants the product framed around cutting a teacher's daily workload, and
+  specifically wants: teacher-only schedule view + own-slot exports; a "live" timetable
+  (yearly/monthly/daily views, one-day shifts, "where is teacher X"); and other workload cutters.
+- **Decision:** validated + refined by the strategist into this priority order:
+  1. **Teacher self-service schedule + own-slot exports** — *S.* The exports already accept
+     `faculty_id` (PDF/CSV/iCal); add a teacher-facing "my published schedule" read endpoint +
+     the `/my-schedule` frontend page. Sells the teacher persona, removes the #1 admin chore.
+  2. **Live date-aware timetable + day card** — *M.* Add a date-resolution layer: a
+     `timetable_overrides` exception table (date-scoped slot moves/covers/shifts) so "is there
+     class on date X / today" works. This is the platform every date-specific feature (shifts,
+     covers, room changes, alerts, "where is teacher X") builds on. `GET /my/today` powers a
+     day-card UI.
+  3. **Change loop: room change + cover + notifications** — *M.* Room change = PATCH (exists) +
+     notify; cover = a date-scoped teacher swap on the overlay + `cover_log` + notify; a small
+     `app_notifications` table + hooks on publish/override/cover. Reuses the existing SMTP path
+     (DD-003/DD-004 open items become relevant here).
+  - Deferred: one-day shifts (rides the overlay but costs most), room-swap, push alerts.
+- **Rejected alternatives:** a separate "live shift" entity + scheduler support up front (too
+  early; the overlay table first is cheaper and unblocks everything); real push (FCM) before a
+  mobile client exists (defer); "where is teacher X" as a standalone feature (fold into #2).
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -314,6 +341,10 @@ Address these in the next session; resolved ones move up into the log with their
    cadence for re-running the battle test (e.g. after any engine/solver change).
 6. **DD-021 follow-up** — teacher/student read-scoping (see the DD-021 entry): filter list
    endpoints by the caller's identity once the frontend defines which views each role needs.
+7. **DD-022 follow-up** — build order for the teacher-workload roadmap: (1) teacher self-service
+   schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
+   (3) the change loop (room change + cover + notifications). The strategist brief recommends
+   exactly this sequence; revisit after the TimetableGrid ships.
 
 ---
 
