@@ -75,6 +75,9 @@ export default function InstancesPage() {
                       {inst.published_at ? new Date(inst.published_at).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
+                      <Button variant="link" size="sm" onClick={() => router.push(`/instances/compare?a=${inst.id}`)}>
+                        Compare
+                      </Button>
                       <Button variant="link" size="sm" onClick={() => router.push(`/instances/${inst.id}`)}>
                         View grid →
                       </Button>

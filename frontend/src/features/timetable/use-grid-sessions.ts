@@ -30,7 +30,11 @@ export function useGridSessions(instanceId: number | undefined) {
       const group = sl.student_group_id != null ? groups.get(sl.student_group_id) : undefined;
       return {
         key: `${sl.id}`,
+        slotId: sl.id,
         subjectId: sl.subject_id,
+        facultyId: sl.faculty_id ?? undefined,
+        roomId: sl.room_id ?? undefined,
+        groupId: sl.student_group_id ?? undefined,
         subjectCode: subject?.subject_code,
         subjectName: subject?.name,
         facultyName: fac?.name,

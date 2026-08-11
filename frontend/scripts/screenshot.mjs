@@ -114,6 +114,23 @@ async function main() {
     await shot(name);
   }
 
+  // scheduling pages — need a seeded generation/instances to be meaningful
+  const instList = await fetch(`${API}/api/v1/instances?limit=3`, {
+    headers: { Authorization: `Bearer ${await evalJs("localStorage.getItem('timetable_token')")}` },
+  }).then((r) => r.json()).catch(() => []);
+  if (Array.isArray(instList) && instList.length >= 2) {
+    await send("Page.navigate", { url: `${FRONT}/instances` });
+    await shot("instances");
+    await send("Page.navigate", { url: `${FRONT}/instances/${instList[0].id}` });
+    await shot("instance-detail");
+    await send("Page.navigate", { url: `${FRONT}/instances/compare?a=${instList[0].id}&b=${instList[1].id}` });
+    await shot("instance-compare");
+  } else {
+    console.log("no instances to capture; skip scheduling pages");
+  }
+  await send("Page.navigate", { url: `${FRONT}/exports` });
+  await shot("exports");
+
   // rooms modal
   await send("Page.navigate", { url: `${FRONT}/rooms` });
   await sleep(2500);

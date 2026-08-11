@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo } from "react";
-import { FlaskConical } from "lucide-react";
+import { useMemo } from "react";import { FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { chartColor } from "@/lib/chart-colors";
 
 /** One placed session. */
 export interface GridSession {
   key: string;
+  slotId: number;
   subjectId: number | null;
+  facultyId?: number;
+  roomId?: number;
+  groupId?: number;
   subjectCode?: string;
   subjectName?: string;
   facultyName?: string;
@@ -22,6 +25,9 @@ export interface GridSession {
   isManualOverride?: boolean;
 }
 
+/** Per-cell diff marker used by compare mode. Keyed by `${day}:${startSlot}`. */
+export type GridCellMarker = "added" | "removed" | "changed";
+
 export interface TimetableGridProps {
   sessions: GridSession[];
   /** 0-indexed days actually used, e.g. [0,1,2,3,4]. */
@@ -32,7 +38,13 @@ export interface TimetableGridProps {
   slotTime?: (slot: number) => string;
   density?: "comfortable" | "compact";
   readOnly?: boolean;
-  onCellClick?: (session: GridSession) => void;
+  onCellClick?: (session: GridSession, event: React.MouseEvent<HTMLButtonElement>) => void;
+  /** Forward the scroll container so compare can sync two grids. */
+  scrollRef?: React.Ref<HTMLDivElement>;
+  /** Diff markers keyed by `${day}:${startSlot}`. */
+  markers?: Record<string, GridCellMarker>;
+  /** Scroll listener forwarded to the container (compare scroll sync). */
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -46,6 +58,9 @@ export function TimetableGrid({
   density = "comfortable",
   readOnly = false,
   onCellClick,
+  scrollRef,
+  markers,
+  onScroll,
 }: TimetableGridProps) {
   // index sessions by (day, startSlot) for O(1) lookup; skip spans of blocks
   const byDaySlot = useMemo(() => {
@@ -70,6 +85,8 @@ export function TimetableGrid({
       });
       if (coveredByEarlier) continue;
 
+      const marker = session ? markers?.[`${day}:${slot}`] : undefined;
+
       cells.push(
         <div
           key={`${day}:${slot}`}
@@ -77,7 +94,7 @@ export function TimetableGrid({
           style={{ gridColumn: day + 2, gridRow: slot + 1 }}
         >
           {session ? (
-            <GridCell session={session} density={density} readOnly={readOnly} onClick={() => onCellClick?.(session)} />
+            <GridCell session={session} density={density} readOnly={readOnly} marker={marker} onClick={(e) => onCellClick?.(session, e)} />
           ) : null}
         </div>,
       );
@@ -85,7 +102,7 @@ export function TimetableGrid({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
       <div
         className="grid min-w-[820px]"
         style={{
@@ -99,6 +116,7 @@ export function TimetableGrid({
         {days.map((day, i) => (
           <div
             key={day}
+            data-day={day}
             className="sticky top-0 z-10 flex items-center justify-center bg-muted px-2 text-xs font-medium uppercase tracking-wide text-ink-soft"
             style={{ gridColumn: i + 2, gridRow: 1 }}
           >
@@ -109,6 +127,7 @@ export function TimetableGrid({
         {Array.from({ length: slotCount }, (_, k) => k + 1).map((slot) => (
           <div
             key={slot}
+            data-slot={slot}
             className="sticky left-0 z-10 flex items-start justify-end bg-muted pr-2 font-mono text-[11px] text-ink-faint"
             style={{ gridColumn: 1, gridRow: slot + 1 }}
           >
@@ -121,11 +140,12 @@ export function TimetableGrid({
   );
 }
 
-function GridCell({ session, density, readOnly, onClick }: {
+function GridCell({ session, density, readOnly, marker, onClick }: {
   session: GridSession;
   density: "comfortable" | "compact";
   readOnly: boolean;
-  onClick: () => void;
+  marker?: GridCellMarker;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   const color = chartColor(session.subjectId ?? 0);
   const isLab = session.sessionType === "LAB";
@@ -136,6 +156,9 @@ function GridCell({ session, density, readOnly, onClick }: {
       className={cn(
         "flex h-full w-full flex-col justify-center gap-0.5 overflow-hidden rounded-r-sm border-l-[3px] bg-surface px-2 text-left",
         !readOnly && "cursor-pointer transition-shadow hover:shadow-md",
+        marker === "added" && "border-l-ink ring-2 ring-dashed ring-primary/70 ring-inset",
+        marker === "removed" && "opacity-60 ring-2 ring-dashed ring-danger/70 ring-inset",
+        marker === "changed" && "ring-2 ring-warning/80 ring-inset",
       )}
       style={{ borderLeftColor: color }}
     >

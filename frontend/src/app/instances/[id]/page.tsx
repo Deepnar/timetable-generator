@@ -1,12 +1,15 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Pencil, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Download, Pencil, CheckCircle2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiPost } from "@/lib/api";
+import { useAllInstances } from "@/hooks/use-resources";
 import { useGridSessions } from "@/features/timetable/use-grid-sessions";
-import { TimetableGrid } from "@/features/timetable/TimetableGrid";
+import { TimetableGrid, type GridSession } from "@/features/timetable/TimetableGrid";
+import { SlotEditor } from "@/features/timetable/SlotEditor";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,11 +28,25 @@ export default function InstanceViewerPage() {
   const instanceId = Number(params.id);
   const qc = useQueryClient();
 
-  // The instance id IS the path segment; find its generation via the lookup.
+  // The instance id IS the path segment; find its metadata via the lookup.
+  const all = useAllInstances({ limit: 200 });
+  const instance = all.data?.rows.find((i) => i.id === instanceId);
+
   const { sessions, isLoading, isError, error, refetch, totalSlots } = useGridSessions(instanceId);
+
+  const [editing, setEditing] = useState<GridSession | null>(null);
+  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
 
   const days = Array.from({ length: 6 }, (_, i) => i); // Mon-Sat default
   const slotCount = 8;
+
+  const editable = instance?.status === "DRAFT" || instance?.status === "SELECTED";
+
+  function openEditor(session: GridSession, event: React.MouseEvent<HTMLButtonElement>) {
+    setEditing(session);
+    const rect = event.currentTarget.getBoundingClientRect();
+    setAnchor({ x: rect.left, y: rect.bottom });
+  }
 
   async function selectInstance() {
     try {
@@ -77,7 +94,9 @@ export default function InstanceViewerPage() {
             </Button>
             <div>
               <h1 className="display text-3xl text-ink">Instance #{instanceId}</h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">{totalSlots} scheduled slots</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {totalSlots} scheduled slots{instance ? ` · ${instance.status}` : ""}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -86,6 +105,9 @@ export default function InstanceViewerPage() {
             </Button>
             <Button variant="outline" onClick={() => exportInstance("csv")}>CSV</Button>
             <Button variant="outline" onClick={() => exportInstance("ical")}>iCal</Button>
+            <Button variant="outline" onClick={() => router.push(`/instances/compare?a=${instanceId}`)}>
+              Compare
+            </Button>
             <Button variant="outline" onClick={selectInstance}>
               <Pencil className="mr-1 h-4 w-4" /> Select
             </Button>
@@ -96,6 +118,11 @@ export default function InstanceViewerPage() {
         </div>
 
         {isError && <ErrorBanner message={error instanceof Error ? error.message : "Failed to load"} onRetry={() => refetch()} />}
+        {!editable && instance?.status === "PUBLISHED" && (
+          <div className="rounded-md border border-warning/40 bg-warning/5 px-4 py-2.5 text-sm text-warning">
+            This timetable is published and read-only. Edit a DRAFT or SELECTED instance instead.
+          </div>
+        )}
 
         <div className="rounded-md border bg-surface p-4 shadow-sm">
           {isLoading ? (
@@ -107,11 +134,35 @@ export default function InstanceViewerPage() {
               sessions={sessions}
               days={days}
               slotCount={slotCount}
-              readOnly
+              readOnly={!editable}
+              onCellClick={editable ? openEditor : undefined}
             />
           )}
         </div>
       </div>
+
+      {/* Slot override editor anchored to the clicked cell. */}
+      {editing && editable && anchor && (
+        <div
+          className="fixed z-50 w-80 rounded-md border bg-surface p-4 shadow-lg"
+          style={{ left: Math.min(anchor.x, Math.max(8, window.innerWidth - 340)), top: Math.min(anchor.y + 6, window.innerHeight - 460) }}
+        >
+          <div className="mb-2 flex items-start justify-between">
+            <p className="eyebrow">Edit slot</p>
+            <Button variant="ghost" size="icon" className="-mr-2 -mt-1 h-6 w-6" onClick={() => setEditing(null)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <SlotEditor
+            key={editing.slotId}
+            instanceId={instanceId}
+            session={editing}
+            days={days}
+            slotCount={slotCount}
+            onSaved={() => { setEditing(null); qc.invalidateQueries(); }}
+          />
+        </div>
+      )}
     </ProtectedShell>
   );
 }
