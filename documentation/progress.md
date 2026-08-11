@@ -120,6 +120,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 ### 🟢 Full Stack Frontend Development (Next.js / React)
 *This is now a core part of this project, not an external consumer.*
 - [x] **Frontend Initialization**: Setup Next.js app within the full-stack deployment pipeline. — `frontend/` (Next.js 14 App Router + TypeScript + Tailwind), `src/lib/api.ts` fetch client (JWT Bearer + `X-Total-Count`), `AuthProvider`, `ProtectedShell` guard (DD-017).
+- [x] **Editorial-light restyle**: the admin UI is themed with warm canvas, white shadow-separated cards, serif display headings, uppercase tracked labels, and charcoal accents (`tailwind.config.ts`, `globals.css`, all components/pages). A raw-CDP screenshot harness (`frontend/scripts/screenshot.mjs`) performs a real login and captures every page for visual verification via the vision skill; it surfaced and fixed the auth-init race and a title-singularization bug.
 - [x] **Auth & Dashboard**: Login page (`/auth/login` → JWT in localStorage), protected routes, stats view (resource counts), quick actions.
 - [x] **Resource Management Pages**: CRUD tables with server pagination + filters for Rooms, Faculty, Groups, Subjects (driven by the shared `ResourceTable`; adds `PUT /groups/{id}` for full CRUD parity).
 - [ ] **CSV upload modals** (part of Resource Management).

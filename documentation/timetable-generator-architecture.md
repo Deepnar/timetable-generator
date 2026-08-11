@@ -500,7 +500,7 @@ CREATE TABLE timetable_reset_log (
 ```
 timetable-api/
 ├── main.py                          # FastAPI app, middleware, audit, /health
-├── config.py                        # pydantic-settings (DB_*, SECRET_KEY, ALGORITHM)
+├── config.py                        # pydantic-settings (DB_*, SECRET_KEY, ALGORITHM, CORS_ORIGINS)
 ├── database.py                      # SQLAlchemy engine + SessionLocal + Base
 ├── Dockerfile                       # uv-based backend image (alembic upgrade head → uvicorn)
 ├── docker-compose.yml               # full stack: App + Frontend + PostgreSQL + Redis (DD-018)
@@ -569,12 +569,13 @@ timetable-api/
 └── utils/
     ├── auth.py                      # bcrypt (direct), JWT, get_current_admin
     └── pagination.py                # Pagination dataclass + paginate()
-frontend/                            # Next.js 14 admin UI (DD-017, DD-019)
+frontend/                            # Next.js 14 admin UI (DD-017, DD-019), editorial-light theme
 ├── package.json / tsconfig.json / next.config.mjs
 ├── tailwind.config.ts / postcss.config.mjs
 ├── .env.example                     # NEXT_PUBLIC_API_URL (backend base URL)
 ├── Dockerfile                       # multi-stage standalone image (bakes NEXT_PUBLIC_API_URL)
 ├── public/                          # static assets (favicon)
+├── scripts/screenshot.mjs           # raw-CDP screenshot harness (system Chrome, no deps)
 └── src/
     ├── app/                         # App Router pages (all client components)
     │   ├── layout.tsx               # root layout + AuthProvider
@@ -593,7 +594,7 @@ frontend/                            # Next.js 14 admin UI (DD-017, DD-019)
     │   └── ResourceTable.tsx        # config-driven CRUD table (list + filters + modals)
     └── lib/
         ├── api.ts                   # fetch client: Bearer JWT, X-Total-Count, /api/v1 base
-        ├── auth.tsx                 # AuthProvider + useAuth (localStorage JWT)
+        ├── auth.tsx                 # AuthProvider + useAuth (localStorage JWT; sync init)
         └── types.ts                 # response types mirroring the Pydantic schemas
 ```
 
@@ -1408,7 +1409,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **Redis integration** — optional client (`app/services/redis_client.py`) with graceful degradation: generation-conflict locking (`409` on a busy run), response caching for rooms/subjects/profiles/settings (busted on write), and IP rate limiting on `/auth/login` + `/auth/register` (`429`). Gated by `REDIS_ENABLED` (§7.9).
 - **Email notifications on publish** — opt-in SMTP mailer (`app/services/mail_service.py`): on `POST /instances/{id}/publish`, faculty get their personal PDF, HOD/admins (`config_json["notification_emails"]`) the full-instance summary, and class incharges (`student_groups.incharge_email`, migration `f5a1b3c8e6d2`) their group's PDF. Delivery is a non-blocking daemon thread; unconfigured SMTP (`EMAIL_ENABLED=false` or empty `SMTP_HOST`/`SMTP_FROM`) is a strict no-op and mail failures never fail the publish (§7.7, §8.9).
 - **API versioning + JSON error envelope** — the whole API is mounted at `/api/v1/` via one aggregator router (unversioned paths stay live); global handlers guarantee the `{"detail": ...}` envelope with `request_id` on 422/500 (§7.10).
-- **Frontend** — `frontend/` is a Next.js 14 App Router + TypeScript + Tailwind admin UI (DD-017): login (JWT in localStorage), dashboard (resource counts from `X-Total-Count` + recent runs from `GET /generate` + quick actions), and CRUD tables for rooms/faculty/groups/subjects driven by a shared `ResourceTable`. The browser calls `/api/v1/*` directly at `NEXT_PUBLIC_API_URL` (DD-019). Dockerized via `frontend/Dockerfile` (standalone Next image).
+- **Frontend** — `frontend/` is a Next.js 14 App Router + TypeScript + Tailwind admin UI (DD-017): login (JWT in localStorage), dashboard (resource counts from `X-Total-Count` + recent runs from `GET /generate` + quick actions), and CRUD tables for rooms/faculty/groups/subjects driven by a shared `ResourceTable`. The browser calls `/api/v1/*` directly at `NEXT_PUBLIC_API_URL` (DD-019). Dockerized via `frontend/Dockerfile` (standalone Next image). Styled in the **editorial-light** theme (warm canvas, white shadow-separated cards, serif display headings, charcoal accents); a raw-CDP screenshot harness (`frontend/scripts/screenshot.mjs`) drives a real login + per-page capture for visual verification, which surfaced and fixed the auth-init race and a singularization bug.
 - **Full-stack Dockerization** — top-level `docker-compose.yml` runs App + Frontend + PostgreSQL + Redis in one command (DD-018); backend `Dockerfile` uses the official uv image and runs `alembic upgrade head` before uvicorn. `docker/docker-compose.yml` stays the backend-only dev infra.
 - **Scale battle test** — `scripts/seed_demo.py` + `scripts/battle_test.py` + `scripts/api_drive.py` + `scripts/async_drive.py` verify the engine against a 12-department TCET-style college (576 subjects / 345 faculty / 192 groups / 204 rooms / 1152 assignments). Greedy places all 288 sessions of a whole-department profile in ~4.3s (all 12 departments); OR-Tools places all 36 sessions of a per-semester profile; the real Celery worker + Redis async path, the generation lock, and cross-timetable safety were all exercised live. Surfaced and fixed two scale bugs (multi-group PDF `LayoutError`; missing `run_duration_ms` on `GenerationResponse`) — see DD-020.
 - **Backend saleability hardening** — the follow-up pass closed the remaining loose ends: all six soft constraint types ship scorers + CP-SAT builders and greedy pursues them during placement; OR-Tools models `MAX_CONSECUTIVE_SAME_TEACHER`, `MAX_DAILY_SUBJECTS`, and `EXAM_DATE_SEPARATION` relationally; `scope_type=EXAM` implies exam mode; `solver_timeout_seconds` / `diversity_threshold` profile params are read; `ALLOW_FREE_LAST_SLOT` and `MAX_DAILY_SUBJECTS` are new data-driven rules; `placement_warning` and honest `hard_violations` surface on runs/instances; and RBAC (roles + `require_roles` + `/auth/me` + `/auth/users`) landed.
