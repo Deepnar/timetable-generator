@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -19,11 +18,12 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-
-  useEffect(() => {
-    setIsAuthenticated(Boolean(getToken()));
-  }, []);
+  // Initialize synchronously from the stored token so a page load with a
+  // valid session starts authenticated — no false-false race that would
+  // redirect a protected route to /login before the effect runs.
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    () => Boolean(getToken()),
+  );
 
   const login = useCallback((token: string) => {
     setToken(token);

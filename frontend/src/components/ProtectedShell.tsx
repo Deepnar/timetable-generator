@@ -24,7 +24,7 @@ export function ProtectedShell({ children }: { children: React.ReactNode }) {
 
   if (!ready || !isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-slate-400">
+      <div className="flex min-h-screen items-center justify-center text-sm text-ink-faint">
         Checking session…
       </div>
     );

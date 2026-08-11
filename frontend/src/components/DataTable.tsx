@@ -36,38 +36,38 @@ export function DataTable<T>({
 
   return (
     <div>
-      <div className="overflow-x-auto rounded border border-slate-200">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50">
-            <tr>
+      <div className="overflow-x-auto rounded-sm bg-white shadow-card">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-accent-line">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-4 py-2 text-left font-medium text-slate-600"
+                  className="px-4 py-3 text-left eyebrow font-medium text-ink-faint"
                 >
                   {col.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
+          <tbody className="divide-y divide-accent-line">
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-ink-faint">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-ink-faint">
                   No rows.
                 </td>
               </tr>
             ) : (
               rows.map((row, i) => (
-                <tr key={i} className="hover:bg-slate-50">
+                <tr key={i} className="hover:bg-canvas-deep/60 transition-colors">
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-2 text-slate-700">
+                    <td key={col.key} className="px-4 py-3 text-ink">
                       {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "")}
                     </td>
                   ))}
@@ -77,11 +77,11 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
-      <div className="mt-3 flex items-center justify-between text-sm text-slate-500">
+      <div className="mt-3 flex items-center justify-between text-sm text-ink-faint">
         <div className="flex items-center gap-2">
           <span>Rows per page</span>
           <select
-            className="rounded border border-slate-300 px-1 py-0.5"
+            className="rounded-sm border border-accent-line bg-white px-2 py-1 text-ink focus:border-ink focus:outline-none"
             value={limit}
             onChange={(e) => {
               onLimitChange(Number(e.target.value));
@@ -101,14 +101,14 @@ export function DataTable<T>({
           </span>
           <button
             onClick={() => onSkipChange(0)}
-            className="rounded border border-slate-300 px-2 py-0.5 disabled:opacity-40"
+            className="rounded-sm border border-accent-line bg-white px-2 py-1 text-ink disabled:opacity-40 hover:bg-canvas-deep"
             disabled={page <= 1}
           >
             «
           </button>
           <button
             onClick={() => onSkipChange(Math.min((page + 1) * limit - limit, (pages - 1) * limit))}
-            className="rounded border border-slate-300 px-2 py-0.5 disabled:opacity-40"
+            className="rounded-sm border border-accent-line bg-white px-2 py-1 text-ink disabled:opacity-40 hover:bg-canvas-deep"
             disabled={page >= pages}
           >
             »

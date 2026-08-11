@@ -32,42 +32,40 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-xl font-semibold text-slate-800">Timetable Admin</h1>
-        <p className="mb-6 text-sm text-slate-500">Sign in to manage timetables</p>
+      <div className="w-full max-w-sm rounded-sm bg-white p-8 shadow-card">
+        <div className="mb-6">
+          <h1 className="display text-2xl text-ink">Timetable</h1>
+          <p className="mt-1 text-sm text-ink-faint">Sign in to manage timetables</p>
+        </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-600">Email</span>
+            <span className="text-sm font-medium text-ink">Email</span>
             <input
               type="email"
               required
               autoComplete="email"
-              className="rounded border border-slate-300 px-3 py-2 focus:border-slate-400 focus:outline-none"
+              className="field"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-600">Password</span>
+            <span className="text-sm font-medium text-ink">Password</span>
             <input
               type="password"
               required
               autoComplete="current-password"
-              className="rounded border border-slate-300 px-3 py-2 focus:border-slate-400 focus:outline-none"
+              className="field"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </label>
           {error && (
-            <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div className="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-          >
+          <button type="submit" disabled={busy} className="btn-primary w-full">
             {busy ? "Signing in…" : "Sign in"}
           </button>
         </form>

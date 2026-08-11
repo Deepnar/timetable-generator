@@ -7,5 +7,32 @@
 }
 
 body {
-  @apply bg-slate-100 text-slate-900 antialiased;
+  @apply bg-canvas text-ink antialiased font-sans;
+}
+
+/* Editorial display headings */
+@layer components {
+  .display {
+    @apply font-display font-normal tracking-tight text-ink;
+  }
+  /* Small uppercase tracked label, per the reference's section headers */
+  .eyebrow {
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint;
+  }
+  /* Card surface: white, shadow-separated, no heavy border */
+  .card {
+    @apply bg-white shadow-card rounded-sm;
+  }
+  /* Primary charcoal button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-sm bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-soft disabled:opacity-50;
+  }
+  /* Ghost / secondary button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-sm border border-accent-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-canvas-deep;
+  }
+  /* Form field */
+  .field {
+    @apply w-full rounded-sm border border-accent-line bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink;
+  }
 }

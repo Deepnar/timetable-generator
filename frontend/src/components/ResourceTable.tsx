@@ -42,8 +42,17 @@ function truthy(value: unknown): boolean {
   return value !== undefined && value !== null && value !== "";
 }
 
+/** Simple singularize: "Rooms" -> "room", "Subjects" -> "subject", and the
+ * already-singular titles like "Faculty" / "Groups" pass through unchanged. */
+function singular(title: string): string {
+  const lower = title.toLowerCase();
+  if (lower.endsWith("ies")) return lower.slice(0, -3) + "y";
+  if (lower.endsWith("s") && !lower.endsWith("ss")) return lower.slice(0, -1);
+  return lower;
+}
+
 function Input({ field, value, onChange }: { field: FieldConfig; value: unknown; onChange: (v: unknown) => void }) {
-  const base = "w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none";
+  const base = "field";
   if (field.type === "checkbox") {
     return (
       <input
@@ -185,7 +194,7 @@ export function ResourceTable<T extends { id: number }>({
   }
 
   async function remove(row: T) {
-    if (!window.confirm(`Delete this ${title.toLowerCase().slice(0, -1)}? This cannot be undone.`)) {
+    if (!window.confirm(`Delete this ${singular(title)}? This cannot be undone.`)) {
       return;
     }
     try {
@@ -198,24 +207,26 @@ export function ResourceTable<T extends { id: number }>({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-800">{title}</h1>
-        <button
-          onClick={openCreate}
-          className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-        >
-          + Add {title.toLowerCase().slice(0, -1)}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="display text-2xl text-ink">{title}</h1>
+          <p className="mt-0.5 text-sm text-ink-faint">
+            {total} record{total === 1 ? "" : "s"}
+          </p>
+        </div>
+        <button onClick={openCreate} className="btn-primary">
+          + Add {singular(title)}
         </button>
       </div>
 
       {filters.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-end gap-3 rounded border border-slate-200 bg-slate-50 p-3">
+        <div className="mb-4 flex flex-wrap items-end gap-4 rounded-sm bg-white p-4 shadow-card">
           {filters.map((filter) => (
             <div key={filter.name} className="flex flex-col gap-1 text-sm">
-              <label className="font-medium text-slate-600">{filter.label}</label>
+              <label className="eyebrow font-medium">{filter.label}</label>
               {filter.options ? (
                 <select
-                  className="rounded border border-slate-300 px-2 py-1.5"
+                  className="field w-auto"
                   value={filterValues[filter.name] ?? ""}
                   onChange={(e) => {
                     const next = { ...filterValues, [filter.name]: e.target.value };
@@ -232,7 +243,7 @@ export function ResourceTable<T extends { id: number }>({
                 </select>
               ) : (
                 <input
-                  className="rounded border border-slate-300 px-2 py-1.5"
+                  className="field w-auto"
                   placeholder={`Filter by ${filter.label.toLowerCase()}…`}
                   value={filterValues[filter.name] ?? ""}
                   onChange={(e) => {
@@ -248,7 +259,7 @@ export function ResourceTable<T extends { id: number }>({
       )}
 
       {error && (
-        <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="mb-4 rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -263,13 +274,13 @@ export function ResourceTable<T extends { id: number }>({
               <div className="flex gap-2">
                 <button
                   onClick={() => openEdit(row)}
-                  className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100"
+                  className="rounded-sm border border-accent-line px-2 py-1 text-xs text-ink hover:bg-canvas-deep"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => remove(row)}
-                  className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                  className="rounded-sm border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
                 >
                   Delete
                 </button>
@@ -287,17 +298,20 @@ export function ResourceTable<T extends { id: number }>({
       />
 
       {modalOpen && (
-        <Modal title={editingId === null ? `Add ${title.toLowerCase().slice(0, -1)}` : `Edit ${title.toLowerCase().slice(0, -1)}`} onClose={() => setModalOpen(false)}>
+        <Modal title={editingId === null ? `Add ${singular(title)}` : `Edit ${singular(title)}`} onClose={() => setModalOpen(false)}>
           <form
-            className="grid grid-cols-1 gap-4"
+            className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
               save();
             }}
           >
             {fields.map((field) => (
-              <label key={field.name} className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-slate-600">
+              <label
+                key={field.name}
+                className={`flex flex-col gap-1 text-sm ${field.type === "checkbox" ? "sm:col-span-2 flex-row items-center gap-2" : ""}`}
+              >
+                <span className={`text-sm font-medium text-ink ${field.type === "checkbox" ? "order-2" : ""}`}>
                   {field.label}
                   {field.required && <span className="text-red-500"> *</span>}
                 </span>
@@ -309,7 +323,7 @@ export function ResourceTable<T extends { id: number }>({
               </label>
             ))}
             {formError && (
-              <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div className="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {formError}
               </div>
             )}
@@ -317,14 +331,14 @@ export function ResourceTable<T extends { id: number }>({
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
+                className="btn-ghost"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                className="btn-primary"
               >
                 {saving ? "Saving…" : "Save"}
               </button>

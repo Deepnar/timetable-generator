@@ -18,10 +18,11 @@ export function Navbar() {
   const { logout } = useAuth();
 
   return (
-    <header className="border-b border-slate-200 bg-white">
+    <header className="border-b border-accent-line bg-white/90 backdrop-blur sticky top-0 z-40">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/dashboard" className="text-lg font-semibold text-slate-800">
-          Timetable Admin
+        <Link href="/dashboard" className="flex items-baseline gap-2">
+          <span className="display text-lg text-ink">Timetable</span>
+          <span className="eyebrow hidden sm:inline">Admin</span>
         </Link>
         <nav className="flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
@@ -30,10 +31,10 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded px-3 py-1.5 text-sm ${
+                className={`rounded-sm px-3 py-1.5 text-sm ${
                   active
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "text-ink font-medium bg-canvas-deep"
+                    : "text-ink-soft hover:text-ink hover:bg-canvas-deep"
                 }`}
               >
                 {item.label}
@@ -45,7 +46,7 @@ export function Navbar() {
               logout();
               router.push("/login");
             }}
-            className="ml-2 rounded px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100"
+            className="ml-2 rounded-sm px-3 py-1.5 text-sm text-ink-faint hover:text-ink hover:bg-canvas-deep"
           >
             Sign out
           </button>

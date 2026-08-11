@@ -20,18 +20,18 @@ export function Modal({ title, onClose, children }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-ink/30 p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className="my-8 w-full max-w-lg rounded-sm bg-white p-6 shadow-lift"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
+        <div className="mb-5 flex items-center justify-between border-b border-accent-line pb-3">
+          <h2 className="display text-lg text-ink">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-sm p-1 text-ink-faint hover:bg-canvas-deep hover:text-ink"
             aria-label="Close"
           >
             ✕
