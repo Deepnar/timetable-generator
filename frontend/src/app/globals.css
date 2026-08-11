@@ -1,38 +1,55 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
+@layer base {
+  :root {
+    --background: 36 33% 96%;
+    --foreground: 24 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+    --primary: 243 60% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 6% 34%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 40 8% 94%;
+    --muted-foreground: 24 4% 55%;
+    --accent: 244 57% 96%;
+    --accent-foreground: 243 60% 51%;
+    --destructive: 0 72% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 8% 90%;
+    --input: 40 8% 90%;
+    --ring: 243 60% 51%;
+    --radius: 0.625rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
 }
 
-body {
-  @apply bg-canvas text-ink antialiased font-sans;
-}
-
-/* Editorial display headings */
 @layer components {
   .display {
-    @apply font-display font-normal tracking-tight text-ink;
+    @apply font-display tracking-tight;
   }
-  /* Small uppercase tracked label, per the reference's section headers */
+
   .eyebrow {
-    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint;
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground;
   }
-  /* Card surface: white, shadow-separated, no heavy border */
-  .card {
-    @apply bg-white shadow-card rounded-sm;
-  }
-  /* Primary charcoal button */
-  .btn-primary {
-    @apply inline-flex items-center justify-center rounded-sm bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-soft disabled:opacity-50;
-  }
-  /* Ghost / secondary button */
-  .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-sm border border-accent-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-canvas-deep;
-  }
-  /* Form field */
-  .field {
-    @apply w-full rounded-sm border border-accent-line bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink;
+
+  .card-surface {
+    @apply rounded-md border bg-card text-card-foreground shadow-sm;
   }
 }
