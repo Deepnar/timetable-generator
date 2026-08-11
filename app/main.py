@@ -198,7 +198,9 @@ async def observability(request: Request, call_next):
 # CORS is registered last so it wraps everything (headers on error responses too).
 # Origins come from the CORS_ORIGINS setting (comma-separated), so a deployed
 # frontend origin is configurable without a code change; the dev defaults cover
-# localhost:3000/3001.
+# localhost:3000/3001. expose_headers lets the browser read the pagination and
+# correlation headers the API sets (X-Total-Count, X-Request-ID) — without it
+# every list total in the frontend fell back to the page length.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -207,6 +209,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Total-Count", "X-Request-ID"],
 )
 
 # Routers
