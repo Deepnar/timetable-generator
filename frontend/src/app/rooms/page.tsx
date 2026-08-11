@@ -78,7 +78,13 @@ export default function RoomsPage() {
         query={useRooms}
         columns={columns}
         fields={FIELDS}
-        filters={[{ name: "room_type", label: "Room type", options: ROOM_TYPES }]}
+        drilldown={{
+          tile: { name: "room_type", label: "Room type", values: ROOM_TYPES, labels: { SEMINAR_HALL: "Seminar hall" } },
+          rail: [
+            { name: "building", label: "Building", values: ["Main", "Annex"] },
+            { name: "min_capacity", label: "Capacity", values: ["40", "60", "80"], labels: { "40": "40+ seats", "60": "60+ seats", "80": "80+ seats" } },
+          ],
+        }}
         summary={(rows) => {
           const byType = new Map<string, number>();
           for (const r of rows) byType.set(r.room_type, (byType.get(r.room_type) ?? 0) + 1);

@@ -64,7 +64,9 @@ export default function FacultyPage() {
         query={useFaculty}
         columns={columns}
         fields={FIELDS}
-        filters={[{ name: "department", label: "Department" }]}
+        drilldown={{
+          rail: [{ name: "department", label: "Department", values: ["Computer Engineering", "Information Technology", "Mechanical Engineering", "Civil Engineering", "Electronics & Telecommunication", "Electronics Engineering", "Electrical Engineering", "Chemical Engineering", "Instrumentation Engineering", "Artificial Intelligence & Data Science", "Artificial Intelligence & ML", "Computer Science & Business Systems"] }],
+        }}
         summary={(rows) => {
           const byDept = new Map<string, number>();
           for (const f of rows) byDept.set(f.department, (byDept.get(f.department) ?? 0) + 1);

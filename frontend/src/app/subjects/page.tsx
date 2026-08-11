@@ -65,10 +65,13 @@ export default function SubjectsPage() {
         query={useSubjects}
         columns={columns}
         fields={FIELDS}
-        filters={[
-          { name: "department", label: "Department" },
-          { name: "semester", label: "Semester" },
-        ]}
+        drilldown={{
+          tile: { name: "semester", label: "Semester", values: ["1", "2", "3", "4", "5", "6", "7", "8"], labels: { "1": "Sem 1", "2": "Sem 2", "3": "Sem 3", "4": "Sem 4", "5": "Sem 5", "6": "Sem 6", "7": "Sem 7", "8": "Sem 8" } },
+          rail: [
+            { name: "department", label: "Department", values: ["Computer Engineering", "Information Technology", "Mechanical Engineering", "Civil Engineering", "Electronics & Telecommunication", "Electronics Engineering", "Electrical Engineering", "Chemical Engineering", "Instrumentation Engineering", "Artificial Intelligence & Data Science", "Artificial Intelligence & ML", "Computer Science & Business Systems"] },
+            { name: "requires_lab", label: "Lab", values: ["true", "false"], labels: { "true": "Lab", "false": "Theory" } },
+          ],
+        }}
         summary={(rows) => {
           const byDept = new Map<string, number>();
           const labs = rows.filter((s) => s.requires_lab).length;

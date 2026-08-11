@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiList, apiPost, apiPut, apiDelete, type ListParams } from "@/lib/api";
 import type {
   Room, Faculty, StudentGroup, Subject, Generation, Instance, Slot, Me,
@@ -110,5 +110,19 @@ export function useSlotOverride(instanceId: number) {
       if (ctx?.prev) qc.setQueryData(qk.instanceSlots(instanceId), ctx.prev);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: qk.instanceSlots(instanceId) }),
+  });
+}
+
+// Facet counts for the drill-down navigation. Probes each facet value with a
+// tiny limit=1 request and reads X-Total-Count, so the tiles/rail show true
+// totals (not just the current page). Counts respect the active drill filters
+// EXCEPT the facet's own dimension, so switching a branch is one click.
+export function useFacetCounts<T>(path: string, facetName: string, values: string[], active: ListParams) {
+  return useQueries({
+    queries: values.map((value) => ({
+      queryKey: ["facet", path, facetName, value, active] as const,
+      queryFn: () => apiList<T>(path, { ...active, [facetName]: value, limit: 1 }),
+      staleTime: 30_000,
+    })),
   });
 }

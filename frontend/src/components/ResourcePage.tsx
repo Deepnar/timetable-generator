@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  useQueryClient,
-  type UseQueryResult,
-} from "@tanstack/react-query";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { type ColumnDef, type SortingState } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, apiPut, apiDelete, type ListParams } from "@/lib/api";
+import { useFacetCounts } from "@/hooks/use-resources";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Breadcrumbs, FacetSection, FacetTiles, type FacetOption } from "@/components/DrillDown";
 import { cn } from "@/lib/utils";
 
 export interface FieldConfig {
@@ -40,10 +40,19 @@ export interface FieldConfig {
   min?: number;
 }
 
-interface FilterConfig {
+/** A facet dimension in the drill-down. name = URL query param key. */
+export interface DrillFacet {
   name: string;
   label: string;
-  options?: string[];
+  values: string[];
+  labels?: Record<string, string>; // display overrides (e.g. "SEMINAR_HALL" -> "Seminar hall")
+}
+
+interface DrillDownProps {
+  /** Level-1 category tiles (e.g. room_type). */
+  tile?: DrillFacet;
+  /** Deeper facet rail sections (e.g. building, capacity). */
+  rail?: DrillFacet[];
 }
 
 interface ResourcePageProps<T extends { id: number }> {
@@ -52,12 +61,12 @@ interface ResourcePageProps<T extends { id: number }> {
   query: (params: ListParams) => UseQueryResult<{ rows: T[]; total: number }>;
   columns: ColumnDef<T, unknown>[];
   fields: FieldConfig[];
-  filters?: FilterConfig[];
   createPayload: () => Record<string, unknown>;
   toPayload: (form: Record<string, unknown>) => Record<string, unknown>;
   toForm: (row: T) => Record<string, unknown>;
   summary?: (rows: T[]) => { label: string; value: string | number }[];
-  singular?: string; // display noun, default = title lowercased
+  drilldown?: DrillDownProps;
+  singular?: string;
 }
 
 function singularize(title: string): string {
@@ -71,9 +80,7 @@ function FieldInput({ field, value, onChange }: {
   field: FieldConfig; value: unknown; onChange: (v: unknown) => void;
 }) {
   if (field.type === "checkbox") {
-    return (
-      <Checkbox checked={Boolean(value)} onCheckedChange={(v) => onChange(v)} />
-    );
+    return <Checkbox checked={Boolean(value)} onCheckedChange={(v) => onChange(v)} />;
   }
   if (field.type === "switch") {
     return <Switch checked={Boolean(value)} onCheckedChange={(v) => onChange(v)} />;
@@ -81,13 +88,9 @@ function FieldInput({ field, value, onChange }: {
   if (field.type === "select") {
     return (
       <Select value={String(value ?? "")} onValueChange={(v) => onChange(v)}>
-        <SelectTrigger>
-          <SelectValue placeholder="Select…" />
-        </SelectTrigger>
+        <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
         <SelectContent>
-          {(field.options ?? []).map((opt) => (
-            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-          ))}
+          {(field.options ?? []).map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
         </SelectContent>
       </Select>
     );
@@ -119,42 +122,76 @@ export function ResourcePage<T extends { id: number }>({
   query,
   columns,
   fields,
-  filters = [],
   createPayload,
   toPayload,
   toForm,
   summary,
+  drilldown,
   singular,
 }: ResourcePageProps<T>) {
   const noun = singular ?? singularize(title);
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: [endpoint.split("/").pop()] });
 
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(25);
+  // URL-driven drill state (shareable + back-button)
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const page = Number(searchParams.get("skip") ?? 0);
+  const pageSize = Number(searchParams.get("limit") ?? 25);
+  const search = searchParams.get("q") ?? "";
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [search, setSearch] = useState("");
-  const [filtersNow, setFiltersNow] = useState<Record<string, string>>({});
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // The set of active drill facets read from the URL.
+  const activeFacets = useMemo(() => {
+    const out: Record<string, string> = {};
+    if (drilldown?.tile) {
+      const v = searchParams.get(drilldown.tile.name);
+      if (v) out[drilldown.tile.name] = v;
+    }
+    for (const f of drilldown?.rail ?? []) {
+      const v = searchParams.get(f.name);
+      if (v) out[f.name] = v;
+    }
+    return out;
+  }, [searchParams, drilldown]);
+
+  function setFacet(name: string, value: string | null) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (value === null || value === "") next.delete(name);
+    else next.set(name, value);
+    next.delete("skip"); // reset pagination on drill
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
+
+  // all drill facets except the one passed — used so a facet's counts show
+  // the total within the current branch (excluding its own selection)
+  function activeExcept(name: string): ListParams {
+    const out: ListParams = {};
+    for (const [k, v] of Object.entries(activeFacets)) if (k !== name) out[k] = v;
+    return out;
+  }
+
   const params = useMemo<ListParams>(() => {
-    const p: ListParams = { skip: page * pageSize, limit: pageSize };
+    const p: ListParams = { skip: page, limit: pageSize };
     if (debouncedSearch) p.search = debouncedSearch;
     if (sorting.length) p.sort = `${sorting[0].id}:${sorting[0].desc ? "desc" : "asc"}`;
-    for (const [k, v] of Object.entries(filtersNow)) if (v) p[k] = v;
+    for (const [k, v] of Object.entries(activeFacets)) p[k] = v;
     return p;
-  }, [page, pageSize, debouncedSearch, sorting, filtersNow]);
+  }, [page, pageSize, debouncedSearch, sorting, activeFacets]);
 
   const { data, isLoading, isError, error, refetch } = query(params);
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
 
-  // Auto-append an actions column (Edit + Delete) driven by this component's state.
   const columnsWithActions: ColumnDef<T, unknown>[] = useMemo(
     () => [
       ...columns,
@@ -165,15 +202,44 @@ export function ResourcePage<T extends { id: number }>({
         cell: ({ row }) => <ActionCell onEdit={() => openEdit(row.original)} onDelete={() => remove(row.original)} />,
       },
     ],
-    [columns], // openEdit/remove are stable closures below
+    [columns],
   );
 
-  // debounce search
+  // Facet counts (parallel X-Total-Count probes)
+  const labelFor = (f: DrillFacet, value: string) => f.labels?.[value] ?? value.replaceAll("_", " ");
+
+  const tileCounts = useFacetCounts<T>(
+    endpoint,
+    drilldown?.tile?.name ?? "",
+    drilldown?.tile?.values ?? [],
+    activeExcept(drilldown?.tile?.name ?? ""),
+  );
+  // One hook per rail facet (fixed count, safe). Each probes its values.
+  const rail0 = useFacetCounts<T>(endpoint, drilldown?.rail?.[0]?.name ?? "", drilldown?.rail?.[0]?.values ?? [], activeExcept(drilldown?.rail?.[0]?.name ?? ""));
+  const rail1 = useFacetCounts<T>(endpoint, drilldown?.rail?.[1]?.name ?? "", drilldown?.rail?.[1]?.values ?? [], activeExcept(drilldown?.rail?.[1]?.name ?? ""));
+  const railCounts = [
+    drilldown?.rail?.[0] ? { facet: drilldown.rail[0], results: rail0 } : null,
+    drilldown?.rail?.[1] ? { facet: drilldown.rail[1], results: rail1 } : null,
+  ].filter((x): x is { facet: DrillFacet; results: ReturnType<typeof useFacetCounts<T>> } => x != null);
+
+  const tileOptions: FacetOption[] = (drilldown?.tile?.values ?? []).map((v, i) => ({
+    value: v,
+    label: labelFor(drilldown!.tile!, v),
+    count: tileCounts[i]?.data?.total,
+  }));
+
+  // debounce search into the URL
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   function onSearchChange(v: string) {
-    setSearch(v);
+    setDebouncedSearch(v);
     if (debounceTimer) clearTimeout(debounceTimer);
-    setDebounceTimer(setTimeout(() => { setDebouncedSearch(v); setPage(0); }, 300));
+    setDebounceTimer(setTimeout(() => {
+      const next = new URLSearchParams(searchParams.toString());
+      if (v) next.set("q", v);
+      else next.delete("q");
+      next.delete("skip");
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    }, 300));
   }
 
   function openCreate() {
@@ -221,6 +287,18 @@ export function ResourcePage<T extends { id: number }>({
     }
   }
 
+  // Breadcrumb path from active facets (in order: tile first, then rail).
+  const crumbs = [
+    drilldown?.tile && activeFacets[drilldown.tile.name]
+      ? { label: labelFor(drilldown.tile, activeFacets[drilldown.tile.name]), clearLevel: () => setFacet(drilldown.tile!.name, null) }
+      : null,
+    ...(drilldown?.rail ?? []).map((f) =>
+      activeFacets[f.name] ? { label: labelFor(f, activeFacets[f.name]), clearLevel: () => setFacet(f.name, null) } : null,
+    ),
+  ].filter(Boolean) as { label: string; clearLevel: () => void }[];
+
+  const hasDrill = (drilldown?.tile ?? drilldown?.rail?.length) != null;
+
   return (
     <div>
       <div className="mb-5 flex items-end justify-between">
@@ -244,64 +322,86 @@ export function ResourcePage<T extends { id: number }>({
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md bg-surface p-3 shadow-sm">
-        <Input
-          className="max-w-xs"
-          placeholder={`Search ${title.toLowerCase()}…`}
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-        />
-        {filters.map((f) => (
-          <Select
-            key={f.name}
-            value={filtersNow[f.name] ?? "all"}
-            onValueChange={(v) => {
-              const next = { ...filtersNow };
-              if (v === "all") delete next[f.name];
-              else next[f.name] = v;
-              setFiltersNow(next);
-              setPage(0);
-            }}
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder={f.label} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All {f.label.toLowerCase()}</SelectItem>
-              {(f.options ?? []).map((opt) => (
-                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ))}
-      </div>
-
-      {isError && (
-        <div className="mb-4">
-          <ErrorBanner message={error instanceof Error ? error.message : "Failed to load"} onRetry={() => refetch()} />
+      {drilldown?.tile && (
+        <div className="mb-5">
+          <FacetTiles options={tileOptions} active={activeFacets[drilldown.tile.name] ?? null} onSelect={(v) => setFacet(drilldown.tile!.name, v)} />
         </div>
       )}
 
-      <DataTable
-        columns={columnsWithActions}
-        rows={rows}
-        totalCount={total}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={(s) => { setPageSize(s); setPage(0); }}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        loading={isLoading}
-        emptyNode={
-          <EmptyState
-            icon={undefined}
-            title={`No ${title.toLowerCase()} yet`}
-            body="Add one to get started."
-            action={<Button onClick={openCreate}>Add {noun}</Button>}
+      <div className="mb-4 flex items-center gap-3 rounded-md bg-surface p-3 shadow-sm">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder={`Search ${title.toLowerCase()}…`}
+            value={debouncedSearch}
+            onChange={(e) => onSearchChange(e.target.value)}
           />
-        }
-      />
+        </div>
+      </div>
+
+      <Breadcrumbs crumbs={crumbs} onClearAll={() => {
+        const next = new URLSearchParams(searchParams.toString());
+        if (drilldown?.tile) next.delete(drilldown.tile.name);
+        for (const f of drilldown?.rail ?? []) next.delete(f.name);
+        next.delete("skip");
+        router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+      }} />
+
+      <div className="mt-4 flex gap-6">
+        {hasDrill && (
+          <div className="hidden w-48 shrink-0 flex-col gap-6 lg:flex">
+            {railCounts.map(({ facet, results }) => (
+              <FacetSection
+                key={facet.name}
+                label={facet.label}
+                options={facet.values.map((v, i) => ({ value: v, label: labelFor(facet, v), count: results[i]?.data?.total }))}
+                active={activeFacets[facet.name] ?? null}
+                onSelect={(v) => setFacet(facet.name, v)}
+                allCount={total}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="min-w-0 flex-1">
+          {isError && (
+            <div className="mb-4">
+              <ErrorBanner message={error instanceof Error ? error.message : "Failed to load"} onRetry={() => refetch()} />
+            </div>
+          )}
+
+          <DataTable
+            columns={columnsWithActions}
+            rows={rows}
+            totalCount={total}
+            page={Math.floor(page / pageSize)}
+            pageSize={pageSize}
+            onPageChange={(p) => {
+              const next = new URLSearchParams(searchParams.toString());
+              next.set("skip", String(p * pageSize));
+              router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+            }}
+            onPageSizeChange={(s) => {
+              const next = new URLSearchParams(searchParams.toString());
+              next.set("limit", String(s));
+              next.delete("skip");
+              router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+            }}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            loading={isLoading}
+            emptyNode={
+              <EmptyState
+                icon={undefined}
+                title={`No ${title.toLowerCase()} found`}
+                body={Object.keys(activeFacets).length ? "Try clearing a filter or two." : "Add one to get started."}
+                action={<Button onClick={openCreate}>Add {noun}</Button>}
+              />
+            }
+          />
+        </div>
+      </div>
 
       {/* Create / edit drawer */}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>

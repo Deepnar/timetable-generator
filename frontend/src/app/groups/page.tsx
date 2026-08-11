@@ -72,10 +72,13 @@ export default function GroupsPage() {
         query={useGroups}
         columns={columns}
         fields={FIELDS}
-        filters={[
-          { name: "group_type", label: "Group type", options: GROUP_TYPES },
-          { name: "department", label: "Department" },
-        ]}
+        drilldown={{
+          tile: { name: "group_type", label: "Group type", values: GROUP_TYPES },
+          rail: [
+            { name: "year", label: "Year", values: ["1", "2", "3", "4"], labels: { "1": "Year 1", "2": "Year 2", "3": "Year 3", "4": "Year 4" } },
+            { name: "department", label: "Department", values: ["Computer Engineering", "Information Technology", "Mechanical Engineering", "Civil Engineering", "Electronics & Telecommunication", "Electronics Engineering", "Electrical Engineering", "Chemical Engineering", "Instrumentation Engineering", "Artificial Intelligence & Data Science", "Artificial Intelligence & ML", "Computer Science & Business Systems"] },
+          ],
+        }}
         summary={(rows) => {
           const byType = new Map<string, number>();
           const totalStudents = rows.reduce((a, g) => a + (g.strength ?? 0), 0);
