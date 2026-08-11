@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiList, apiPost, apiPut, apiDelete, type ListParams } from "@/lib/api";
 import type {
-  Room, Faculty, StudentGroup, Subject, Generation, Instance, Slot, Me,
+  Room, Faculty, StudentGroup, Subject, Generation, Instance, Slot, Me, Profile,
 } from "@/lib/types";
 
 // Query keys
@@ -15,8 +15,10 @@ export const qk = {
   generations: (p: ListParams) => ["generations", p] as const,
   generationStatus: (id: number) => ["generation", id, "status"] as const,
   instances: (generationId: number) => ["instances", generationId] as const,
+  allInstances: (p: ListParams) => ["instances", p] as const,
   instanceSlots: (instanceId: number) => ["instance", instanceId, "slots"] as const,
   me: () => ["me"] as const,
+  profiles: (p: ListParams) => ["profiles", p] as const,
 };
 
 // Resources
@@ -55,6 +57,9 @@ export function useInstances(generationId: number | null | undefined) {
     enabled: generationId != null,
   });
 }
+export function useAllInstances(params: ListParams) {
+  return useQuery({ queryKey: qk.allInstances(params), queryFn: () => apiList<Instance>("/api/v1/instances", params) });
+}
 export function useInstanceSlots(instanceId: number | null | undefined) {
   return useQuery({
     queryKey: qk.instanceSlots(instanceId ?? -1),
@@ -66,6 +71,11 @@ export function useInstanceSlots(instanceId: number | null | undefined) {
 // Identity
 export function useMe() {
   return useQuery({ queryKey: qk.me(), queryFn: () => apiGet<Me>("/auth/me"), staleTime: 60_000 });
+}
+
+// Profiles
+export function useProfiles(params: ListParams) {
+  return useQuery({ queryKey: qk.profiles(params), queryFn: () => apiList<Profile>("/api/v1/profiles", params) });
 }
 
 // Mutations (CRUD)

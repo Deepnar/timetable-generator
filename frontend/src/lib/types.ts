@@ -111,3 +111,16 @@ export interface Me {
   email: string;
   role: string;
 }
+
+export interface Profile {
+  id: number;
+  name: string;
+  description: string | null;
+  scope_type: string;
+  academic_year: string;
+  semester: number | null;
+  department: string | null;
+  is_active: boolean;
+  is_archived: boolean;
+  created_at: string;
+}
