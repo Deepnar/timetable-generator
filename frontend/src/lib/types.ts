@@ -61,9 +61,11 @@ export interface Generation {
   instances_requested: number;
   instances_produced: number;
   score_best_instance: number | null;
+  run_duration_ms: number | null;
   triggered_at: string;
   completed_at: string | null;
   error_log: string | null;
+  placement_warning: string | null;
 }
 
 export interface Instance {

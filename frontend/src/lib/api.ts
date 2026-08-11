@@ -44,6 +44,8 @@ export interface ListResult<T> {
   total: number;
 }
 
+export type ListParams = Record<string, string | number | boolean | undefined | null>;
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
