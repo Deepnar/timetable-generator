@@ -321,26 +321,35 @@ def seed(db) -> dict:
 def _provision_portal_accounts(db) -> None:
     """Provision role-scoped logins so the teacher/student portals are
     demoable. The teacher logs in with a real Faculty row's email so /my
-    resolves their schedule; student + HOD get standalone accounts.
+    resolves their schedule; the student's login email is set on a group's
+    ``student_email`` so /my/timetable resolves their group; an HOD gets a
+    standalone account.
 
     Credentials (all password ``teach123``):
       teacher:  <first faculty email>  (see the linked line printed at seed)
-      student:  student1@tcet.edu.in
+      student:  student1@tcet.edu.in  (linked to the first student group)
       hod:      hod@tcet.edu.in
     """
     from app.models.admin import Admin, AdminRole
     from app.utils.auth import hash_password
     from app.models.faculty import Faculty
+    from app.models.groups import StudentGroup
     from sqlalchemy import select
 
     existing = {a.email: a for a in db.scalars(select(Admin)).all()}
     first_faculty = db.scalars(select(Faculty).order_by(Faculty.id)).first()
+    first_group = db.scalars(select(StudentGroup).order_by(StudentGroup.id)).first()
 
     def ensure(email, name, role):
-        if email not in existing:
-            db.add(Admin(email=email, name=name,
-                         password=hash_password("teach123"),
-                         role=role))
+        # Always (re)set the portal password so the printed credential is
+        # truthful even when the account pre-existed a re-seed.
+        if email in existing:
+            acc = existing[email]
+            acc.password = hash_password("teach123")
+            return
+        db.add(Admin(email=email, name=name,
+                     password=hash_password("teach123"),
+                     role=role))
 
     ensure("student1@tcet.edu.in", "Student One", AdminRole.STUDENT)
     ensure("hod@tcet.edu.in", "HOD One", AdminRole.HOD)
@@ -348,6 +357,10 @@ def _provision_portal_accounts(db) -> None:
         ensure(first_faculty.email, first_faculty.name, AdminRole.TEACHER)
         print(f"  teacher login: {first_faculty.email} / teach123 "
               f"({first_faculty.name})")
+    if first_group is not None:
+        first_group.student_email = "student1@tcet.edu.in"
+        print(f"  student login: student1@tcet.edu.in / teach123 "
+              f"(group {first_group.name})")
     db.flush()
 
 
