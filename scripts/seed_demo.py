@@ -1,12 +1,14 @@
 """Seed a realistic full-college dataset into Postgres for scale testing.
 
-Mimics the TCET sample data (``sample/``): 12 departments, each with 8
-semesters x 6 subjects, 2 divisions per semester, per-department rooms and
-faculty (~40 in COMP), and one subject-assignment per subject/division. Also
-creates one DIVISION-scoped profile per (department, semester) plus one
-DEPARTMENT-scoped profile per department, wired to the same solver parameters
-the real TCET timetable uses (8 x 1h slots, 08:30 start, lunch after slot 4,
-Mon-Sat, ``term_start`` anchored).
+Mimics the TCET sample data (``sample/``): 12 departments, each with 4 years
+(FE / SE / TE / BE) x 4 divisions (A-D) = 16 classes, one semester per year
+(FE → Sem 1, SE → Sem 3, TE → Sem 5, BE → Sem 7), 6 subjects per year, one
+subject-assignment per subject/division, and rooms/faculty scaled for 16
+classes per department. Creates one DIVISION-scoped profile per (department,
+year) — all four divisions scheduled together, the real college unit — plus
+one DEPARTMENT-scoped profile per department, wired to the same solver
+parameters the real TCET timetable uses (8 x 1h slots, 08:30 start, lunch
+after slot 4, Mon-Sat, ``term_start`` anchored).
 
 Usage:
     uv run python -m scripts.seed_demo [--wipe] [--or-tools-smoke]
@@ -61,8 +63,14 @@ DEPARTMENTS = [
 ]
 
 SEMESTERS = 8
-DIVISIONS_PER_SEM = 2  # A, B
-SUBJECTS_PER_SEM = 6
+DIVISIONS_PER_SEM = 2  # legacy: 2 divisions per semester (pre-rename)
+
+# College class structure (the real TCET model): each year has FOUR divisions
+# (A–D), and all divisions of a year are on the same semester. Years are named
+# FE (first), SE (second), TE (third), BE (fourth). Semester mapping: FE → Sem 1,
+# SE → Sem 3, TE → Sem 5, BE → Sem 7 (the odd semester of each academic year).
+YEAR_LABELS = [(1, "FE"), (3, "SE"), (5, "TE"), (7, "BE")]
+DIVISIONS = ["A", "B", "C", "D"]
 
 ACADEMIC_YEAR = "2026-27"
 # Real COMP-semester names/codes pulled from the syllabus PDFs where they
@@ -195,15 +203,18 @@ def seed(db) -> dict:
         counts["departments"] += 1
 
         # ── rooms ─────────────────────────────────────────
+        # Scaled for 4 divisions per year (16 classes per dept): more
+        # classrooms and labs than the old 2-division seed needed, so a
+        # whole-department run can fill a realistic week.
         rooms: list[Room] = []
-        for c in range(1, 11):  # 10 classrooms
+        for c in range(1, 17):  # 16 classrooms
             rooms.append(Room(
                 name=f"{dept_code}-CR{c}", room_code=f"{dept_code}-CR{c}",
                 room_type=RoomType.CLASSROOM, capacity=80, building="Main",
                 floor=((c - 1) % 4) + 1, has_projector=True, has_ac=(c % 2 == 0),
                 equipment_json=["projector"] if c % 2 == 0 else [],
             ))
-        for l in range(1, 7):  # 6 labs
+        for l in range(1, 11):  # 10 labs
             rooms.append(Room(
                 name=f"{dept_code}-LAB{l}", room_code=f"{dept_code}-LAB{l}",
                 room_type=RoomType.LAB, capacity=60, building="Main",
@@ -234,14 +245,16 @@ def seed(db) -> dict:
         all_faculty[dept_code] = faculty
         counts["faculty"] += len(faculty)
 
-        # ── groups (2 divisions per semester) ─────────────
+        # ── groups: 4 divisions (A-D) per year, one semester per year ──
+        # FE → Sem 1, SE → Sem 3, TE → Sem 5, BE → Sem 7. All four divisions of
+        # a year share that semester (the real TCET class structure).
         groups: list[StudentGroup] = []
-        for sem in range(1, SEMESTERS + 1):
-            for div in ("A", "B"):
+        for year, (sem, label) in enumerate(YEAR_LABELS, start=1):
+            for div in DIVISIONS:
                 groups.append(StudentGroup(
-                    name=f"{dept_code}-S{sem}-{div}",
+                    name=f"{dept_code}-{label}-{div}",
                     group_type=GroupType.DIVISION, department=dept_name,
-                    year=(sem + 1) // 2, semester=sem, strength=60,
+                    year=year, semester=sem, strength=60,
                 ))
         db.add_all(groups)
         db.flush()
@@ -249,15 +262,18 @@ def seed(db) -> dict:
         counts["groups"] += len(groups)
 
         # ── subjects ──────────────────────────────────────
+        # One subject set per year-semester (Sem 1/3/5/7), each with 6 subjects
+        # (2 labs + 4 theory). Codes carry the year label so COMP-TE-3 reads as
+        # "Computer Engineering, Third Year, subject 3".
         subjects: list[Subject] = []
-        for sem in range(1, SEMESTERS + 1):
+        for sem, label in YEAR_LABELS:
             for j, (sname, code, is_lab) in enumerate(SEM_SUBJECTS[sem]):
                 reqs = None
                 if is_lab:
                     reqs = {"session_type": "LAB", "room_types": ["LAB"],
                             "min_capacity": 40}
                 subjects.append(Subject(
-                    name=f"{sname}", subject_code=f"{dept_code}-S{sem}-{j + 1}",
+                    name=f"{sname}", subject_code=f"{dept_code}-{label}-{j + 1}",
                     department=dept_name, semester=sem,
                     hours_per_week=3, requires_lab=is_lab,
                     requirements_json=reqs,
@@ -270,7 +286,7 @@ def seed(db) -> dict:
         # ── assignments: each subject → one faculty per division ──
         assignments = 0
         faculty_rotor = 0
-        for sem in range(1, SEMESTERS + 1):
+        for sem, label in YEAR_LABELS:
             sem_subjects = [s for s in subjects if s.semester == sem]
             sem_groups = [g for g in groups if g.semester == sem]
             for subj in sem_subjects:
@@ -285,10 +301,11 @@ def seed(db) -> dict:
         counts["assignments"] += assignments
 
         # ── profiles ──────────────────────────────────────
-        # (a) one DIVISION-scoped profile per (dept, semester)
-        for sem in range(1, SEMESTERS + 1):
+        # (a) one DIVISION-scoped profile per (dept, year) — 4 classes (A–D)
+        # all scheduled together, exactly the real college unit.
+        for sem, label in YEAR_LABELS:
             prof = TimetableProfile(
-                name=f"{dept_name} — Sem {sem}", scope_type=ScopeType.DIVISION,
+                name=f"{dept_name} — {label}", scope_type=ScopeType.DIVISION,
                 academic_year=ACADEMIC_YEAR, semester=sem,
                 department=dept_name, created_by=admin.id,
             )
@@ -300,7 +317,7 @@ def seed(db) -> dict:
             _attach_params(db, prof)
             counts["profiles"] += 1
 
-        # (b) one DEPARTMENT-scoped profile covering all semesters
+        # (b) one DEPARTMENT-scoped profile covering all four years
         prof = TimetableProfile(
             name=f"{dept_name} — All Sems", scope_type=ScopeType.DEPARTMENT,
             academic_year=ACADEMIC_YEAR, semester=None,
