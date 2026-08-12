@@ -450,15 +450,15 @@ class GreedySolver:
             if s.student_group_id == session.student_group_id and s.day_of_week is not None:
                 group_day_load[s.day_of_week] += 1
 
-        # A sorted day order: least-loaded day first (tie-break by day index).
-        ordered_days = sorted(working_days, key=lambda d: (group_day_load.get(d, 0), d))
+        # Least-loaded day first, then the *input* order as a tiebreak — the
+        # input order is the seeded shuffle when generating variants, so
+        # different seeds still yield diverse timetables (the diversity filter
+        # needs that); unseeded, it is the plain Mon..Sat baseline.
+        day_rank = {d: i for i, d in enumerate(working_days)}
 
         def key(item):
             day, (sn, _st, _en) = item
-            # Primary: fill lower slots first (morning before lunch, before
-            # afternoon). Secondary: day order so the whole week fills evenly.
-            day_rank = ordered_days.index(day)
-            return (sn, day_rank)
+            return (group_day_load.get(day, 0), sn, day_rank.get(day, day))
 
         return sorted(
             ((d, st) for d in working_days for st in slot_times), key=key
