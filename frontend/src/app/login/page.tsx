@@ -4,11 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { apiPost } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import type { LoginResponse } from "@/lib/types";
+import type { LoginResponse, Me } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+/** Where each role lands after sign-in (design plan §2). */
+const ROLE_HOME: Record<string, string> = {
+  teacher: "/my-schedule",
+  student: "/my-timetable",
+  admin: "/dashboard",
+  hod: "/dashboard",
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,7 +34,10 @@ export default function LoginPage() {
       const res = await apiPost<LoginResponse>("/auth/login", { email, password });
       login(res.access_token);
       toast.success("Signed in");
-      router.replace("/dashboard");
+      // Resolve the role and redirect to that persona's home. /auth/me is
+      // behind the global gate, so it only works with the fresh token.
+      const me = await apiGet<Me>("/auth/me");
+      router.replace(ROLE_HOME[me.role] ?? "/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

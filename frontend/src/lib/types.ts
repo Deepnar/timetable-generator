@@ -205,3 +205,36 @@ export interface AvailableFaculty {
   email: string | null;
   department: string;
 }
+
+export interface MyFaculty {
+  id: number;
+  name: string;
+  email: string;
+  department: string;
+}
+
+export interface MySlot {
+  id: number;
+  day_of_week: number | null;
+  slot_number: number;
+  start_time: string;
+  end_time: string;
+  subject_code: string | null;
+  subject_name: string | null;
+  room_code: string | null;
+  group_name: string | null;
+  session_type: string;
+  is_manual_override: boolean;
+}
+
+export interface MyScheduleResponse {
+  faculty: MyFaculty | null;
+  slots: MySlot[];
+  published_instance_ids: number[];
+}
+
+export interface MyTodayResponse {
+  faculty: MyFaculty | null;
+  day_of_week: number;
+  slots: MySlot[];
+}
