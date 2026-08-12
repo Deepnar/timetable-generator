@@ -26,7 +26,7 @@ class Pagination:
 
 def pagination(
     skip: int = Query(0, ge=0, description="Number of rows to skip"),
-    limit: int = Query(50, ge=1, le=200, description="Maximum rows to return"),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum rows to return"),
 ) -> Pagination:
     return Pagination(skip=skip, limit=limit)
 

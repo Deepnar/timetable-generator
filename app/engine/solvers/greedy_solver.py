@@ -246,13 +246,21 @@ class GreedySolver:
         if not profile_subject_ids:
             return sessions
 
+        # The profile defines WHICH classes to schedule, not just which
+        # subjects. A per-class (DIVISION) profile attaches one group, so we
+        # must only expand that group's assignments — filtering by subject alone
+        # would schedule every division that shares the subject. When the
+        # profile has no group resources, keep the legacy subject-only behavior.
+        profile_group_ids = self._get_profile_resources(ResourceType.STUDENT_GROUP)
+
         block_lengths = self._lab_block_lengths()
 
-        assignments = self.db.scalars(
-            select(SubjectAssignment).where(
-                SubjectAssignment.subject_id.in_(profile_subject_ids)
-            )
-        ).all()
+        query = select(SubjectAssignment).where(
+            SubjectAssignment.subject_id.in_(profile_subject_ids)
+        )
+        if profile_group_ids:
+            query = query.where(SubjectAssignment.group_id.in_(profile_group_ids))
+        assignments = self.db.scalars(query).all()
 
         # Pre-fetch subjects to know which dept they belong to
         subjects = {
