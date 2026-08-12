@@ -11,6 +11,14 @@ class MyFaculty(BaseModel):
     department: str
 
 
+class MyGroup(BaseModel):
+    id: int
+    name: str
+    department: str
+    year: int | None = None
+    semester: int | None = None
+
+
 class MySlot(BaseModel):
     id: int
     day_of_week: int | None
@@ -21,12 +29,13 @@ class MySlot(BaseModel):
     subject_name: str | None = None
     room_code: str | None = None
     group_name: str | None = None
+    faculty_name: str | None = None
     session_type: str
     is_manual_override: bool = False
 
 
 class MyScheduleResponse(BaseModel):
-    """The caller's own published schedule.
+    """The caller's own published schedule (teacher portal).
 
     ``faculty`` is None when the teacher account's email matches no Faculty
     row (provisioned login without a teaching record); the UI then shows an
@@ -37,8 +46,20 @@ class MyScheduleResponse(BaseModel):
     published_instance_ids: list[int]
 
 
+class MyTimetableResponse(BaseModel):
+    """The caller's group published timetable (student portal).
+
+    ``group`` is None when the student account's email matches no
+    ``StudentGroup.student_email``; the UI then shows an empty state.
+    """
+    group: MyGroup | None
+    slots: list[MySlot]
+    published_instance_ids: list[int]
+
+
 class MyTodayResponse(BaseModel):
     """The caller's sessions for the current weekday (day-card data)."""
-    faculty: MyFaculty | None
+    faculty: MyFaculty | None = None
+    group: MyGroup | None = None
     day_of_week: int
     slots: list[MySlot]

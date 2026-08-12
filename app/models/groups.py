@@ -24,3 +24,7 @@ class StudentGroup(Base):
     strength: Mapped[int]
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     incharge_email: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Student-portal link: the login email of a student who should see this
+    # group's published timetable on /my-timetable (DD-022 #1). Nullable so
+    # existing rows and CSV imports are untouched.
+    student_email: Mapped[str | None] = mapped_column(String(100), nullable=True)
