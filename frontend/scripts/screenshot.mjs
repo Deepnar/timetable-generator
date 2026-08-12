@@ -144,6 +144,30 @@ async function main() {
     console.log("no profiles to capture");
   }
 
+  // student portal — log in as the linked student and capture /my-timetable
+  await send("Page.navigate", { url: `${FRONT}/login` });
+  await sleep(3000);
+  await evalJs(`
+    (() => {
+      const set = (sel, v) => {
+        const el = document.querySelector(sel);
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        setter.call(el, v);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      set('input[type=email]', 'student1@tcet.edu.in');
+      set('input[type=password]', 'teach123');
+      document.querySelector('button[type=submit]').click();
+      return 'submitted';
+    })()
+  `);
+  for (let i = 0; i < 30; i++) {
+    await sleep(500);
+    if ((await evalJs("window.location.pathname")) === "/my-timetable") break;
+  }
+  await sleep(2000);
+  await shot("my-timetable");
+
   // rooms modal
   await send("Page.navigate", { url: `${FRONT}/rooms` });
   await sleep(2500);

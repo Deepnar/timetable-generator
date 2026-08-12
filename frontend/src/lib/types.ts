@@ -213,6 +213,14 @@ export interface MyFaculty {
   department: string;
 }
 
+export interface MyGroup {
+  id: number;
+  name: string;
+  department: string;
+  year: number | null;
+  semester: number | null;
+}
+
 export interface MySlot {
   id: number;
   day_of_week: number | null;
@@ -223,6 +231,7 @@ export interface MySlot {
   subject_name: string | null;
   room_code: string | null;
   group_name: string | null;
+  faculty_name: string | null;
   session_type: string;
   is_manual_override: boolean;
 }
@@ -233,8 +242,15 @@ export interface MyScheduleResponse {
   published_instance_ids: number[];
 }
 
+export interface MyTimetableResponse {
+  group: MyGroup | null;
+  slots: MySlot[];
+  published_instance_ids: number[];
+}
+
 export interface MyTodayResponse {
   faculty: MyFaculty | null;
+  group: MyGroup | null;
   day_of_week: number;
   slots: MySlot[];
 }
