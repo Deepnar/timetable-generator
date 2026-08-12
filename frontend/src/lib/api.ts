@@ -24,7 +24,22 @@ export class ApiError extends Error {
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_KEY);
+  const token = window.localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  // Security hygiene: don't treat an expired token as a valid session. Decode
+  // the JWT payload (non-crypto) and clear it once `exp` has passed so the UI
+  // redirects to login instead of flashing a broken "authenticated" state.
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      window.localStorage.removeItem(TOKEN_KEY);
+      return null;
+    }
+  } catch {
+    window.localStorage.removeItem(TOKEN_KEY);
+    return null;
+  }
+  return token;
 }
 
 export function setToken(token: string): void {

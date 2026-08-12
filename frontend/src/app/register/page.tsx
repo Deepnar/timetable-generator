@@ -59,7 +59,11 @@ export default function RegisterPage() {
             <span className="display text-2xl text-ink">Timetable</span>
           </div>
           <h1 className="display text-2xl text-ink">Create an account</h1>
-          <p className="mb-6 mt-1 text-sm text-muted-foreground">Register to manage timetables</p>
+          <p className="mb-2 mt-1 text-sm text-muted-foreground">Register to manage timetables</p>
+          <p className="mb-6 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            Self-registration creates a <span className="font-medium text-ink">student</span> account.
+            Your college admin can upgrade your role or link your timetable.
+          </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1.5 text-sm">
