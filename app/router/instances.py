@@ -43,7 +43,23 @@ def list_instances(
         query = query.where(TimetableInstance.generation_id == generation_id)
     if status_filter is not None:
         query = query.where(TimetableInstance.status == status_filter)
-    return paginate(db, query, page, response)
+    instances = paginate(db, query, page, response)
+
+    # Resolve each instance's class label from its generation's profile so the
+    # UI can show "which class is this" (e.g. "Computer Engineering — FE-A").
+    from app.models.profiles import TimetableProfile
+    gen_ids = {i.generation_id for i in instances}
+    if gen_ids:
+        gens = {g.id: g for g in db.scalars(select(TimetableGeneration).where(
+            TimetableGeneration.id.in_(gen_ids))).all()}
+        prof_ids = {g.profile_id for g in gens.values() if g.profile_id}
+        profs = {p.id: p.name for p in db.scalars(select(TimetableProfile).where(
+            TimetableProfile.id.in_(prof_ids))).all()} if prof_ids else {}
+        for i in instances:
+            g = gens.get(i.generation_id)
+            if g and g.profile_id in profs:
+                i.class_label = profs[g.profile_id]
+    return instances
 
 @router.get("/{generation_id}", response_model=list[InstanceResponse])
 def get_instances(

@@ -73,6 +73,7 @@ export interface Instance {
   generation_id: number;
   instance_number: number;
   label: string | null;
+  class_label: string | null;
   soft_score: number | null;
   hard_violations: number;
   status: string;

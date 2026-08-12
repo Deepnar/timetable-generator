@@ -65,14 +65,23 @@ export default function InstancesPage() {
               <tbody className="divide-y divide-border">
                 {instances.data?.rows.map((inst) => (
                   <tr key={inst.id} className="hover:bg-muted/40">
-                    <td className="px-4 py-3 font-medium text-ink">#{inst.id}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-ink">{inst.class_label ?? `Instance #${inst.id}`}</p>
+                      <p className="text-xs text-muted-foreground">#{inst.id} · instance {inst.instance_number}</p>
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant={STATUS_TONE[inst.status] ?? "neutral"}>{inst.status}</Badge>
                     </td>
                     <td className="px-4 py-3 tabular-nums text-ink-soft">
                       {inst.soft_score != null ? inst.soft_score.toFixed(3) : "—"}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-ink-soft">{inst.hard_violations}</td>
+                    <td className="px-4 py-3 tabular-nums text-ink-soft">
+                      {inst.hard_violations > 0 ? (
+                        <span className="text-destructive">{inst.hard_violations}</span>
+                      ) : (
+                        <span className="text-success">0</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {inst.published_at ? new Date(inst.published_at).toLocaleDateString() : "—"}
                     </td>

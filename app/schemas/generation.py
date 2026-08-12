@@ -48,6 +48,9 @@ class InstanceResponse(BaseModel):
     selected_at: Optional[datetime] = None
     published_at: Optional[datetime] = None
     notes: Optional[str] = None
+    # Resolved from the generation's profile in the list endpoint, so the UI can
+    # show which class a timetable belongs to (e.g. "Computer Engineering — FE-A").
+    class_label: Optional[str] = None
 
     class Config:
         from_attributes = True
