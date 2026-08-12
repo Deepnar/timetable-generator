@@ -181,7 +181,7 @@ uv sync
 uv run alembic upgrade head
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
-# seed the TCET-style dataset (12 depts / 16 classes each = 192 groups / 288 subjects / 324 rooms / 204 profiles)
+# seed the TCET-style dataset (12 depts / 16 classes each = 192 groups / 492 subject streams / 324 rooms / 204 profiles)
 # NOTE: prints a "teacher login:" line with the portal teacher credential
 uv run python -m scripts.seed_demo --wipe
 
