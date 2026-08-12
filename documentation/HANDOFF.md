@@ -18,7 +18,7 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 
 ## Session summary (committed & pushed)
 
-State at handoff: **203/203 tests passing** (`uv run python -m app.tests`), frontend builds
+State at handoff: **204/204 tests passing** (`uv run python -m app.tests`), frontend builds
 (`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
 :3001) — see Gotchas if not.
 
@@ -30,30 +30,29 @@ email is a real Faculty row's email** — check the "teacher login:" line printe
 The seed force-resets portal passwords on re-seed, so the printed credentials are always
 truthful.
 
-**This session shipped the date-resolution day layer (DD-022 #2 / DD-026 follow-up):**
+**This session shipped public registration and decided the auth story (DD-028):**
 
-1. **Date-resolution layer (commits `74cbd34` → `ea1f548`)** — `app/services/override_resolver.py`
-   answers "is there class on date X": for a date it picks the winning override per slot — a
-   permanent cover/room change applies every date, a TEMP window wins inside its
-   `date_from`/`date_to`, a SWAP exchanges the two slots' faculty/room, and a covered slot
-   reports the new teacher/room. `/my/schedule` and `/my/timetable` accept `?date=YYYY-MM-DD`,
-   and `/my/today` resolves against today, so the day card is truthful after mid-year edits.
-   The teacher/student **day cards gained a date picker** (with a Today reset) to view any date.
-   3 new tests (203 total): permanent cover on every date, TEMP window inside vs base outside,
-   SWAP room exchange.
-2. Earlier this session: the **two-channel notification system** (DD-027, in-app + email on
-   publish and mid-year changes, plus a cross-timetable self-conflict fix) shipped — see the
-   previous handoff's summary if needed (`c81868a` → `b51f7d2`).
-3. **Notes recorded** (founder detail log rows 14–16, OPEN 12–13): registration UI + Google OAuth
-   question; final proper seed for the entire college.
+1. **Registration (commits `75fd24d` → `f0b99b7`)** — the backend `POST /auth/register` existed
+   but the frontend was login-only. A split-screen `/register` page (matching the login design)
+   collects name/email/password, creates the account, and redirects to sign-in; the login page
+   links to it ("No account yet? Create one"). A backend test locks the register→login→/auth/me
+   round-trip (204 total).
+2. **DD-028 auth decision** — **email+password self-registration now; Google OAuth deferred**
+   until a college asks (it needs a Google Cloud OAuth client, callback wiring, and an
+   identity→faculty/group mapping — none exist; under the single-college posture it can be added
+   later without a migration). Public registration defaults to `admin` role; non-admin roles are
+   provisioned via admin-only `POST /auth/users`. Still OPEN: whether public registration should
+   default to a limited role and whether to gate it (invite code) before launch.
+3. Earlier this session: the **date-resolution day layer** (DD-022 #2, `74cbd34` → `72f2c7d`)
+   and the **two-channel notification system** (DD-027) shipped — see the prior handoffs.
 
 **Backend reality that matters for the product**: rooms are a shared pool — the solver assigns a
 room per session from the subject's `requirements_json`, so a subject is taught in different
 rooms across the week (matches the user's college; no fixed classroom per subject). The engine,
 RBAC, exports, async generation, constraint registry, all six soft constraints, compare,
 slot-override revalidation, the assignment grid, the profile builder, the mid-year change loop,
-both role portals, two-channel notifications, and the date-resolution day layer are built and
-tested.
+both role portals, two-channel notifications, the date-resolution day layer, and public
+registration are built and tested.
 
 ---
 
@@ -106,11 +105,11 @@ tested.
     today — a TEMP window wins inside its dates, a permanent cover wins outside it, a SWAP
     exchanges faculty/room). Remaining: a college flag to gate whether changes are allowed on
     locked timetables at all, and surfacing effective dates in the admin change list.
-12. **Registration + auth (OPEN)** — the backend has `POST /auth/register` (public, defaults to
-    `admin` role) but the frontend is login-only. A register page/form is needed; whether it
-    should also offer **Google OAuth** is undecided (founder flagged it as a question). Decide
-    the auth story (email+password vs Google) and record it before the teacher/student portals
-    ship, since those roles need a way for users to get accounts without admin provisioning.
+12. **Registration + auth** — **email+password register page shipped (DD-028)**; public
+    self-registration defaults to `admin` (provisioning non-admin roles stays admin-only via
+    `/auth/users`). Still OPEN: whether public self-registration should default to a limited role
+    and whether to gate it before launch; **Google OAuth is deferred** until a college asks (see
+    the DD-028 entry).
 13. **Final proper seed (OPEN)** — before launch, re-seed the DB with real college data and
     generate the timetable for the **entire** college (not the demo seed), per the founder. This
     is end-of-project polish; the seed scripts live in `scripts/` (DD-020) and the engine
@@ -122,20 +121,22 @@ tested.
 
 ---
 
-## Next task — registration/auth decision, then polish
+## Next task — the final proper seed and launch polish
 
-All of DD-022 #1 (role portals), DD-022 #2 (date-resolution day layer), DD-026 (mid-year change
-loop), and DD-027 (two-channel notifications) are shipped. Remaining, in order:
+Registration (DD-028) is done; all of DD-022 #1/#2, DD-026, and DD-027 are shipped. Remaining,
+in order:
 
-1. **Registration + Google OAuth decision (OPEN 12)** — the backend has `POST /auth/register`
-   (public, defaults to `admin` role) but the frontend is login-only. Decide the auth story
-   (email+password register form vs Google OAuth) and record it; the portal roles need a way for
-   users to get accounts without admin provisioning.
-2. **Final proper seed (OPEN 13)** — re-seed with real college data and generate the timetable
-   for the entire college before launch (decide a data source).
+1. **Final proper seed (OPEN 13)** — re-seed the DB with real college data and generate the
+   timetable for the **entire** college before launch (the founder's end-goal). Decide a data
+   source, then extend `scripts/seed_demo.py` (or add a real-data seed) and run
+   `scripts/full_stack_test.py` at whole-college scale. The engine already scales to
+   whole-department runs.
+2. **Registration hardening (DD-028 follow-up)** — decide whether public self-registration should
+   default to a limited role and whether to gate it (invite code / college setting) before launch.
 3. Optional polish: CSV upload modals; WebSocket/SSE push (DD-027 follow-up); a `/constraints`
    reference catalog page; a college flag to gate changes on locked timetables (DD-026
-   follow-up); surfacing effective dates in the admin change list.
+   follow-up); surfacing effective dates in the admin change list; the DD-024 batch/tutorial/
+   per-day-grid domain layer (verify each against the real data first, under the DD-025 posture).
 
 Keep the docs in sync (architecture §3/§4/§5/§8, plan.md, progress.md) and record any new
 decision in `design-decisions.md`.
