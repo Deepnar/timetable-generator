@@ -11,7 +11,7 @@ Both roles resolve their identity by email match:
 
 No list endpoint and no instance id to hunt for: the identity IS the filter.
 """
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -62,11 +62,16 @@ def _published_instances(db: Session) -> list[TimetableInstance]:
 
 
 def _my_slots(db: Session, *, faculty_id: int | None = None,
-              group_id: int | None = None) -> list[MySlot]:
+              group_id: int | None = None,
+              on_date: date | None = None) -> list[MySlot]:
     """Published slots for a faculty or a group, with names resolved.
 
-    Exactly one of ``faculty_id`` / ``group_id`` should be set. Returns slots
-    sorted by day then slot.
+    Exactly one of ``faculty_id`` / ``group_id`` should be set. When ``on_date``
+    is given the slots are filtered to that weekday AND mid-year changes are
+    resolved (DD-022 #2): a permanent cover/room change applies, a TEMP window
+    wins inside its dates, a SWAP exchanges faculty/room, and a covered slot
+    reports the new teacher/room. Without ``on_date`` the weekly base template
+    is returned unchanged.
     """
     published = _published_instances(db)
     if not published:
@@ -77,6 +82,7 @@ def _my_slots(db: Session, *, faculty_id: int | None = None,
     from app.models.rooms import Room
     from app.models.groups import StudentGroup
     from app.models.faculty import Faculty as FacultyModel
+    from app.services.override_resolver import resolve_slots_for_date
 
     subjects = {s.id: s for s in db.scalars(select(Subject)).all()}
     rooms = {r.id: r for r in db.scalars(select(Room)).all()}
@@ -89,15 +95,24 @@ def _my_slots(db: Session, *, faculty_id: int | None = None,
         query = query.where(TimetableSlot.faculty_id == faculty_id)
     if group_id is not None:
         query = query.where(TimetableSlot.student_group_id == group_id)
+    if on_date is not None:
+        query = query.where(TimetableSlot.day_of_week == on_date.weekday())
     query = query.order_by(TimetableSlot.day_of_week, TimetableSlot.slot_number)
     slots = db.scalars(query).all()
+
+    resolved = resolve_slots_for_date(db, slots, on_date) if on_date is not None else {}
 
     out = []
     for s in slots:
         subj = subjects.get(s.subject_id)
-        room = rooms.get(s.room_id)
         group = groups.get(s.student_group_id)
-        fac = faculty_rows.get(s.faculty_id)
+        if on_date is not None:
+            eff_fac_id, eff_room_id = resolved.get(s.id, (s.faculty_id, s.room_id))
+            room = rooms.get(eff_room_id)
+            fac = faculty_rows.get(eff_fac_id)
+        else:
+            room = rooms.get(s.room_id)
+            fac = faculty_rows.get(s.faculty_id)
         out.append(MySlot(
             id=s.id,
             day_of_week=s.day_of_week,
@@ -127,13 +142,19 @@ def _group_schema(g: StudentGroup) -> MyGroup:
 @router.get("/schedule", response_model=MyScheduleResponse,
             dependencies=[Depends(require_roles("teacher"))])
 def my_schedule(db: Session = Depends(get_db),
-                current: Admin = Depends(get_current_admin)):
-    """The caller's own published schedule."""
+                current: Admin = Depends(get_current_admin),
+                date: date | None = None):
+    """The caller's own published schedule.
+
+    ``?date=YYYY-MM-DD`` returns only that date's sessions with mid-year
+    changes resolved (answer "is there class on that day?"). Without it, the
+    weekly base template is returned.
+    """
     faculty = _resolve_faculty(db, current)
     if faculty is None:
         return MyScheduleResponse(faculty=None, slots=[],
                                   published_instance_ids=[])
-    slots = _my_slots(db, faculty_id=faculty.id)
+    slots = _my_slots(db, faculty_id=faculty.id, on_date=date)
     ids = [i.id for i in _published_instances(db)]
     return MyScheduleResponse(faculty=_faculty_schema(faculty), slots=slots,
                               published_instance_ids=ids)
@@ -142,13 +163,18 @@ def my_schedule(db: Session = Depends(get_db),
 @router.get("/timetable", response_model=MyTimetableResponse,
             dependencies=[Depends(require_roles("student"))])
 def my_timetable(db: Session = Depends(get_db),
-                 current: Admin = Depends(get_current_admin)):
-    """The caller's group published timetable (student portal)."""
+                 current: Admin = Depends(get_current_admin),
+                 date: date | None = None):
+    """The caller's group published timetable (student portal).
+
+    ``?date=YYYY-MM-DD`` returns only that date's sessions with mid-year
+    changes resolved.
+    """
     group = _resolve_group(db, current)
     if group is None:
         return MyTimetableResponse(group=None, slots=[],
                                    published_instance_ids=[])
-    slots = _my_slots(db, group_id=group.id)
+    slots = _my_slots(db, group_id=group.id, on_date=date)
     ids = [i.id for i in _published_instances(db)]
     return MyTimetableResponse(group=_group_schema(group), slots=slots,
                                published_instance_ids=ids)
@@ -161,28 +187,28 @@ def my_today(db: Session = Depends(get_db),
     """The caller's sessions for the current weekday (day-card data).
 
     Works for both a teacher (their own faculty slots) and a student (their
-    group's slots). Weekday-based for now; the date-resolution layer
-    (DD-022 #2) will resolve ``timetable_overrides`` against a real date.
+    group's slots). Mid-year changes are resolved against today's date
+    (DD-022 #2): a permanent cover/room change applies, a TEMP window wins
+    inside its dates, a SWAP exchanges faculty/room.
     """
-    weekday = datetime.utcnow().weekday()
+    today = datetime.utcnow().date()
+    weekday = today.weekday()
     role = getattr(current.role, "value", current.role)
     if role == "student":
         group = _resolve_group(db, current)
         if group is None:
             return MyTodayResponse(faculty=None, group=None,
                                    day_of_week=weekday, slots=[])
-        all_slots = _my_slots(db, group_id=group.id)
-        today = [s for s in all_slots if s.day_of_week == weekday]
+        slots = _my_slots(db, group_id=group.id, on_date=today)
         return MyTodayResponse(group=_group_schema(group), faculty=None,
-                               day_of_week=weekday, slots=today)
+                               day_of_week=weekday, slots=slots)
     faculty = _resolve_faculty(db, current)
     if faculty is None:
         return MyTodayResponse(faculty=None, group=None,
                                day_of_week=weekday, slots=[])
-    all_slots = _my_slots(db, faculty_id=faculty.id)
-    today = [s for s in all_slots if s.day_of_week == weekday]
+    slots = _my_slots(db, faculty_id=faculty.id, on_date=today)
     return MyTodayResponse(faculty=_faculty_schema(faculty), group=None,
-                           day_of_week=weekday, slots=today)
+                           day_of_week=weekday, slots=slots)
 
 
 @router.get("/export/{ext}")
