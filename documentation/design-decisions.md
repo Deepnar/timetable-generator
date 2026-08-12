@@ -432,6 +432,25 @@ Rules: every detail gets two tags — **source** (`system rule` = solver/checker
 
 ---
 
+## Security audit (2026-08-12)
+
+### DD-029 — Full-project security audit by an external-model agent; the findings were remediated and locked with regression tests
+- **Status:** Decided / Tested (4 new security-regression tests, 209 total). The audit itself was a read-only deepscan by the `strategist` subagent (v4-pro) over the entire codebase; the fixes below are the implemented remediation.
+- **Context:** as the final "REALLY end work" the founder asked for a whole-project vulnerability audit. The available grok-4.5 agent is vision-only (cannot read code), so the audit ran on v4-pro (read-only code access) and produced a prioritized plan which this session implemented.
+- **Findings remediated (critical/high):**
+  - **C-1 vertical escalation** — public `POST /auth/register` accepted a role and defaulted to admin. Now: a `RegisterRequest` with no role field, hardcoded to `STUDENT`; elevated roles only via admin `POST /auth/users`.
+  - **C-2/C-3 no authorization** — the global gate checked "valid token", never "role"; only 4 endpoints used `require_roles`. Now every resource router is gated at the router level (admin+hod for resources/generate/instances/export/history/import; admin-only for constraints/settings/reset/audit).
+  - **C-4 health leak** — `/health` no longer returns the raw DB exception.
+  - **H-2 passwords** — `AdminCreate` enforces 8–128 chars.
+  - **H-4 generation errors** — the client gets a generic 500; the real error stays on the run's `error_log`.
+  - **H-5 DB URLs** — built via `sqlalchemy.engine.URL` so credentials are never a single logged string.
+  - **H-6 CSV uploads** — 10 MB / 50k-row caps (413).
+- **Hardening (medium):** security-headers middleware (nosniff / X-Frame-Options DENY / Referrer-Policy / Cache-Control no-store / HSTS in prod), docs+openapi hidden in production (`SHOW_DOCS`/`ENV`), per-IP rate limit on `POST /generate`, and frontend `getToken()` now clears expired JWTs.
+- **Accepted as-is (documented, not fixed):** JWT in localStorage (M-3 — cookie switch is a larger auth change, tracked under DD-028/OPEN); `psycopg2-binary` (M-7 — dev convenience, production image can build from source); Next 14.2.35 patch level (M-8 — bump on the next `npm audit` pass); `allow_credentials` CORS (M-6 — fine while auth stays bearer-in-localStorage).
+- **Rejected alternatives:** Google OAuth as the audit vehicle (the grok vision agent can't read code; OAuth itself is a product decision already deferred in DD-028).
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -497,6 +516,10 @@ Address these in the next session; resolved ones move up into the log with their
     publish and mid-year changes. Remaining: an email retry queue (DD-003), per-recipient
     opt-out, re-sending when a change is reverted, a college flag to disable the in-app channel,
     and WebSocket/SSE push if the product ever needs live delivery.
+15. **DD-029 follow-up** — the security audit is remediated and regression-tested. Accepted
+    items to revisit before public launch: switch JWT storage to httpOnly cookies (M-3),
+    evaluate `psycopg2-binary` in the prod image (M-7), bump Next/React patch levels and run
+    `npm audit` (M-8).
 
 ---
 
