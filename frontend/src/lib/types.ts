@@ -173,3 +173,35 @@ export interface ConstraintTypes {
   hard: string[];
   soft: string[];
 }
+
+export interface OverrideDetail {
+  id: number;
+  instance_id: number;
+  slot_id: number | null;
+  override_type: string;
+  new_faculty_id: number | null;
+  new_room_id: number | null;
+  swap_with_slot_id: number | null;
+  date_from: string | null;
+  date_to: string | null;
+  reason: string | null;
+  created_by: number | null;
+  resolved_at: string | null;
+  created_at: string;
+  slot_day: number | null;
+  slot_number: number | null;
+  subject_code: string | null;
+  subject_name: string | null;
+  group_name: string | null;
+  old_faculty_name: string | null;
+  new_faculty_name: string | null;
+  old_room_code: string | null;
+  new_room_code: string | null;
+}
+
+export interface AvailableFaculty {
+  id: number;
+  name: string;
+  email: string | null;
+  department: string;
+}

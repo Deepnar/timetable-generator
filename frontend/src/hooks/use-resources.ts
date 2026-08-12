@@ -5,7 +5,7 @@ import { apiGet, apiList, apiPost, apiPut, apiDelete, type ListParams } from "@/
 import type {
   Room, Faculty, StudentGroup, Subject, Generation, Instance, Slot, Me, Profile,
   SubjectAssignment, ProfileResource, ProfileParameter, HardConstraint, SoftConstraint,
-  ConstraintTypes,
+  ConstraintTypes, OverrideDetail, AvailableFaculty,
 } from "@/lib/types";
 
 // Query keys
@@ -28,6 +28,8 @@ export const qk = {
   hardConstraints: (p: ListParams) => ["constraints", "hard", p] as const,
   softConstraints: (p: ListParams) => ["constraints", "soft", p] as const,
   constraintTypes: () => ["constraint-types"] as const,
+  overrides: (id: number, resolved: boolean) => ["instance", id, "overrides", resolved] as const,
+  availableFaculty: (id: number, p: Record<string, unknown>) => ["instance", id, "available-faculty", p] as const,
 };
 
 // Resources
@@ -130,6 +132,26 @@ export function useSoftConstraints(profileId: number | undefined) {
 }
 export function useConstraintTypes() {
   return useQuery({ queryKey: qk.constraintTypes(), queryFn: () => apiGet<ConstraintTypes>("/api/v1/constraints/types") });
+}
+
+// Mid-year change loop (timetable_overrides, DD-026)
+export function useOverrides(instanceId: number | undefined, resolved = false) {
+  return useQuery({
+    queryKey: qk.overrides(instanceId ?? -1, resolved),
+    queryFn: () =>
+      apiGet<OverrideDetail[]>(`/api/v1/instances/${instanceId}/overrides`, {
+        resolved: resolved ? "true" : "false",
+      }),
+    enabled: instanceId != null,
+  });
+}
+export function useAvailableFaculty(instanceId: number | undefined, params: ListParams | null) {
+  return useQuery({
+    queryKey: qk.availableFaculty(instanceId ?? -1, params ?? {}),
+    queryFn: () =>
+      apiGet<AvailableFaculty[]>(`/api/v1/instances/${instanceId}/overrides/available-faculty`, params ?? {}),
+    enabled: instanceId != null && params != null,
+  });
 }
 
 // Mutations (CRUD)

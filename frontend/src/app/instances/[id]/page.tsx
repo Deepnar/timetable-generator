@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Download, Pencil, CheckCircle2, X } from "lucide-react";
+import { ArrowLeft, Download, Pencil, CheckCircle2, X, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiPost } from "@/lib/api";
@@ -10,10 +10,12 @@ import { useAllInstances } from "@/hooks/use-resources";
 import { useGridSessions } from "@/features/timetable/use-grid-sessions";
 import { TimetableGrid, type GridSession } from "@/features/timetable/TimetableGrid";
 import { SlotEditor } from "@/features/timetable/SlotEditor";
+import { ChangeEditor, ChangeList } from "@/features/timetable/ChangePanel";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import { Badge } from "@/components/ui/badge";
 
 const STATUS_TONE: Record<string, "success" | "warning" | "info" | "danger" | "neutral"> = {
   DRAFT: "neutral",
@@ -36,15 +38,22 @@ export default function InstanceViewerPage() {
 
   const [editing, setEditing] = useState<GridSession | null>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [changeMode, setChangeMode] = useState(false);
+  const [changing, setChanging] = useState<{ session: GridSession; x: number; y: number } | null>(null);
 
   const days = Array.from({ length: 6 }, (_, i) => i); // Mon-Sat default
   const slotCount = 8;
 
   const editable = instance?.status === "DRAFT" || instance?.status === "SELECTED";
+  const changeable = instance?.status === "PUBLISHED";
 
   function openEditor(session: GridSession, event: React.MouseEvent<HTMLButtonElement>) {
-    setEditing(session);
     const rect = event.currentTarget.getBoundingClientRect();
+    if (changeable && changeMode) {
+      setChanging({ session, x: rect.left, y: rect.bottom });
+      return;
+    }
+    setEditing(session);
     setAnchor({ x: rect.left, y: rect.bottom });
   }
 
@@ -108,6 +117,11 @@ export default function InstanceViewerPage() {
             <Button variant="outline" onClick={() => router.push(`/instances/compare?a=${instanceId}`)}>
               Compare
             </Button>
+            {changeable && (
+              <Button variant={changeMode ? "default" : "outline"} onClick={() => setChangeMode((v) => !v)}>
+                <Wrench className="mr-1 h-4 w-4" /> {changeMode ? "Change mode on" : "Change mode"}
+              </Button>
+            )}
             <Button variant="outline" onClick={selectInstance}>
               <Pencil className="mr-1 h-4 w-4" /> Select
             </Button>
@@ -118,30 +132,47 @@ export default function InstanceViewerPage() {
         </div>
 
         {isError && <ErrorBanner message={error instanceof Error ? error.message : "Failed to load"} onRetry={() => refetch()} />}
-        {!editable && instance?.status === "PUBLISHED" && (
+        {changeable && (
           <div className="rounded-md border border-warning/40 bg-warning/5 px-4 py-2.5 text-sm text-warning">
-            This timetable is published and read-only. Edit a DRAFT or SELECTED instance instead.
+            This timetable is published. Use <span className="font-semibold">Change mode</span> to record mid-year changes
+            (teacher covers, room changes, swaps, temporary windows) without touching the base slots.
           </div>
         )}
 
-        <div className="rounded-md border bg-surface p-4 shadow-sm">
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
+        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+          <div className="rounded-md border bg-surface p-4 shadow-sm">
+            {isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
+              </div>
+            ) : (
+              <TimetableGrid
+                sessions={sessions}
+                days={days}
+                slotCount={slotCount}
+                readOnly={!editable && !(changeable && changeMode)}
+                onCellClick={(s, e) => openEditor(s, e)}
+              />
+            )}
+          </div>
+
+          {changeable && (
+            <div className="rounded-md border bg-surface shadow-sm">
+              <div className="border-b px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="display text-lg text-ink">Mid-year changes</h2>
+                  <Badge variant="warning">{changeMode ? "Change mode active" : "Read-only"}</Badge>
+                </div>
+              </div>
+              <div className="px-4 pb-4">
+                <ChangeList instanceId={instanceId} />
+              </div>
             </div>
-          ) : (
-            <TimetableGrid
-              sessions={sessions}
-              days={days}
-              slotCount={slotCount}
-              readOnly={!editable}
-              onCellClick={editable ? openEditor : undefined}
-            />
           )}
         </div>
       </div>
 
-      {/* Slot override editor anchored to the clicked cell. */}
+      {/* Slot override editor (DRAFT/SELECTED). */}
       {editing && editable && anchor && (
         <div
           className="fixed z-50 w-80 rounded-md border bg-surface p-4 shadow-lg"
@@ -160,6 +191,28 @@ export default function InstanceViewerPage() {
             days={days}
             slotCount={slotCount}
             onSaved={() => { setEditing(null); qc.invalidateQueries(); }}
+          />
+        </div>
+      )}
+
+      {/* Mid-year change editor (PUBLISHED). */}
+      {changing && changeable && (
+        <div
+          className="fixed z-50 w-80 rounded-md border bg-surface p-4 shadow-lg"
+          style={{ left: Math.min(changing.x, Math.max(8, window.innerWidth - 340)), top: Math.min(changing.y + 6, window.innerHeight - 560) }}
+        >
+          <div className="mb-2 flex items-start justify-between">
+            <p className="eyebrow">Apply change</p>
+            <Button variant="ghost" size="icon" className="-mr-2 -mt-1 h-6 w-6" onClick={() => setChanging(null)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <ChangeEditor
+            key={changing.session.slotId}
+            instanceId={instanceId}
+            cell={changing}
+            sessions={sessions}
+            onDone={() => setChanging(null)}
           />
         </div>
       )}
