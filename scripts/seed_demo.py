@@ -265,6 +265,10 @@ def seed(db) -> dict:
         # One subject set per year-semester (Sem 1/3/5/7), each with 6 subjects
         # (2 labs + 4 theory). Codes carry the year label so COMP-TE-3 reads as
         # "Computer Engineering, Third Year, subject 3".
+        # Hours reflect the real TCET contact load: a theory subject is ~5h/wk
+        # (3-4 lectures + 1 tutorial), a lab subject ~4h/wk (a 2h practical
+        # block twice, or 1h theory + practicals) — NOT the old flat 3h that
+        # left every class looking half-empty.
         subjects: list[Subject] = []
         for sem, label in YEAR_LABELS:
             for j, (sname, code, is_lab) in enumerate(SEM_SUBJECTS[sem]):
@@ -275,7 +279,8 @@ def seed(db) -> dict:
                 subjects.append(Subject(
                     name=f"{sname}", subject_code=f"{dept_code}-{label}-{j + 1}",
                     department=dept_name, semester=sem,
-                    hours_per_week=3, requires_lab=is_lab,
+                    hours_per_week=4 if is_lab else 5,
+                    requires_lab=is_lab,
                     requirements_json=reqs,
                 ))
         db.add_all(subjects)
