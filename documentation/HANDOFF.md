@@ -18,55 +18,48 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 
 ## Session summary (committed & pushed)
 
-State at handoff: **186/186 tests passing** (`uv run python -m app.tests`), frontend builds
+State at handoff: **191/191 tests passing** (`uv run python -m app.tests`), frontend builds
 (`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
 :3001) — see Gotchas if not.
 
 **Login credentials** (TCET-style seed data, 12 departments, 204 rooms / 576 subjects etc.):
-`admin@example.com` / `admin123` (admin) · `teacher1@tcet.edu.in` / `teach123` (teacher) ·
-`student1@tcet.edu.in` / `stud123` (student) · `hod@scale.edu.in` / `pass123` (HOD).
+`admin@example.com` / `admin123` (admin) · **teacher: the seed now provisions a login whose
+email is a real Faculty row's email** — check the "teacher login:" line printed at seed time
+(currently `comp.1@tcet.edu.in` / `teach123`, R.R. Sedamkar) · `student1@tcet.edu.in` /
+`stud123` (student) · `hod@tcet.edu.in` / `teach123` (HOD, new seed account).
 
-**This session shipped the mid-year change loop (DD-026) and set the single-college product
-posture (DD-025):**
+**This session built the teacher portal (DD-022 #1) and recorded the auth + final-seed notes:**
 
-1. **Single-college posture (DD-025, committed `ea3978c`)** — decided and recorded, no code:
-   build for ONE college; everything college-specific is a data row (settings / groups /
-   parameters), never hardcoded engine logic. Class strength + batch division are **teacher-set,
-   system-suggested** (the system suggests a split from strength/capacity, the teacher confirms,
-   stored as data — never silently recomputed). A **founder detail log** in `design-decisions.md`
-   is the inbox for remembered real-world details, each tagged *system rule vs college data* +
-   *teacher-set vs system-set*. Generalize to multi-tenant only when a second college asks.
-2. **Mid-year change loop (DD-026, commits `3a8fcaa` → `3bcb945`)** — the "locked timetable
-   changes" feature you described:
-   - **Backend**: new `timetable_overrides` table (migration `d319882e1438`, now **23 tables**).
-     A published timetable stays immutable; each in-term correction is a change row: teacher
-     cover, room change, lecture swap, temporary (date-window) change, custom. Endpoints under
-     `/instances/{id}`: `GET /overrides` (change list with old/new names resolved for display),
-     `POST /overrides` (create, **conflict-checked** — 409 on conflict, nothing saved),
-     `POST /slots/{id}/swap`, `DELETE /overrides/{oid}` (revert, kept as history), and
-     `GET /overrides/available-faculty` (candidate teachers free at a day/slot, excluding the
-     instance's own bookings, other active overrides, and published cross-timetable
-     reservations). Validation runs the structural checker against the instance's other slots +
-     published reservations; data-driven profile rules are skipped for mid-year edits.
-   - **Frontend**: published instances get a **Change mode** (Wrench toggle). Click a cell →
-     Apply-change editor with a change type, a **covering-teacher dropdown fed by
-     available-faculty** (only teachers free at that day/slot — verified live), room picker,
-     swap targets, and an optional temporary date window. A **Mid-year changes panel** beside the
-     grid lists active changes with resolved old/new names and a Revert action; reverted changes
-     stay in history.
-   - 7 new tests (186 total): clean cover, cover rejected for the new teacher's availability,
-     room change, swap, resolve/revert, change-list name resolution, available-faculty excluding
-     busy teachers.
-3. Earlier this session (before the change loop) the **assignment grid** and the
-   **profile/constraint builder** shipped — see the previous handoff's summary if needed
-   (commits `a53e69c` → `1979d9d`).
+1. **Teacher portal (DD-022 #1, commits `df84d4c` → `02172dc`)**:
+   - **Backend** `/my/*` (teacher role only; identity = the `Admin.email` that matches a
+     `Faculty` row): `GET /my/schedule` (the caller's OWN published slots with subject/room/group
+     names resolved + published instance ids), `GET /my/today` (the current weekday's sessions —
+     the day card), and `GET /my/export/{pdf,csv,ical}` (the caller's own filtered export from
+     the newest published instance, no ids needed). An account with no matching Faculty row gets
+     an empty schedule.
+   - **Frontend** `/my-schedule`: role-based login redirect (teacher → `/my-schedule`, admin/hod →
+     `/dashboard`, student → `/my-timetable`), a **Today card**, a read-only weekly TimetableGrid,
+     and one-click iCal/PDF. Empty states for "no faculty linked" and "nothing published yet".
+   - **Seed**: `scripts/seed_demo.py` now provisions a teacher login using a real Faculty row's
+     email (so /my resolves), plus student + HOD accounts (all password `teach123`).
+   - 5 new tests (191 total): own-slots-with-names, unmatched-account-empty, admin 403 gate,
+     own iCal export, today endpoint.
+2. **Notes recorded (founder detail log rows 14–16, OPEN items 12–13)**:
+   - **Registration UI**: the backend has `POST /auth/register` (public, defaults to admin) but
+     the frontend is login-only. A register page/form is needed; **Google OAuth is an open
+     question** (decide the auth story before the student portal ships, since roles need a
+     signup path).
+   - **Final proper seed**: before launch, re-seed with real college data and generate the
+     timetable for the ENTIRE college (end-of-project polish; decide a data source).
+3. Earlier this session: the mid-year change loop (DD-026) and single-college posture (DD-025)
+   shipped — see the previous handoff's summary if needed (commits `ea3978c` → `3bcb945`).
 
 **Backend reality that matters for the product**: rooms are a shared pool — the solver assigns a
 room per session from the subject's `requirements_json`, so a subject is taught in different
 rooms across the week (matches the user's college; no fixed classroom per subject). The engine,
 RBAC, exports, async generation, constraint registry, all six soft constraints, compare,
-slot-override revalidation, the assignment grid, the profile builder, and the mid-year change
-loop are built and tested.
+slot-override revalidation, the assignment grid, the profile builder, the mid-year change loop,
+and the teacher portal are built and tested.
 
 ---
 
@@ -86,13 +79,14 @@ loop are built and tested.
 5. **DD-020 follow-up** — decide whether `scripts/` (seed + battle test + full_stack_test) should
    be wired into CI or stay local dev tooling; set a cadence for re-running the battle test.
 6. **DD-021 follow-up** — teacher/student read-scoping: filter list endpoints by the caller's
-   identity once the frontend defines which views each role needs (the teacher portal will drive
-   this).
+   identity once the frontend defines which views each role needs. The teacher portal (`/my/*`)
+   is the reference pattern for caller-scoped reads.
 7. **DD-022 follow-up** — build order for the teacher-workload roadmap: (1) teacher self-service
    schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
-   (3) the change loop (room change + cover + notifications). The strategist brief recommends
-   exactly this sequence; the assignment grid and profile builder have shipped and the teacher
-   portal is next.
+   (3) the change loop (room change + cover + notifications). **#1 shipped** (`/my/schedule`
+   portal: Today card, weekly grid, own exports; role-based login redirect). Next: the student
+   portal, then the date-resolution `GET /my/today` layer resolving overrides by date (#2), then
+   the change-loop notifications (#3).
 8. **DD-023 follow-up** — block-level overrides: the slot editor edits a single per-slot row, so
    moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
    whole block. Also re-check the client-side "moved session" heuristic when the teacher portal
@@ -114,25 +108,33 @@ loop are built and tested.
     the `GET /my/today` date-resolution layer (DD-022 #2) should resolve overrides by date (a
     TEMP window hides a covered slot outside its dates, a permanent cover wins inside it), and a
     college flag could gate whether changes are allowed on locked timetables at all.
+12. **Registration + auth (OPEN)** — the backend has `POST /auth/register` (public, defaults to
+    `admin` role) but the frontend is login-only. A register page/form is needed; whether it
+    should also offer **Google OAuth** is undecided (founder flagged it as a question). Decide
+    the auth story (email+password vs Google) and record it before the teacher/student portals
+    ship, since those roles need a way for users to get accounts without admin provisioning.
+13. **Final proper seed (OPEN)** — before launch, re-seed the DB with real college data and
+    generate the timetable for the **entire** college (not the demo seed), per the founder. This
+    is end-of-project polish; the seed scripts live in `scripts/` (DD-020) and the engine
+    already scales to whole-department runs. Decide a source for the real data.
 
 ---
 
-## Next task — teacher portal (DD-022 #1), then the DD-024 batch/domain layer
+## Next task — student portal, then the date-resolution day layer (DD-022 #2)
 
-1. **Teacher portal** (DD-022 #1) — `/my-schedule`: teacher sees only their slots (exports already
-   accept `?faculty_id=`), exports own iCal/PDF, and a "today" card. Requires either server-side
-   caller scoping on the slots read (DD-021 follow-up) or a `GET /my/schedule` endpoint — the
-   design plan calls for confirming `app/router/instances.py` first. When it lands, resolve
-   `timetable_overrides` by date (DD-026 follow-up) so the teacher's "today" reflects covers/swaps.
-2. **DD-024 domain work** — the batch/tutorial/per-day-grid requirements the founder described.
-   Design exercise first (see the DD-024 entry): verify each rule against the real college data,
-   then decide the model (batch groups + parallel practicals, per-subject tutorial/practical
-   flags, per-day time grids, all-active-timetable conflict reservations). Will touch
-   `app/models/`, the greedy/OR-Tools solvers, the checker, and the seed. **Apply the DD-025
-   posture throughout**: college-specific facts are data rows the teacher sets (system only
-   suggests), never hardcoded engine logic.
-3. Optional polish: CSV upload modals on resource pages; WebSocket progress for async runs; a
-   `/constraints` reference catalog page (data already exposed via `GET /constraints/types`).
+1. **Student portal** (DD-022 #1) — `/my-timetable`: a student's `Admin.email` → their
+   `StudentGroup` (currently no email on StudentGroup, so either add `student_groups.incharge_email`
+  -style column for a student rep, or link students to a group another way — design decision).
+   Student sees their group's published timetable read-only + exports (mirror the `/my/*` pattern:
+   `GET /my/timetable`, `GET /my/export/...`). Login redirect already routes students there.
+2. **Date-resolution layer** (DD-022 #2 / DD-026 follow-up) — `GET /my/today` should resolve
+   `timetable_overrides` by the real date: a TEMP cover wins inside its `date_from`/`date_to`, a
+   permanent cover wins outside it, and a covered slot is hidden while its cover applies. This is
+   what makes "is there class on date X" and the day card truthful.
+3. **Change-loop notifications** (DD-022 #3) — hooks on override/cover creation → SMTP (DD-003/4
+   follow-ups become relevant); room change + cover notifications reuse `mail_service`.
+4. Optional polish: register page/form + the Google OAuth decision (OPEN 12); CSV upload modals;
+   WebSocket progress for async runs; a `/constraints` reference catalog page.
 
 Keep the docs in sync (architecture §3/§4/§5/§8, plan.md, progress.md) and record any new
 decision in `design-decisions.md`.
@@ -151,6 +153,7 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
 # seed the TCET-style dataset (12 depts / 576 subjects / 345 faculty / 204 rooms / 108 profiles)
+# NOTE: prints a "teacher login:" line with the portal teacher credential
 uv run python -m scripts.seed_demo --wipe
 
 # frontend on :3001 (port 3000 is owned by an unrelated container on this machine)
@@ -160,7 +163,7 @@ cd frontend && npm install && npm run dev -- -p 3001 &
 # verify visually via the vision skill (mimo for routine checks)
 ```
 
-Full backend verification: `uv run python -m app.tests` (186) · scale: `scripts/full_stack_test.py`
+Full backend verification: `uv run python -m app.tests` (191) · scale: `scripts/full_stack_test.py`
 (after a fresh seed; server must be up) · live API drive: `scripts/api_drive.py`,
 `scripts/async_drive.py` (async needs ASYNC_GENERATION=true + a celery worker).
 
