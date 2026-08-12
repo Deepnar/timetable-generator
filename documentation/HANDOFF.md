@@ -65,9 +65,15 @@ truthful.
      was scheduled. It now also filters by the profile's group resources, and the seed creates
      **16 per-class DIVISION profiles per department** (one per division). `generate_college`
      publishes **192 instances — one clean timetable per class** (~28 sessions each, realistic contact hours).
-   - **Dash-only cells**: grid/editor lookups capped at 200 rows but the college has 288
-     subjects / 345 faculty / 324 rooms — past row 200 everything resolved to nothing. The
+   - **Dash-only cells**: grid/editor lookups capped at 200 rows but the college has
+     hundreds of subjects — past row 200 everything resolved to nothing. The
      pagination cap is 1000 and the frontend fetches at it.
+   - **Morning holes / phantom violations / missing lunch label** (fixed this pass):
+     faculty were shared across classes, so publishing one reserved teachers that blocked
+     others' mornings; the violation counter miscounted 2h lab blocks; and the grid showed
+     no lunch. Now: dedicated per-class faculty teams (176/dept), a LUNCH BREAK row in the
+     grid, per-block violation counting, and class labels on the instances list. All 192
+     classes place slots 1-4 every day with 0 warnings / 0 violations.
    - **Empty days / 8:00–11:30 display / class model**: already fixed earlier this session
      (`8558ba7` → `999795b`) — see the previous handoff's item 4.
 
