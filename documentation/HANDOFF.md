@@ -18,7 +18,7 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 
 ## Session summary (committed & pushed)
 
-State at handoff: **200/200 tests passing** (`uv run python -m app.tests`), frontend builds
+State at handoff: **203/203 tests passing** (`uv run python -m app.tests`), frontend builds
 (`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
 :3001) — see Gotchas if not.
 
@@ -30,28 +30,20 @@ email is a real Faculty row's email** — check the "teacher login:" line printe
 The seed force-resets portal passwords on re-seed, so the printed credentials are always
 truthful.
 
-**This session shipped the two-channel notification system (DD-027) and the role portals:**
+**This session shipped the date-resolution day layer (DD-022 #2 / DD-026 follow-up):**
 
-1. **Two-channel notifications (DD-027, commits `c81868a` → `55e3361`)** — the feature you asked
-   for: when a timetable is **published** or a **mid-year change is applied**, the relevant
-   people are notified **both by email AND an in-app dashboard notification**.
-   - **In-app**: new `app_notifications` table (migration `92a486f10bf9`, now **24 tables**) holds
-     one row per recipient Admin. `notification_service.dispatch_publish(instance_id)` /
-     `dispatch_change(override_id)` run after the publish/override/swap commits and resolve
-     recipients by email from the schema links (admin/hod accounts, the instance's faculty,
-     linked group `incharge_email`/`student_email`, and the affected teachers for a change).
-     Topbar **bell** polls unread count (15s) + dropdown; `/notifications` page lists/marks rows
-     (`GET /notifications`, `unread-count`, `{id}/read`, `read-all`).
-   - **Email**: publish keeps the existing mailer; mid-year changes add a compact change email to
-     affected faculty. Both best-effort (a mail outage never fails the publish/change).
-   - **Real bug fixed**: override validation loaded *every* published reservation including the
-     instance being edited, so editing a published timetable always conflicted with itself.
-     `Scheduler._load_published_conflicts` gained `exclude_instance_id`; the change checks pass
-     it — only *other* published timetables block a mid-year edit.
-   - 4 new tests (200 total).
-2. **Role portals** (previous sessions, `bec4833` → `b16fc37`) — `/my-schedule` (teacher) and
-   `/my-timetable` (student): Today card, weekly grid, own exports; `student_groups.student_email`
-   links a student login to a group; role-based login redirect.
+1. **Date-resolution layer (commits `74cbd34` → `ea1f548`)** — `app/services/override_resolver.py`
+   answers "is there class on date X": for a date it picks the winning override per slot — a
+   permanent cover/room change applies every date, a TEMP window wins inside its
+   `date_from`/`date_to`, a SWAP exchanges the two slots' faculty/room, and a covered slot
+   reports the new teacher/room. `/my/schedule` and `/my/timetable` accept `?date=YYYY-MM-DD`,
+   and `/my/today` resolves against today, so the day card is truthful after mid-year edits.
+   The teacher/student **day cards gained a date picker** (with a Today reset) to view any date.
+   3 new tests (203 total): permanent cover on every date, TEMP window inside vs base outside,
+   SWAP room exchange.
+2. Earlier this session: the **two-channel notification system** (DD-027, in-app + email on
+   publish and mid-year changes, plus a cross-timetable self-conflict fix) shipped — see the
+   previous handoff's summary if needed (`c81868a` → `b51f7d2`).
 3. **Notes recorded** (founder detail log rows 14–16, OPEN 12–13): registration UI + Google OAuth
    question; final proper seed for the entire college.
 
@@ -60,7 +52,8 @@ room per session from the subject's `requirements_json`, so a subject is taught 
 rooms across the week (matches the user's college; no fixed classroom per subject). The engine,
 RBAC, exports, async generation, constraint registry, all six soft constraints, compare,
 slot-override revalidation, the assignment grid, the profile builder, the mid-year change loop,
-both role portals, and two-channel notifications are built and tested.
+both role portals, two-channel notifications, and the date-resolution day layer are built and
+tested.
 
 ---
 
@@ -84,10 +77,12 @@ both role portals, and two-channel notifications are built and tested.
    is the reference pattern for caller-scoped reads.
 7. **DD-022 follow-up** — build order for the teacher-workload roadmap: (1) teacher self-service
    schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
-   (3) the change loop (room change + cover + notifications). **#1 shipped** (`/my/schedule`
-   portal: Today card, weekly grid, own exports; role-based login redirect). Next: the student
-   portal, then the date-resolution `GET /my/today` layer resolving overrides by date (#2), then
-   the change-loop notifications (#3).
+   (3) the change loop (room change + cover + notifications). **#1 shipped for both roles** and
+   **#2 shipped**: `GET /my/schedule` / `/my/timetable` accept `?date=` and resolve mid-year
+   changes for that date (a permanent cover applies, a TEMP window wins inside its dates, a SWAP
+   exchanges faculty/room), so "is there class on date X" and the day card are truthful. Remaining:
+   the change-loop notifications were already built (DD-027); WebSocket push and the student
+   "today" parity are polish.
 8. **DD-023 follow-up** — block-level overrides: the slot editor edits a single per-slot row, so
    moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
    whole block. Also re-check the client-side "moved session" heuristic when the teacher portal
@@ -105,10 +100,12 @@ both role portals, and two-channel notifications are built and tested.
     college asks. The founder detail log is the inbox for remembered details — keep it pruned as
     items get resolved into DD entries.
 11. **DD-026 follow-up** — the mid-year change layer is fully shipped (schema + conflict-checked
-    endpoints + change-mode UI with candidate-teacher picker and a revertible change list). Next:
-    the `GET /my/today` date-resolution layer (DD-022 #2) should resolve overrides by date (a
-    TEMP window hides a covered slot outside its dates, a permanent cover wins inside it), and a
-    college flag could gate whether changes are allowed on locked timetables at all.
+    endpoints + change-mode UI with candidate-teacher picker and a revertible change list) and
+    the **date-resolution layer** is now shipped too (`app/services/override_resolver.py`;
+    `/my/schedule` + `/my/timetable` accept `?date=` and `/my/today` resolves overrides against
+    today — a TEMP window wins inside its dates, a permanent cover wins outside it, a SWAP
+    exchanges faculty/room). Remaining: a college flag to gate whether changes are allowed on
+    locked timetables at all, and surfacing effective dates in the admin change list.
 12. **Registration + auth (OPEN)** — the backend has `POST /auth/register` (public, defaults to
     `admin` role) but the frontend is login-only. A register page/form is needed; whether it
     should also offer **Google OAuth** is undecided (founder flagged it as a question). Decide
@@ -125,19 +122,20 @@ both role portals, and two-channel notifications are built and tested.
 
 ---
 
-## Next task — the date-resolution day layer (DD-022 #2)
+## Next task — registration/auth decision, then polish
 
-Both role portals (DD-022 #1) are done. Remaining, in order:
+All of DD-022 #1 (role portals), DD-022 #2 (date-resolution day layer), DD-026 (mid-year change
+loop), and DD-027 (two-channel notifications) are shipped. Remaining, in order:
 
-1. **Date-resolution layer** (DD-022 #2 / DD-026 follow-up) — `GET /my/today` should resolve
-   `timetable_overrides` by the real date: a TEMP cover wins inside its `date_from`/`date_to`, a
-   permanent cover wins outside it, and a covered slot is hidden while its cover applies. This is
-   what makes "is there class on date X" and the day card truthful. Needs a date-aware slots read
-   shared by `/my/*`, the change list, and the grid.
-2. **Change-loop notifications** (DD-022 #3) — hooks on override/cover creation → SMTP (DD-003/4
-   follow-ups become relevant); room change + cover notifications reuse `mail_service`.
-3. Optional polish: register page/form + the Google OAuth decision (OPEN 12); CSV upload modals;
-   WebSocket progress for async runs; a `/constraints` reference catalog page.
+1. **Registration + Google OAuth decision (OPEN 12)** — the backend has `POST /auth/register`
+   (public, defaults to `admin` role) but the frontend is login-only. Decide the auth story
+   (email+password register form vs Google OAuth) and record it; the portal roles need a way for
+   users to get accounts without admin provisioning.
+2. **Final proper seed (OPEN 13)** — re-seed with real college data and generate the timetable
+   for the entire college before launch (decide a data source).
+3. Optional polish: CSV upload modals; WebSocket/SSE push (DD-027 follow-up); a `/constraints`
+   reference catalog page; a college flag to gate changes on locked timetables (DD-026
+   follow-up); surfacing effective dates in the admin change list.
 
 Keep the docs in sync (architecture §3/§4/§5/§8, plan.md, progress.md) and record any new
 decision in `design-decisions.md`.
