@@ -37,6 +37,7 @@ from .router import (
     assignments,
     audit,
     overrides,
+    my,
 )
 from .services.settings_service import get_settings
 
@@ -233,6 +234,7 @@ app.include_router(settings.router)
 app.include_router(assignments.router)
 app.include_router(audit.router)
 app.include_router(overrides.router)
+app.include_router(my.router)
 
 # ── API versioning ─────────────────────────────────────────
 # One /api/v1 aggregator mounts the same routers at a versioned prefix; the
@@ -259,6 +261,7 @@ for _router in (
     assignments.router,
     audit.router,
     overrides.router,
+    my.router,
 ):
     api_v1.include_router(_router)
 app.include_router(api_v1)

@@ -156,7 +156,7 @@ def wipe_scheduling(db) -> None:
     """Delete every scheduling row (keeps admins and settings singleton)."""
     tables = [
         "timetable_slots", "timetable_instances", "timetable_generations",
-        "timetable_history", "timetable_reset_log",
+        "timetable_overrides", "timetable_history", "timetable_reset_log",
         "profile_combination_members", "profile_combinations",
         "profile_parameters", "profile_resources", "timetable_profiles",
         "subject_assignments", "hard_constraints", "soft_constraints",
@@ -313,7 +313,42 @@ def seed(db) -> dict:
         counts["profiles"] += 1
 
     db.commit()
+    _provision_portal_accounts(db)
+    db.commit()
     return counts
+
+
+def _provision_portal_accounts(db) -> None:
+    """Provision role-scoped logins so the teacher/student portals are
+    demoable. The teacher logs in with a real Faculty row's email so /my
+    resolves their schedule; student + HOD get standalone accounts.
+
+    Credentials (all password ``teach123``):
+      teacher:  <first faculty email>  (see the linked line printed at seed)
+      student:  student1@tcet.edu.in
+      hod:      hod@tcet.edu.in
+    """
+    from app.models.admin import Admin, AdminRole
+    from app.utils.auth import hash_password
+    from app.models.faculty import Faculty
+    from sqlalchemy import select
+
+    existing = {a.email: a for a in db.scalars(select(Admin)).all()}
+    first_faculty = db.scalars(select(Faculty).order_by(Faculty.id)).first()
+
+    def ensure(email, name, role):
+        if email not in existing:
+            db.add(Admin(email=email, name=name,
+                         password=hash_password("teach123"),
+                         role=role))
+
+    ensure("student1@tcet.edu.in", "Student One", AdminRole.STUDENT)
+    ensure("hod@tcet.edu.in", "HOD One", AdminRole.HOD)
+    if first_faculty is not None:
+        ensure(first_faculty.email, first_faculty.name, AdminRole.TEACHER)
+        print(f"  teacher login: {first_faculty.email} / teach123 "
+              f"({first_faculty.name})")
+    db.flush()
 
 
 def _attach_resources(db, prof, rooms, faculty, groups, subjects) -> None:
