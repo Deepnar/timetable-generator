@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed browser origins (CORS). Dev frontends on
     # 3000/3001 are the default; add the deployed frontend origin in production.
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
+    # Deployment environment — "production" adds HSTS and hides interactive docs.
+    ENV: str = "development"
+    # Whether /docs + /openapi.json are served (security audit M-5).
+    SHOW_DOCS: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

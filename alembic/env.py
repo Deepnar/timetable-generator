@@ -1,5 +1,5 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, URL
 from alembic import context
 from app.config import settings
 from app.database import Base
@@ -14,8 +14,14 @@ config = context.config
 
 config.set_main_option(
     "sqlalchemy.url",
-    f"postgresql+psycopg2://{settings.DB_USER}:{settings.DB_PASSWORD}"
-    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+    URL.create(
+        "postgresql+psycopg2",
+        username=settings.DB_USER,
+        password=settings.DB_PASSWORD,
+        host=settings.DB_HOST,
+        port=settings.DB_PORT,
+        database=settings.DB_NAME,
+    ).render_as_string(hide_password=True),
 )
 
 if config.config_file_name is not None:

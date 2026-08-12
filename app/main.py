@@ -62,7 +62,29 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Timetable Generator API", lifespan=lifespan)
+app = FastAPI(
+    title="Timetable Generator API",
+    lifespan=lifespan,
+    # Security audit M-5: interactive docs are a full API map for attackers.
+    # Hidden in production (SHOW_DOCS=false), available in dev for the team.
+    docs_url="/docs" if app_settings.SHOW_DOCS else None,
+    redoc_url="/redoc" if app_settings.SHOW_DOCS else None,
+    openapi_url="/openapi.json" if app_settings.SHOW_DOCS else None,
+)
+
+
+# ── Security headers (security audit M-2) ───────────────────
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "same-origin"
+    if app_settings.ENV == "production":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains")
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 # ── Global JSON error envelope ─────────────────────────────
@@ -281,7 +303,10 @@ def health() -> dict:
         db.execute(text("SELECT 1"))
     except Exception as exc:  # pragma: no cover - exercised in prod
         db_ok = False
-        db_error = str(exc)
+        # Never leak the raw exception (it can carry connection strings /
+        # credentials). Log it internally and return a generic flag.
+        logger.warning("Health check DB probe failed: %s", exc)
+        db_error = "database unavailable"
     finally:
         db.close()
     return {
