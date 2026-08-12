@@ -21,7 +21,7 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 State at handoff: **209/209 tests passing** (`uv run python -m app.tests`), frontend builds
 (`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
 :3001) — see Gotchas if not. **The DB holds a published timetable for EVERY class** (192/192
-instances — one per division — 3456 slots) via `scripts/generate_college.py`.
+instances — one per division — ~5400 slots) via `scripts/generate_college.py`.
 
 **Login credentials** (TCET-style seed data, 12 departments, 16 classes each — FE/SE/TE/BE × A-D):
 `admin@example.com` / `admin123` (admin) · **teacher: the seed now provisions a login whose
@@ -36,7 +36,7 @@ truthful.
 1. **Full-college timetable** (`scripts/generate_college.py`, `3ac77ab`) — the founder's
    end-of-project goal: generate + publish a timetable for the entire college. One
    whole-department instance per department (best-wins variation), all semesters/divisions at
-   once. Ran clean: **12/12 departments published, 3456 slots**. Options `--only`, `--dry-run`,
+   once. Ran clean: **12/12 departments published, ~5400 slots**. Options `--only`, `--dry-run`,
    `--clear-locks`. Note: a killed run leaves a Redis generation lock for the 600s TTL —
    `--clear-locks` deletes them when safe.
 2. **Security audit (DD-029, commits `a4be957` → `35ce0cf`)** — a read-only deepscan by the
@@ -64,7 +64,7 @@ truthful.
      `_build_sessions` filtering assignments by subject only — every division sharing a subject
      was scheduled. It now also filters by the profile's group resources, and the seed creates
      **16 per-class DIVISION profiles per department** (one per division). `generate_college`
-     publishes **192 instances — one clean timetable per class** (18 sessions each).
+     publishes **192 instances — one clean timetable per class** (~28 sessions each, realistic contact hours).
    - **Dash-only cells**: grid/editor lookups capped at 200 rows but the college has 288
      subjects / 345 faculty / 324 rooms — past row 200 everything resolved to nothing. The
      pagination cap is 1000 and the frontend fetches at it.
@@ -136,7 +136,7 @@ full-college timetable, and the security remediation are built and tested.
     to gate registration (invite code) before launch and the **Google OAuth** question (deferred
     until a college asks, see DD-028).
 13. **Final proper seed** — the **full-college timetable is generated and published**
-    (`scripts/generate_college.py`, 12/12 departments, 3456 slots in the local DB). Remaining:
+    (`scripts/generate_college.py`, 192/192 classes, ~5400 slots in the local DB). Remaining:
     replace the TCET-style *demo* data with the college's **real** data before public launch
     (decide a source), then re-run the seed + `scripts/full_stack_test.py` at whole-college scale.
 14. **DD-027 follow-up** — the two-channel notification system (in-app + email) is shipped for
