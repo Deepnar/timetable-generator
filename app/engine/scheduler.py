@@ -414,7 +414,8 @@ class Scheduler:
         return violations
 
     def _load_published_conflicts(
-        self, exempt_groups: set[int] | None = None
+        self, exempt_groups: set[int] | None = None,
+        exclude_instance_id: int | None = None
     ) -> dict[str, set[tuple]]:
         """Fetch every slot of every PUBLISHED instance.
 
@@ -435,6 +436,11 @@ class Scheduler:
         suspended its classes, so its published class slots (teacher, room,
         group) are free for the exam to reuse, while every other branch's
         active classes stay protected.
+
+        ``exclude_instance_id``: skip one published instance entirely. Used by
+        the mid-year change validation (DD-026) so a change to a published
+        instance's own slot does not conflict with that same slot's published
+        reservation — only *other* published timetables block it.
         """
         reserved: dict[str, set[tuple]] = {
             "faculty": set(),
@@ -447,6 +453,8 @@ class Scheduler:
                 TimetableInstance.status == InstanceStatus.PUBLISHED
             )
         ).all()
+        if exclude_instance_id is not None:
+            published_ids = [i for i in published_ids if i != exclude_instance_id]
         if not published_ids:
             return reserved
 

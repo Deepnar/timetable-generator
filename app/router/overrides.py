@@ -28,6 +28,7 @@ from app.utils.auth import get_current_admin
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.scheduler import Scheduler
 from app.services.settings_service import get_settings
+from app.services import notification_service
 
 router = APIRouter(prefix="/instances", tags=["Mid-year changes"])
 
@@ -69,13 +70,17 @@ def _other_slots(db: Session, instance_id: int, exclude_slot_ids: set[int]) -> l
 def _check_candidate(db: Session, candidate: SlotCandidate, instance_id: int,
                      other_slots: list, exclude_slot_ids: set[int]) -> list:
     """Run the structural checker against the other slots + published
-    reservations. Data-driven profile constraints are intentionally skipped
-    for a mid-year change — the change must not break the *published* plan,
-    and the profile may have been edited since publication."""
+    reservations. The instance being changed is excluded from the published
+    reservations so its own base slots don't conflict with the change (only
+    OTHER published timetables block a mid-year edit). Data-driven profile
+    constraints are intentionally skipped for a mid-year change — the change
+    must not break the *published* plan, and the profile may have been edited
+    since publication."""
     checker = ConstraintChecker(
         db, other_slots,
         settings=get_settings(db),
-        reserved=Scheduler(db)._load_published_conflicts(),
+        reserved=Scheduler(db)._load_published_conflicts(
+            exclude_instance_id=instance_id),
     )
     return checker.check_all(candidate)
 
@@ -234,6 +239,10 @@ def create_override(
     db.add(override)
     db.commit()
     db.refresh(override)
+    try:
+        notification_service.dispatch_change(override.id)
+    except Exception:
+        pass  # never fail the change because a notification couldn't dispatch
     return override
 
 
@@ -271,6 +280,10 @@ def swap_slots(
     db.add(override)
     db.commit()
     db.refresh(override)
+    try:
+        notification_service.dispatch_change(override.id)
+    except Exception:
+        pass  # never fail the swap because a notification couldn't dispatch
     return override
 
 
@@ -342,8 +355,11 @@ def available_faculty(
         if s.faculty_id is not None and s.day_of_week == day_of_week and s.slot_number == slot_number:
             busy.add(s.faculty_id)
 
-    # Teachers reserved by published cross-timetable bookings at this time.
-    reserved = Scheduler(db)._load_published_conflicts()
+    # Teachers reserved by published cross-timetable bookings at this time
+    # (excluding this instance's own base slots — they are the ones being
+    # changed, not an external conflict).
+    reserved = Scheduler(db)._load_published_conflicts(
+        exclude_instance_id=instance_id)
     for (fac_id, d, sn) in reserved.get("faculty", ()):
         if fac_id is not None and d == day_of_week and sn == slot_number:
             busy.add(fac_id)

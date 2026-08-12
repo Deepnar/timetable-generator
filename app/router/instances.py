@@ -14,7 +14,7 @@ from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.profile_resolver import ProfileResolver
 from app.engine.scheduler import Scheduler
 from app.services.settings_service import get_settings
-from app.services import mail_service
+from app.services import notification_service
 from datetime import datetime, time
 import logging
 
@@ -140,11 +140,10 @@ def publish_instance(
     db.refresh(instance)
 
     # Fire the publish notifications after the commit so a mail outage can
-    # never roll back a successful publish. Delivery is best-effort in a
-    # background thread and a no-op when SMTP is unconfigured; the dispatch is
-    # also guarded here so an unexpected mailer error never fails the publish.
+    # never roll back a successful publish. In-app rows + emails are
+    # dispatched best-effort (DD-027); SMTP being unconfigured is a no-op.
     try:
-        mail_service.dispatch_publish_notifications(instance.id)
+        notification_service.dispatch_publish(instance.id)
     except Exception:
         logger.exception("Publish notifications failed for instance %s", instance.id)
 

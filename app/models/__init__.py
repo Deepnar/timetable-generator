@@ -14,5 +14,6 @@ from .generation import (TimetableGeneration, TimetableInstance,
                                     TimetableSlot, GenerationStatus,
                                     TimetableType, InstanceStatus, SessionType)
 from .overrides import TimetableOverride, OverrideType
+from .notifications import AppNotification, NotificationKind
 from .history import TimetableHistory, TimetableResetLog
 from .audit import AuditLog
