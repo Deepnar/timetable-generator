@@ -378,6 +378,27 @@ Rules: every detail gets two tags — **source** (`system rule` = solver/checker
 | 6 | Number of students in the class (strength) | college data | teacher-set | DD-025 |
 | 7 | How batches are divided | college data | teacher-set (system suggests from strength/capacity) | DD-025 |
 | 8 | Conflicts must be checked against **all active** timetables, not just published | system rule | — | DD-024 |
+| 9 | Locked/running timetable: pick boxes (cells) and change them manually mid-year | system rule (UI) | teacher-set | DD-026 |
+| 10 | When changing a slot, list teachers available for the specified year to pick from | system rule (query) | teacher-set | DD-026 |
+| 11 | Option for a temporary timetable for some period (date-scoped) | system rule (UI) | teacher-set | DD-026 |
+| 12 | Option to swap two lectures | system rule (UI) | teacher-set | DD-026 |
+| 13 | A visible change list; changes saved and shown, revertible | system rule (UI) | — | DD-026 |
+
+---
+
+## Mid-year change loop (2026-08-12)
+
+### DD-026 — In-term changes to a published timetable are a `timetable_overrides` exception layer, not slot mutation
+- **Status:** Decided / Tested (7 change-loop tests, 186 total). Schema: new `timetable_overrides` table (migration `d319882e1438`), 23 tables total.
+- **Context:** the founder described the in-term change workflow: a teacher leaves mid-year, a room becomes unavailable, two lectures must swap, or a class runs on a temporary window. Published timetables are normally immutable (re-generate + re-publish is the workflow), but that is too heavy for a single manual correction, and editing the published slots directly would silently lose the base plan.
+- **Decision:** record each change as a `TimetableOverride` row against the published instance — the base slots stay authoritative and the change set is auditable and reversible:
+  - `override_type`: `TEACHER_COVER` / `ROOM_CHANGE` / `SWAP` / `TEMP` / `CUSTOM`.
+  - `slot_id` = the slot being changed (old values are read from it at apply time); `new_faculty_id` / `new_room_id` hold what the change swaps in; `swap_with_slot_id` pairs the two slots of a SWAP.
+  - `date_from` / `date_to` are NULL for a permanent change and set for a **temporary window** (`TEMP`); `resolved_at` marks a reverted/ended change (the row is kept as history).
+  - New endpoints under `/instances/{id}`: `GET /overrides` (change list with old/new names resolved for display), `POST /overrides` (create, **conflict-checked**), `POST /slots/{id}/swap` (swap convenience wrapper), `DELETE /overrides/{oid}` (resolve/revert), `GET /overrides/available-faculty` (candidate teachers free at a day/slot, excluding instance bookings + active overrides + published reservations).
+  - **Validation posture:** a change is checked against the instance's *other* slots, the other active overrides, and the cross-timetable published reservations — the data-driven profile constraints are deliberately skipped for a mid-year edit, because the change must not break the *published* plan and the profile may have changed since publication. A conflict is a 409 and nothing is saved.
+- **Rejected alternatives:** editing `timetable_slots` in place (loses the base plan, no audit trail, a bad edit is unrecoverable); a new instance + re-publish per change (too heavy for one correction and would re-run the solver); hard-deleting a change (the resolve flag keeps history).
+- **Follow-up (open):** the frontend "change mode" on the published instance viewer (cell selection, candidate picker, change list, revert) is the UI half of this — see the HANDOFF next-task list. The `GET /my/today` date-resolution layer (DD-022 #2) will read `timetable_overrides` to answer "is there class on date X"; the `available-faculty` endpoint already feeds that cover picker.
 
 ---
 
@@ -421,6 +442,11 @@ Address these in the next session; resolved ones move up into the log with their
     row (settings / group / parameter), not engine logic. Revisit multi-tenant only when a second
     college asks. The founder detail log is the inbox for remembered details — keep it pruned as
     items get resolved into DD entries.
+11. **DD-026 follow-up** — the mid-year change layer (schema + conflict-checked endpoints) is
+    built; the frontend change mode on the published instance viewer (select cells, pick a
+    candidate teacher, apply a cover/room change/swap/temp window, revert from a change list) is
+    the remaining half. The `GET /my/today` layer (DD-022 #2) should resolve overrides by date.
+    Consider a college flag to gate whether changes are allowed on locked timetables at all.
 
 ---
 

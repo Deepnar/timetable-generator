@@ -78,7 +78,7 @@ aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty
    → d7a3c5e9f1b2   CUSTOM added to roomtype + sessiontype enums
 ```
 
-There are **22 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, plus `audit_logs`.
+There are **23 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, `timetable_overrides`, plus `audit_logs`.
 
 ### 3.1 Resource & Auth Tables
 
@@ -461,6 +461,24 @@ CREATE TABLE timetable_slots (
 -- (idx_instance_day / idx_faculty_slot / idx_group_slot); the current schema
 -- does not create them. With small instance sizes this is fine; revisit when
 -- slot counts grow.
+
+-- MID-YEAR CHANGES to a published timetable (DD-026; migration d319882e1438).
+-- Base slots stay immutable; each in-term correction is a row here instead.
+CREATE TABLE timetable_overrides (
+    id                SERIAL PRIMARY KEY,
+    instance_id       INTEGER NOT NULL REFERENCES timetable_instances(id) ON DELETE CASCADE,
+    slot_id           INTEGER REFERENCES timetable_slots(id) ON DELETE CASCADE,  -- slot being changed (NULL = broad window)
+    override_type     overridetype NOT NULL,        -- TEACHER_COVER | ROOM_CHANGE | SWAP | TEMP | CUSTOM
+    date_from         DATE,                          -- NULL = permanent change
+    date_to           DATE,                          -- set for a temporary window (TEMP)
+    new_faculty_id    INTEGER REFERENCES faculty(id) ON DELETE SET NULL,
+    new_room_id       INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
+    swap_with_slot_id INTEGER REFERENCES timetable_slots(id) ON DELETE SET NULL, -- other leg of a SWAP
+    reason            TEXT,
+    created_by        INTEGER REFERENCES admins(id),
+    resolved_at       TIMESTAMP,                     -- NULL = active; set when reverted/ended (kept as history)
+    created_at        TIMESTAMP NOT NULL DEFAULT NOW()
+);
 ```
 
 ### 3.5 History & Reset Tables
@@ -836,6 +854,29 @@ POST   /instances/{instance_id}/slots/{slot_id}/revalidate
                                         # /instances/{id}/conflicts, /instances/{id}/diff/{other},
                                         # or /instances/{id}/clone. Compare is computed
                                         # client-side from the two /slots lists (§4.1 frontend).
+```
+
+#### Mid-year changes (implemented — DD-026)
+
+Published timetables stay immutable; in-term corrections (teacher cover, room
+change, swap, temporary window) are recorded as `timetable_overrides` rows and
+validated before saving.
+
+```
+GET    /instances/{id}/overrides        List changes (?resolved=true|false); resolves old/new
+                                        # faculty + room names, subject/group, day/slot for display.
+POST   /instances/{id}/overrides        Record a change (TEACHER_COVER / ROOM_CHANGE / SWAP /
+                                        # TEMP / CUSTOM). Conflict-checked against the instance's
+                                        # other slots + active overrides + published reservations;
+                                        # a conflict is a 409 and nothing is saved.
+POST   /instances/{id}/slots/{slot_id}/swap   Swap two lectures (convenience; validates both
+                                        # resulting positions before saving a SWAP override).
+DELETE /instances/{id}/overrides/{oid}  Revert a change (resolved_at stamped; row kept as history).
+GET    /instances/{id}/overrides/available-faculty
+                                        # Candidate teachers free at a (day_of_week, slot_number):
+                                        # excludes the instance's own bookings, other active
+                                        # overrides, and published cross-timetable reservations.
+                                        # Feeds the cover picker in the change-mode UI (§4.1).
 ```
 
 #### Export (implemented — filters on all three)
@@ -1400,7 +1441,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### ✅ Shipped (matches the doc above)
 
-- **Schema (22 tables)** — Alembic chain `aeaadc4f2374 → … → d7a3c5e9f1b2 → f5a1b3c8e6d2`; latest migration is `f5a1b3c8e6d2` (nullable `student_groups.incharge_email`).
+- **Schema (23 tables)** — Alembic chain `aeaadc4f2374 → … → d7a3c5e9f1b2 → f5a1b3c8e6d2`; latest migration is `d319882e1438` (`timetable_overrides`, the mid-year change layer).
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — `POST /generate` with greedy (default) and OR-Tools CP-SAT, running synchronously by default or through a Celery worker when `ASYNC_GENERATION=true` (§7.1). `Scheduler` is split into `create_generation()` (PENDING row + run_id) and `solve_generation()` (worker entry point); failures flip the run to `FAILED` with `error_log`.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2). `GET /profiles/combinations` lists combinations with member names/weights and a `resolution_status` preview, and `POST /profiles/combinations/{id}/resolve` returns the merged `ResolvedProfile` for manual preview (§4.2).
@@ -1444,7 +1485,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **RBAC read-scoping** — roles exist (DD-021: admin/hod/teacher/student, JWT role claim, `require_roles`, `/auth/me`, admin-only `/auth/users`), but teacher/student reads are not yet filtered to their own schedule/group. (HOD *mail* recipients are still configured via `config_json["notification_emails"]`, §7.7 — re-pointing the mailer at HOD-role accounts is a DD-001 follow-up.)
 - **History restore** — read-only.
 - **Genetic solver** — `AlgorithmType` has only `GREEDY` and `OR_TOOLS`.
-- **Frontend depth** — shipped: Auth + Dashboard + Resource CRUD (with drill-down navigation), Generation trigger, Instances list, the TimetableGrid viewer with exports, **compare mode**, the **slot override editor**, the **assignment grid**, and the **profile/constraint builder** (§4.1). Remaining (plan.md Phase 4): the teacher/student portals (DD-022).
+- **Frontend depth** — shipped: Auth + Dashboard + Resource CRUD (with drill-down navigation), Generation trigger, Instances list, the TimetableGrid viewer with exports, **compare mode**, the **slot override editor**, the **assignment grid**, the **profile/constraint builder**, and the **mid-year change mode** on published timetables (§4.1). Remaining (plan.md Phase 4): the teacher/student portals (DD-022).
 
 ### Recommended Order for Remaining Work
 
