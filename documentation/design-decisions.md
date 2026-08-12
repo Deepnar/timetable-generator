@@ -419,6 +419,19 @@ Rules: every detail gets two tags — **source** (`system rule` = solver/checker
 
 ---
 
+## Authentication for portal accounts (2026-08-12)
+
+### DD-028 — Email+password self-registration now; Google OAuth is deferred until a college asks
+- **Status:** Decided / Tested (a register→login→me contract test, 204 total).
+- **Context:** the founder flagged that the product has login but no registration UI — "we also need a registration… can we do with Google or not idk". The backend already had a public `POST /auth/register` (defaults to `admin` role, per DD-021), it was just never surfaced in the frontend.
+- **Decision:**
+  - **Add a register page** that posts to `POST /auth/register` (name/email/password), then redirects to login. Public self-registration stays as-is (defaults to `admin` role — the college provisions non-admin roles via the admin-only `POST /auth/users`).
+  - **Google OAuth is deferred.** It is recorded as an OPEN item, not built: it needs a Google Cloud OAuth client id/secret, callback wiring, and a "which Google account is which faculty/student" mapping decision — none of which exist yet. Under the DD-025 single-college posture, email+password registration is the honest minimum and Google can be added later without a migration.
+- **Rejected alternatives:** Google-only auth (locks out anyone without a Google account and needs provider setup); no registration at all (the founder explicitly asked for it).
+- **Follow-up (open):** decide whether public self-registration should default to a limited role (e.g. teacher) instead of `admin`, and whether to gate registration (invite code / college setting) before launch. Google OAuth remains open until a college asks.
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -471,11 +484,11 @@ Address these in the next session; resolved ones move up into the log with their
      today — a TEMP window wins inside its dates, a permanent cover wins outside it, a SWAP
      exchanges faculty/room). Remaining: a college flag to gate whether changes are allowed on
      locked timetables at all, and surfacing effective dates in the admin change list.
-12. **Registration + auth (OPEN)** — the backend has `POST /auth/register` (public, defaults to
-     `admin` role) but the frontend is login-only. A register page/form is needed; whether it
-     should also offer **Google OAuth** is undecided (founder flagged it as a question). Decide
-     the auth story (email+password vs Google) and record it before the teacher/student portals
-     ship, since those roles need a way for users to get accounts without admin provisioning.
+12. **Registration + auth** — **email+password register page shipped (DD-028)**; public
+    self-registration defaults to `admin` (provisioning non-admin roles stays admin-only via
+    `/auth/users`). Still OPEN: whether public self-registration should default to a limited role
+    and whether to gate it before launch; **Google OAuth is deferred** until a college asks (see
+    the DD-028 entry).
 13. **Final proper seed (OPEN)** — before launch, re-seed the DB with real college data and
     generate the timetable for the **entire** college (not the demo seed), per the founder. This
     is end-of-project polish; the seed scripts live in `scripts/` (DD-020) and the engine
