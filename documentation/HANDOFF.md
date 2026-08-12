@@ -20,8 +20,8 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 
 State at handoff: **209/209 tests passing** (`uv run python -m app.tests`), frontend builds
 (`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
-:3001) — see Gotchas if not. **The DB holds a published timetable for the ENTIRE college**
-(12/12 departments, 3456 slots) via `scripts/generate_college.py`.
+:3001) — see Gotchas if not. **The DB holds a published timetable for EVERY class** (192/192
+instances — one per division — 3456 slots) via `scripts/generate_college.py`.
 
 **Login credentials** (TCET-style seed data, 12 departments, 16 classes each — FE/SE/TE/BE × A-D):
 `admin@example.com` / `admin123` (admin) · **teacher: the seed now provisions a login whose
@@ -58,17 +58,18 @@ truthful.
      psycopg2-binary, M-8 Next/React patch bumps) are tracked as DD-029 follow-ups.
 3. Earlier this session: the **registration page** (DD-028, `75fd24d` → `f0b99b7`) — see the
    prior handoff.
-4. **Realistic timetables** (commits `8558ba7` → `999795b`) — three fixes the founder's review
-   of the first college-wide run surfaced:
-   - **Empty days**: the greedy solver packed a class's 18 weekly sessions into the minimum 3
-     days (6 subjects × 1/day), leaving Mon/Thu/Sat empty. A `_group_balance_scan` now spreads
-     each class across all working days and slots (48 sessions every day, Mon–Sat, 08:30–17:30
-     with the lunch gap).
-   - **8:00–11:30 display**: the frontend grid hardcoded 8 slots + a fake 30-min label. It now
-     derives the real time grid from the instance's actual slot start times.
-   - **Class model**: the seed now uses the real college structure — 16 classes per department
-     (FE/SE/TE/BE × A–D, one semester per year: FE→1, SE→3, TE→5, BE→7), rooms scaled 17→27 per
-     dept. Counts: 192 groups / 288 subjects / 324 rooms / 60 profiles.
+4. **Realistic per-class timetables** (commits `8558ba7` → `d11107c`) — the founder's review of
+   the first college-wide run surfaced several issues, all fixed:
+   - **Merged years**: whole-department instances put FE/SE/TE/BE in one grid. The real bug was
+     `_build_sessions` filtering assignments by subject only — every division sharing a subject
+     was scheduled. It now also filters by the profile's group resources, and the seed creates
+     **16 per-class DIVISION profiles per department** (one per division). `generate_college`
+     publishes **192 instances — one clean timetable per class** (18 sessions each).
+   - **Dash-only cells**: grid/editor lookups capped at 200 rows but the college has 288
+     subjects / 345 faculty / 324 rooms — past row 200 everything resolved to nothing. The
+     pagination cap is 1000 and the frontend fetches at it.
+   - **Empty days / 8:00–11:30 display / class model**: already fixed earlier this session
+     (`8558ba7` → `999795b`) — see the previous handoff's item 4.
 
 **Backend reality that matters for the product**: rooms are a shared pool — the solver assigns a
 room per session from the subject's `requirements_json`, so a subject is taught in different
@@ -180,7 +181,7 @@ uv sync
 uv run alembic upgrade head
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
-# seed the TCET-style dataset (12 depts / 16 classes each = 192 groups / 288 subjects / 324 rooms)
+# seed the TCET-style dataset (12 depts / 16 classes each = 192 groups / 288 subjects / 324 rooms / 204 profiles)
 # NOTE: prints a "teacher login:" line with the portal teacher credential
 uv run python -m scripts.seed_demo --wipe
 
