@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { Download, CalendarCheck2, LogOut } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Download, CalendarCheck2, LogOut, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, getToken } from "@/lib/api";
@@ -10,24 +10,30 @@ import { useAuth } from "@/lib/auth";
 import { TimetableGrid, type GridSession } from "@/features/timetable/TimetableGrid";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarDays } from "lucide-react";
 
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function MySchedulePage() {
   const { me, logout } = useAuth();
+  const [selectedDate, setSelectedDate] = useState<string>(todayISO());
 
   const schedule = useQuery({
     queryKey: ["my", "schedule"],
     queryFn: () => apiGet<MyScheduleResponse>("/api/v1/my/schedule"),
   });
   const today = useQuery({
-    queryKey: ["my", "today"],
-    queryFn: () => apiGet<MyTodayResponse>("/api/v1/my/today"),
+    queryKey: ["my", "today", selectedDate],
+    queryFn: () =>
+      apiGet<MyTodayResponse>(`/api/v1/my/schedule?date=${selectedDate}`),
   });
 
   const days = Array.from({ length: 6 }, (_, i) => i);
@@ -35,7 +41,7 @@ export default function MySchedulePage() {
 
   const sessions = useMemo<GridSession[]>(
     () =>
-      (schedule.data?.slots ?? []).map((s) => ({
+      (today.data?.slots ?? []).map((s) => ({
         key: `${s.id}`,
         slotId: s.id,
         subjectId: null,
@@ -49,7 +55,7 @@ export default function MySchedulePage() {
         sessionType: s.session_type,
         isManualOverride: s.is_manual_override,
       })),
-    [schedule.data],
+    [today.data],
   );
 
   async function download(ext: string) {
@@ -72,7 +78,8 @@ export default function MySchedulePage() {
   }
 
   const todaySlots = today.data?.slots ?? [];
-  const todayDay = today.data?.day_of_week ?? 0;
+  const weekday = selectedDate ? new Date(`${selectedDate}T00:00:00`).getDay() : 0;
+  const dayLabel = DAY_NAMES[(weekday + 6) % 7] ?? "Unknown"; // Mon=0 convention
 
   return (
     <ProtectedShell>
@@ -101,16 +108,29 @@ export default function MySchedulePage() {
           <ErrorBanner message="Failed to load your schedule" onRetry={() => { schedule.refetch(); today.refetch(); }} />
         )}
 
-        {/* Today card */}
+        {/* Day card with date picker */}
         <div className="rounded-md border bg-surface p-5 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="display text-lg text-ink">Today — {DAY_NAMES[todayDay] ?? "Unknown"}</h2>
-            <CalendarCheck2 className="h-5 w-5 text-muted-foreground" />
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="display text-lg text-ink">Day — {dayLabel}</h2>
+            <div className="flex items-center gap-2">
+              <CalendarCheck2 className="h-5 w-5 text-muted-foreground" />
+              <Input
+                type="date"
+                className="h-8 w-44"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value || todayISO())}
+              />
+              {selectedDate !== todayISO() && (
+                <Button variant="ghost" size="sm" className="h-8" onClick={() => setSelectedDate(todayISO())}>
+                  Today
+                </Button>
+              )}
+            </div>
           </div>
           {today.isLoading ? (
             <Skeleton className="h-16" />
           ) : todaySlots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No classes today. Enjoy the free day!</p>
+            <p className="text-sm text-muted-foreground">No classes that day.</p>
           ) : (
             <ul className="divide-y divide-border">
               {todaySlots.map((s) => (
@@ -131,10 +151,10 @@ export default function MySchedulePage() {
           )}
         </div>
 
-        {/* Weekly grid */}
+        {/* Day grid */}
         <div className="rounded-md border bg-surface p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="display text-lg text-ink">Weekly schedule</h2>
+            <h2 className="display text-lg text-ink">That day's grid</h2>
             <Badge variant="neutral">{sessions.length} sessions</Badge>
           </div>
           {schedule.isLoading ? (
@@ -148,8 +168,8 @@ export default function MySchedulePage() {
           ) : sessions.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
-              title="Nothing published yet"
-              body="The admin hasn't published a timetable for you. Check back after publishing."
+              title="Nothing on that day"
+              body="Pick another date or check back after the admin publishes a timetable."
             />
           ) : (
             <TimetableGrid sessions={sessions} days={days} slotCount={slotCount} readOnly />
