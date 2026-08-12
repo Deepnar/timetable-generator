@@ -90,6 +90,7 @@ for module_name in (
     "app.router.constraints",
     "app.router.room_blackout",
     "app.router.faculty_availibility",
+    "app.router.overrides",
 ):
     try:
         mod = importlib.import_module(module_name)
