@@ -100,6 +100,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - **iCal (.ics)** export implemented — weekly-recurring `VEVENT`s with `?term_start`/`?term_end`, ideal for a teacher importing their personal schedule (`?faculty_id=`).
 - [x] **Notification Service**
   - SMTP email on `POST /instances/{id}/publish` (`app/services/mail_service.py`, stdlib `smtplib` — not FastAPI-mail): each faculty gets their personal PDF, HOD/admin addresses (`config_json["notification_emails"]`) the full-instance summary, and class incharges (`student_groups.incharge_email`) their group's PDF. Non-blocking daemon thread; a strict no-op when SMTP is unconfigured, and a mail failure never fails the publish. See architecture §7.7.
+  - **Two-channel (DD-027):** publish + mid-year changes also fan out **in-app dashboard rows** (`app_notifications` table; `notification_service.dispatch_publish` / `dispatch_change`, recipients resolved by email from the schema links) alongside email, plus a compact change email. Bell + `/notifications` UI. Emails still have no retry queue / opt-out (DD-003 follow-up).
 - [x] **API Polish**
   - Global error handling middleware and consistent JSON error responses (every error returns `{"detail": ...}`; `request_id` on 422/500).
   - Pagination (`?skip=1&limit=20` + `X-Total-Count`) on all list endpoints.

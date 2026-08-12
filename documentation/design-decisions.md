@@ -405,6 +405,20 @@ Rules: every detail gets two tags — **source** (`system rule` = solver/checker
 
 ---
 
+## Two-channel notifications (2026-08-12)
+
+### DD-027 — Publish and mid-year changes notify two channels: in-app dashboard rows + email
+- **Status:** Decided / Tested (4 notification tests, 200 total). Schema: new `app_notifications` table (migration `92a486f10bf9`), 24 tables.
+- **Context:** the founder asked for two kinds of notification when a timetable is published or changed — "a mail and a dashboard notification sent to all the relevant people". Email already existed on publish (`mail_service`, DD-003); there was no in-app channel, and mid-year changes sent nothing at all.
+- **Decision:**
+  - **In-app channel** — a new `app_notifications` table holds one row per recipient Admin. `notification_service.dispatch_publish(instance_id)` and `dispatch_change(override_id)` are called after the publish / override / swap commits; each resolves recipients by email from the schema links (admin/hod accounts, the instance's faculty, linked group `incharge_email`/`student_email`, and the affected teachers for a change) and inserts a row per Admin. The topbar bell polls unread count, and `/notifications` lists/marks rows (`GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/{id}/read`, `POST /notifications/read-all`).
+  - **Email channel** — publish keeps the existing mailer; mid-year changes get a compact change email to the affected faculty. Both are best-effort (a mail outage is logged, never raised, and never fails the publish/change).
+  - **A real cross-timetable bug was found and fixed**: override validation loaded every published reservation *including the instance being edited*, so a change to a published timetable always conflicted with itself. `Scheduler._load_published_conflicts` now accepts `exclude_instance_id` and the change checks pass it — only *other* published timetables block a mid-year edit.
+- **Rejected alternatives:** WebSocket/SSE push (the bell polls on a 15s refetch interval — no transport work needed until a live-updating client exists); a per-recipient opt-out table (defer; the recipient set is derived from role + links, and opt-out is a DD-003 follow-up).
+- **Follow-up (open):** no retry queue for emails (DD-003); notifications are not re-sent when a change is reverted; consider a college flag to disable the in-app channel.
+
+---
+
 ## OPEN decisions for the next session
 
 Address these in the next session; resolved ones move up into the log with their outcome.
@@ -412,7 +426,8 @@ Address these in the next session; resolved ones move up into the log with their
 1. **DD-004 follow-up** — promote mail gating to a `CollegeSettings.mail_enabled` flag, or
    keep env-only? (Likely keep env-only until a college asks; but decide and record.)
 2. **DD-003 follow-up** — do publish notifications need a retry queue / per-recipient opt-out /
-   an admin `/notifications` endpoint? (Currently: log-and-drop.)
+   an admin `/notifications` endpoint? The in-app channel (DD-027) added `/notifications` for
+   the *dashboard*; the *email* side still has no retry queue and no per-recipient opt-out.
 3. **DD-001 follow-up** — RBAC now exists (DD-021): the publish mailer can be re-pointed from
    `config_json["notification_emails"]` to real HOD-role accounts. Worth doing when the
    notifications endpoint lands.
@@ -459,9 +474,13 @@ Address these in the next session; resolved ones move up into the log with their
      the auth story (email+password vs Google) and record it before the teacher/student portals
      ship, since those roles need a way for users to get accounts without admin provisioning.
 13. **Final proper seed (OPEN)** — before launch, re-seed the DB with real college data and
-     generate the timetable for the **entire** college (not the demo seed), per the founder. This
-     is end-of-project polish; the seed scripts live in `scripts/` (DD-020) and the engine
-     already scales to whole-department runs. Decide a source for the real data.
+    generate the timetable for the **entire** college (not the demo seed), per the founder. This
+    is end-of-project polish; the seed scripts live in `scripts/` (DD-020) and the engine
+    already scales to whole-department runs. Decide a source for the real data.
+14. **DD-027 follow-up** — the two-channel notification system (in-app + email) is shipped for
+    publish and mid-year changes. Remaining: an email retry queue (DD-003), per-recipient
+    opt-out, re-sending when a change is reverted, a college flag to disable the in-app channel,
+    and WebSocket/SSE push if the product ever needs live delivery.
 
 ---
 
