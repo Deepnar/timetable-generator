@@ -18,10 +18,11 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 
 ## Session summary (committed & pushed)
 
-State at handoff: **209/209 tests passing** (`uv run python -m app.tests`), frontend builds
-(`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
-:3001) — see Gotchas if not. **The DB holds a published timetable for EVERY class** (192/192
-instances — one per division — ~5400 slots) via `scripts/generate_college.py`.
+State at handoff: **209/209 tests passing** (`uv run python -m app.tests`), frontend typechecks
+(`npm run typecheck` — NOT `npm run build`, which corrupts a running dev server), tree clean,
+all pushed. Both dev servers running (backend :8000, frontend :3001) — see Gotchas if not.
+**The DB holds a published timetable for EVERY class** (192/192 instances — one per division —
+~4700 slots, 0 warnings, 0 violations) via `scripts/generate_college.py`.
 
 **Login credentials** (TCET-style seed data, 12 departments, 16 classes each — FE/SE/TE/BE × A-D):
 `admin@example.com` / `admin123` (admin) · **teacher: the seed now provisions a login whose
@@ -69,11 +70,15 @@ truthful.
      hundreds of subjects — past row 200 everything resolved to nothing. The
      pagination cap is 1000 and the frontend fetches at it.
    - **Morning holes / phantom violations / missing lunch label** (fixed this pass):
-     faculty were shared across classes, so publishing one reserved teachers that blocked
-     others' mornings; the violation counter miscounted 2h lab blocks; and the grid showed
-     no lunch. Now: dedicated per-class faculty teams (176/dept), a LUNCH BREAK row in the
-     grid, per-block violation counting, and class labels on the instances list. All 192
-     classes place slots 1-4 every day with 0 warnings / 0 violations.
+      faculty were shared across classes, so publishing one reserved teachers that blocked
+      others' mornings; the violation counter miscounted 2h lab blocks; and the grid showed
+      no lunch. Now: dedicated per-class faculty teams (176/dept), a LUNCH BREAK row in the
+      grid, per-block violation counting, and class labels on the instances list. All 192
+      classes place slots 1-4 every day with 0 warnings / 0 violations.
+   - **Diversity tiebreak** (`122d053`) — the morning-pack scan re-sorted days by load and
+     discarded the seed shuffle, making all variant instances identical. The day tiebreak now
+     uses the input order (seed shuffle for variants, Mon-Sat baseline unseeded), so diverse
+     instances still pack mornings.
    - **Empty days / 8:00–11:30 display / class model**: already fixed earlier this session
      (`8558ba7` → `999795b`) — see the previous handoff's item 4.
 
