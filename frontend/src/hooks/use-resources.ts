@@ -5,7 +5,7 @@ import { apiGet, apiList, apiPost, apiPut, apiDelete, type ListParams } from "@/
 import type {
   Room, Faculty, StudentGroup, Subject, Generation, Instance, Slot, Me, Profile,
   SubjectAssignment, ProfileResource, ProfileParameter, HardConstraint, SoftConstraint,
-  ConstraintTypes, OverrideDetail, AvailableFaculty,
+  ConstraintTypes, OverrideDetail, AvailableFaculty, AppNotification,
 } from "@/lib/types";
 
 // Query keys
@@ -30,6 +30,8 @@ export const qk = {
   constraintTypes: () => ["constraint-types"] as const,
   overrides: (id: number, resolved: boolean) => ["instance", id, "overrides", resolved] as const,
   availableFaculty: (id: number, p: Record<string, unknown>) => ["instance", id, "available-faculty", p] as const,
+  notifications: (unreadOnly: boolean) => ["notifications", unreadOnly] as const,
+  unreadCount: () => ["notifications", "unread-count"] as const,
 };
 
 // Resources
@@ -151,6 +153,25 @@ export function useAvailableFaculty(instanceId: number | undefined, params: List
     queryFn: () =>
       apiGet<AvailableFaculty[]>(`/api/v1/instances/${instanceId}/overrides/available-faculty`, params ?? {}),
     enabled: instanceId != null && params != null,
+  });
+}
+
+// In-app notifications (DD-027)
+export function useNotifications(unreadOnly = false) {
+  return useQuery({
+    queryKey: qk.notifications(unreadOnly),
+    queryFn: () =>
+      apiGet<AppNotification[]>(`/api/v1/notifications`, {
+        unread_only: unreadOnly ? "true" : "false",
+        limit: 50,
+      }),
+  });
+}
+export function useUnreadCount() {
+  return useQuery({
+    queryKey: qk.unreadCount(),
+    queryFn: () => apiGet<{ unread: number }>("/api/v1/notifications/unread-count"),
+    refetchInterval: 15_000,
   });
 }
 

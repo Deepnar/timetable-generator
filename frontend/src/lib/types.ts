@@ -254,3 +254,14 @@ export interface MyTodayResponse {
   day_of_week: number;
   slots: MySlot[];
 }
+
+export interface AppNotification {
+  id: number;
+  kind: string;
+  title: string;
+  body: string | null;
+  instance_id: number | null;
+  override_id: number | null;
+  is_read: boolean;
+  created_at: string;
+}

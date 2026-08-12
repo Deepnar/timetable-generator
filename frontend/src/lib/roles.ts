@@ -51,7 +51,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     group: "Output",
-    items: [{ label: "Exports", path: "/exports", roles: ["admin", "hod", "teacher", "student"] }],
+    items: [
+      { label: "Exports", path: "/exports", roles: ["admin", "hod", "teacher", "student"] },
+      { label: "Notifications", path: "/notifications", roles: ["admin", "hod", "teacher", "student"] },
+    ],
   },
   {
     group: "My space",

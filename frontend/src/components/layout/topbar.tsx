@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { ROLE_LABELS, type Role } from "@/lib/roles";
 import { Avatar, AvatarFallback, initialsFor } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { NotificationsBell } from "./NotificationsBell";
 
 export function Topbar() {
   const { me, logout } = useAuth();
@@ -17,6 +18,7 @@ export function Topbar() {
         <span className="display text-lg text-ink">Timetable</span>
       </div>
       <div className="ml-auto flex items-center gap-3">
+        <NotificationsBell />
         {me && (
           <div className="flex items-center gap-2.5">
             <div className="hidden text-right sm:block">
