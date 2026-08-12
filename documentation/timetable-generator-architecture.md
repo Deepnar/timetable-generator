@@ -700,9 +700,15 @@ GET    /my/schedule                    Teacher self-service (DD-022 #1): the cal
                                         # slots, resolved with subject/room/group names, plus the
                                         # published instance ids. Teacher role only; the caller's
                                         # Faculty row is found by email match (None when unmatched).
-GET    /my/today                       The caller's sessions for the current weekday (day-card data).
+GET    /my/timetable                   Student self-service (DD-022 #1): the caller's GROUP published
+                                        # slots with names resolved. Student role only; the group is
+                                        # found via StudentGroup.student_email match (None when unmatched).
+GET    /my/today                       The caller's sessions for the current weekday (day-card data);
+                                        # works for both teacher (own faculty slots) and student (own
+                                        # group slots).
 GET    /my/export/{pdf,csv,ical}       The caller's own filtered export from the newest published
-                                        # instance — a teacher pulls their iCal/PDF without knowing ids.
+                                        # instance — a teacher pulls their schedule, a student their
+                                        # group's, without knowing ids.
                                         # require_roles).
 
 POST   /import/rooms                   Bulk import rooms via CSV (multipart file; optional `equipment_json` JSON column)
@@ -1449,7 +1455,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### ✅ Shipped (matches the doc above)
 
-- **Schema (23 tables)** — Alembic chain `aeaadc4f2374 → … → d7a3c5e9f1b2 → f5a1b3c8e6d2`; latest migration is `d319882e1438` (`timetable_overrides`, the mid-year change layer).
+- **Schema (23 tables)** — Alembic chain `aeaadc4f2374 → … → d7a3c5e9f1b2 → f5a1b3c8e6d2`; latest migration is `9fe4f7187298` (`student_groups.student_email`, the student-portal link).
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — `POST /generate` with greedy (default) and OR-Tools CP-SAT, running synchronously by default or through a Celery worker when `ASYNC_GENERATION=true` (§7.1). `Scheduler` is split into `create_generation()` (PENDING row + run_id) and `solve_generation()` (worker entry point); failures flip the run to `FAILED` with `error_log`.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2). `GET /profiles/combinations` lists combinations with member names/weights and a `resolution_status` preview, and `POST /profiles/combinations/{id}/resolve` returns the merged `ResolvedProfile` for manual preview (§4.2).
@@ -1493,7 +1499,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **RBAC read-scoping** — roles exist (DD-021: admin/hod/teacher/student, JWT role claim, `require_roles`, `/auth/me`, admin-only `/auth/users`), but teacher/student reads are not yet filtered to their own schedule/group. (HOD *mail* recipients are still configured via `config_json["notification_emails"]`, §7.7 — re-pointing the mailer at HOD-role accounts is a DD-001 follow-up.)
 - **History restore** — read-only.
 - **Genetic solver** — `AlgorithmType` has only `GREEDY` and `OR_TOOLS`.
-- **Frontend depth** — shipped: Auth + Dashboard + Resource CRUD (with drill-down navigation), Generation trigger, Instances list, the TimetableGrid viewer with exports, **compare mode**, the **slot override editor**, the **assignment grid**, the **profile/constraint builder**, the **mid-year change mode** on published timetables, and the **teacher portal** (`/my-schedule` — Today card + weekly grid + own exports, with role-based login redirect) (§4.1). Remaining (plan.md Phase 4): the student portal and the date-resolution day layer (DD-022 #2/#3).
+- **Frontend depth** — shipped: Auth + Dashboard + Resource CRUD (with drill-down navigation), Generation trigger, Instances list, the TimetableGrid viewer with exports, **compare mode**, the **slot override editor**, the **assignment grid**, the **profile/constraint builder**, the **mid-year change mode** on published timetables, and the **role portals** (`/my-schedule` teacher + `/my-timetable` student — Today card + weekly grid + own exports, with role-based login redirect) (§4.1). Remaining (plan.md Phase 4): the date-resolution day layer (DD-022 #2/#3).
 
 ### Recommended Order for Remaining Work
 
@@ -1501,7 +1507,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 2. **Wire `profile_parameters` to the engine** — most of §8 is in the table but not in the solver.
 3. ~~**Fold soft scoring into the CP-SAT objective**~~ — ✅ done (`soft_objective.py`; `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`).
 4. ~~**Object-based instance variation**~~ — ✅ done (`variation` field on `POST /generate`; `random` / `best` / `minimize-teacher-gaps` / `minimize-student-gaps`, §5.3).
-5. ~~**Frontend (first slice)**~~ — ✅ done (Auth + Dashboard + Resource CRUD, §4.1). Remaining UI: the student portal (plan.md Phase 4).
+5. ~~**Frontend (first slice)**~~ — ✅ done (Auth + Dashboard + Resource CRUD, §4.1). Remaining UI: the date-resolution day layer (plan.md Phase 4).
 6. ~~**Notification service**~~ — ✅ done (email on publish, §7.7; WebSocket / SSE push remains open).
 7. ~~**RBAC**~~ — ✅ roles exist (DD-021); the remaining teacher/student read-scoping is listed under 🟡 Partial.
 8. **Genetic solver** — only if CP-SAT still leaves real departments unsolved.

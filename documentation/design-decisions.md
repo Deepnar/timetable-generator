@@ -427,10 +427,11 @@ Address these in the next session; resolved ones move up into the log with their
    endpoints by the caller's identity once the frontend defines which views each role needs.
 7. **DD-022 follow-up** — build order for the teacher-workload roadmap: (1) teacher self-service
    schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
-   (3) the change loop (room change + cover + notifications). **#1 shipped** (`/my/schedule`
-   portal: Today card, weekly grid, own exports; role-based login redirect). Next: the student
-   portal, then the date-resolution `GET /my/today` layer resolving overrides by date (#2), then
-   the change-loop notifications (#3).
+   (3) the change loop (room change + cover + notifications). **#1 shipped for both roles**
+   (`/my/schedule` teacher + `/my/timetable` student: Today card, weekly grid, own exports;
+   role-based login redirect; `student_groups.student_email` links a student login to a group).
+   Next: the date-resolution `GET /my/today` layer resolving overrides by date (#2), then the
+   change-loop notifications (#3).
 8. **DD-023 follow-up** — block-level overrides: the slot editor edits a single per-slot row, so
    moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
    whole block. Also re-check the client-side "moved session" heuristic when the teacher portal
