@@ -422,6 +422,40 @@ class GreedySolver:
         )
 
     # ── soft-preference placement (greedy pursues preferences too) ──
+    def _group_balance_scan(
+        self, session, working_days: list[int], slot_times: list
+    ) -> list[tuple]:
+        """Order (day, slot) so a class's load spreads across ALL working days
+        AND across the slots of each day.
+
+        Without this the greedy solver packs every weekly session of a class
+        into the minimum number of days (each subject can appear once per day,
+        so 6 subjects x 3h = 18 sessions fits into 3 days of 6), leaving the
+        other weekdays empty — which does not look like a real college
+        timetable. Ordering by the group's current per-day session count (least
+        loaded day first, least-occupied slot within it) makes each class fill
+        the week ~evenly (e.g. 18 sessions over 6 days = 3/day) and spread
+        within each day, while every candidate is still checked against the
+        full hard checker, so validity is unchanged — only the search order.
+        """
+        group_day_load: dict[int, int] = defaultdict(int)
+        group_slot_load: dict[int, int] = defaultdict(int)
+        for s in self.committed_slots:
+            if s.student_group_id != session.student_group_id:
+                continue
+            if s.day_of_week is not None:
+                group_day_load[s.day_of_week] += 1
+            if s.slot_number is not None:
+                group_slot_load[s.slot_number] += 1
+
+        def key(item):
+            day, (sn, _st, _en) = item
+            return (group_day_load.get(day, 0), group_slot_load.get(sn, 0), sn)
+
+        return sorted(
+            ((d, st) for d in working_days for st in slot_times), key=key
+        )
+
     def _preference_scan(
         self, session, working_days: list[int], slot_times: list
     ) -> list[tuple] | None:
@@ -556,12 +590,13 @@ class GreedySolver:
             # precedence for seeded instances pursuing it; otherwise, when the
             # profile has active soft constraints, the scan leans toward those
             # preferences so the default greedy solver pursues them too.
-            # Everything else keeps the plain day-then-slot order.
+            # Everything else spreads each class across the week (least-loaded
+            # day first) instead of packing all sessions into the earliest days.
             scan = self._criterion_scan(session, working_days, slot_times)
             if scan is None:
                 scan = self._preference_scan(session, working_days, slot_times)
             if scan is None:
-                scan = [(d, st) for d in working_days for st in slot_times]
+                scan = self._group_balance_scan(session, working_days, slot_times)
             for day, (slot_number, _start_time, _end_time) in scan:
                 if placed:
                     break
