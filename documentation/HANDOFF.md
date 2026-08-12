@@ -18,7 +18,7 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 
 ## Session summary (committed & pushed)
 
-State at handoff: **196/196 tests passing** (`uv run python -m app.tests`), frontend builds
+State at handoff: **200/200 tests passing** (`uv run python -m app.tests`), frontend builds
 (`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
 :3001) — see Gotchas if not.
 
@@ -30,31 +30,37 @@ email is a real Faculty row's email** — check the "teacher login:" line printe
 The seed force-resets portal passwords on re-seed, so the printed credentials are always
 truthful.
 
-**This session shipped BOTH role portals (DD-022 #1) and recorded the auth + final-seed notes:**
+**This session shipped the two-channel notification system (DD-027) and the role portals:**
 
-1. **Teacher portal** (previous session, `df84d4c` → `02172dc`) — `/my-schedule`: Today card,
-   weekly grid, own exports; `GET /my/schedule`, `/my/today`, `/my/export`; identity by
-   email→Faculty match; role-based login redirect.
-2. **Student portal** (this session, `bec4833` → `deb36bc`) — `/my-timetable`, the mirror:
-   - **Backend**: new `student_groups.student_email` column (migration `9fe4f7187298`, still 23
-     tables) links a student login to a group. `GET /my/timetable` returns that group's
-     published slots with subject/room/group/**faculty** names resolved; `/my/today` and
-     `/my/export/{pdf,csv,ical}` now serve students too (their group's slots / filtered
-     export). `MySlot` gained `faculty_name` so the student grid shows the teacher.
-   - **Frontend**: `/my-timetable` — Today card, the group's read-only grid, own iCal/PDF.
-     Role-based login already routed students there. Seed links the demo student login to the
-     first group and force-resets portal passwords.
-   - 5 new tests (196 total): own-group timetable with names, unmatched-student empty, teacher↔
-     student role gates, student group iCal export, student `/my/today`.
-3. **Notes recorded** (founder detail log rows 14–16, OPEN items 12–13): registration UI +
-   Google OAuth question; final proper seed for the entire college.
+1. **Two-channel notifications (DD-027, commits `c81868a` → `55e3361`)** — the feature you asked
+   for: when a timetable is **published** or a **mid-year change is applied**, the relevant
+   people are notified **both by email AND an in-app dashboard notification**.
+   - **In-app**: new `app_notifications` table (migration `92a486f10bf9`, now **24 tables**) holds
+     one row per recipient Admin. `notification_service.dispatch_publish(instance_id)` /
+     `dispatch_change(override_id)` run after the publish/override/swap commits and resolve
+     recipients by email from the schema links (admin/hod accounts, the instance's faculty,
+     linked group `incharge_email`/`student_email`, and the affected teachers for a change).
+     Topbar **bell** polls unread count (15s) + dropdown; `/notifications` page lists/marks rows
+     (`GET /notifications`, `unread-count`, `{id}/read`, `read-all`).
+   - **Email**: publish keeps the existing mailer; mid-year changes add a compact change email to
+     affected faculty. Both best-effort (a mail outage never fails the publish/change).
+   - **Real bug fixed**: override validation loaded *every* published reservation including the
+     instance being edited, so editing a published timetable always conflicted with itself.
+     `Scheduler._load_published_conflicts` gained `exclude_instance_id`; the change checks pass
+     it — only *other* published timetables block a mid-year edit.
+   - 4 new tests (200 total).
+2. **Role portals** (previous sessions, `bec4833` → `b16fc37`) — `/my-schedule` (teacher) and
+   `/my-timetable` (student): Today card, weekly grid, own exports; `student_groups.student_email`
+   links a student login to a group; role-based login redirect.
+3. **Notes recorded** (founder detail log rows 14–16, OPEN 12–13): registration UI + Google OAuth
+   question; final proper seed for the entire college.
 
 **Backend reality that matters for the product**: rooms are a shared pool — the solver assigns a
 room per session from the subject's `requirements_json`, so a subject is taught in different
 rooms across the week (matches the user's college; no fixed classroom per subject). The engine,
 RBAC, exports, async generation, constraint registry, all six soft constraints, compare,
 slot-override revalidation, the assignment grid, the profile builder, the mid-year change loop,
-and both role portals are built and tested.
+both role portals, and two-channel notifications are built and tested.
 
 ---
 
@@ -112,6 +118,10 @@ and both role portals are built and tested.
     generate the timetable for the **entire** college (not the demo seed), per the founder. This
     is end-of-project polish; the seed scripts live in `scripts/` (DD-020) and the engine
     already scales to whole-department runs. Decide a source for the real data.
+14. **DD-027 follow-up** — the two-channel notification system (in-app + email) is shipped for
+    publish and mid-year changes. Remaining: an email retry queue (DD-003), per-recipient
+    opt-out, re-sending when a change is reverted, a college flag to disable the in-app channel,
+    and WebSocket/SSE push if the product ever needs live delivery.
 
 ---
 
@@ -164,8 +174,8 @@ Full backend verification: `uv run python -m app.tests` (191) · scale: `scripts
 
 ## Gotchas
 
-- Postgres :5433, Redis :6379; Alembic head `9fe4f7187298` (`student_groups.student_email`,
-  the student-portal link; prior `d319882e1438` added `timetable_overrides`). **23 tables.**
+- Postgres :5433, Redis :6379; Alembic head `92a486f10bf9` (`app_notifications`, DD-027; prior
+  `9fe4f7187298` added `student_groups.student_email`). **24 tables.**
 - **`npm run build` corrupts a running `next dev` `.next` cache** — after any build, kill the dev
   server, `rm -rf frontend/.next`, restart dev. Also always restart dev after pulling/committing.
 - **The backend dev server runs WITHOUT `--reload`** (uvicorn started by `nohup`). After editing
