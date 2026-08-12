@@ -2,6 +2,47 @@
 from app.tests.test_runner import suite, test, login_token, auth_headers
 
 
+@suite("Phase 5 — Public registration (DD-028)")
+def _phase5_registration(s):
+    @test("register → login → me round-trips")
+    def t_register_flow(client):
+        from app.tests.test_runner import seed_minimal
+        from app.tests.conftest import TestingSessionLocal
+        from app.models.admin import Admin
+        from sqlalchemy import select
+        seed_minimal()
+        # remove any prior account with this email so the register is fresh
+        db = TestingSessionLocal()
+        try:
+            for a in db.scalars(select(Admin).where(Admin.email == "new@x.com")).all():
+                db.delete(a)
+            db.commit()
+        finally:
+            db.close()
+
+        r = client.post("/auth/register", json={
+            "name": "New User", "email": "new@x.com", "password": "pass123",
+        })
+        assert r.status_code == 201, r.text
+        created = r.json()
+        assert created["email"] == "new@x.com"
+        assert created["role"] == "admin"  # public self-registration default
+
+        # duplicate email is rejected
+        r2 = client.post("/auth/register", json={
+            "name": "New User 2", "email": "new@x.com", "password": "pass123",
+        })
+        assert r2.status_code == 409, r2.text
+
+        token = login_token(client, email="new@x.com", password="pass123")
+        headers = auth_headers(token)
+        me = client.get("/auth/me", headers=headers)
+        assert me.status_code == 200, me.text
+        assert me.json()["email"] == "new@x.com"
+
+    return [t_register_flow]
+
+
 def _seed_publish_scenario():
     """seed_minimal + teacher/student Admins linked by email, then publish.
 
