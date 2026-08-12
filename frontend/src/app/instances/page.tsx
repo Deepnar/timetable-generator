@@ -20,8 +20,8 @@ const STATUS_TONE: Record<string, "success" | "warning" | "info" | "danger" | "n
 
 export default function InstancesPage() {
   const router = useRouter();
-  // list all instances, newest first
-  const instances = useAllInstances({ limit: 50 });
+  // list all instances, newest first — the whole college has 192 (one per class)
+  const instances = useAllInstances({ limit: 1000 });
 
   return (
     <ProtectedShell>
@@ -29,7 +29,9 @@ export default function InstancesPage() {
         <div className="flex items-end justify-between">
           <div>
             <h1 className="display text-3xl text-ink">Instances</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Generated timetable candidates.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {instances.data?.rows.length ?? "…"} timetables · one per class.
+            </p>
           </div>
           <Button variant="outline" onClick={() => router.push("/generate")}>New generation</Button>
         </div>

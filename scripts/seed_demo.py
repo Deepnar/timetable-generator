@@ -2,7 +2,8 @@
 
 Mimics the TCET sample data (``sample/``): 12 departments, each with 4 years
 (FE / SE / TE / BE) x 4 divisions (A-D) = 16 classes, one semester per year
-(FE → Sem 1, SE → Sem 3, TE → Sem 5, BE → Sem 7), 6 subjects per year, one
+(FE → Sem 1, SE → Sem 3, TE → Sem 5, BE → Sem 7), 7 subjects per year (split
+into lecture/tutorial/lab streams per the REAL TCET scheme), one
 subject-assignment per subject/division, and rooms/faculty scaled for 16
 classes per department. Creates one DIVISION-scoped profile per (department,
 year) — all four divisions scheduled together, the real college unit — plus
@@ -48,18 +49,23 @@ from app.models import (
 
 # ── college shape (from the TCET sample) ────────────────────
 DEPARTMENTS = [
-    ("Computer Engineering", "COMP", 40),
-    ("Information Technology", "IT", 35),
-    ("Electronics & Telecommunication", "EXTC", 32),
-    ("Electronics Engineering", "ELX", 28),
-    ("Mechanical Engineering", "MECH", 34),
-    ("Civil Engineering", "CIVIL", 28),
-    ("Electrical Engineering", "ELEC", 26),
-    ("Chemical Engineering", "CHEM", 24),
-    ("Instrumentation Engineering", "INST", 22),
-    ("Artificial Intelligence & Data Science", "AIDS", 26),
-    ("Artificial Intelligence & ML", "AIML", 26),
-    ("Computer Science & Business Systems", "CSBS", 24),
+    # (name, code, faculty count). Scaled for 16 classes x 6 subjects = 96
+    # assignments per department at ~28h/class (448h/wk of teaching): with
+    # max_hours_per_week=20 the pool needs ~30+ faculty so the assignment rotor
+    # never overloads one teacher, which starved later classes of unreserved
+    # faculty slots (cross-timetable) and made OR-Tools drop sessions.
+    ("Computer Engineering", "COMP", 64),
+    ("Information Technology", "IT", 56),
+    ("Electronics & Telecommunication", "EXTC", 52),
+    ("Electronics Engineering", "ELX", 48),
+    ("Mechanical Engineering", "MECH", 54),
+    ("Civil Engineering", "CIVIL", 48),
+    ("Electrical Engineering", "ELEC", 46),
+    ("Chemical Engineering", "CHEM", 44),
+    ("Instrumentation Engineering", "INST", 42),
+    ("Artificial Intelligence & Data Science", "AIDS", 46),
+    ("Artificial Intelligence & ML", "AIML", 46),
+    ("Computer Science & Business Systems", "CSBS", 44),
 ]
 
 SEMESTERS = 8
@@ -73,58 +79,103 @@ YEAR_LABELS = [(1, "FE"), (3, "SE"), (5, "TE"), (7, "BE")]
 DIVISIONS = ["A", "B", "C", "D"]
 
 ACADEMIC_YEAR = "2026-27"
-# Real COMP-semester names/codes pulled from the syllabus PDFs where they
-# exist; the same shape (2 labs + 4 theory) is applied to every department.
-SEM_SUBJECTS = {
-    1: [("Engineering Mathematics-I", "BSC-101", False),
-        ("Engineering Physics", "BSC-102", False),
-        ("Programming & Problem Solving (C)", "ESC-101", True),
-        ("Basic Electrical & Electronics", "ESC-102", False),
-        ("Communication Skills", "HSMC-101", False),
-        ("Engineering Drawing", "ESC-103", True)],
-    2: [("Engineering Mathematics-II", "BSC-201", False),
-        ("Engineering Chemistry", "BSC-202", False),
-        ("Data Structures & Algorithms", "PCC-201", True),
-        ("Object Oriented Programming", "PCC-202", True),
-        ("Basic Mechanical & Civil Engg", "ESC-201", False),
-        ("Environmental Science", "MC-201", False)],
-    3: [("Engineering Mathematics-III", "BSC-301", False),
-        ("Digital Logic Design & Computer Arch", "ESC-301", False),
-        ("Database Management System", "PCC-301", True),
-        ("Discrete Structures", "PCC-302", False),
-        ("Professional Skills-I", "MC-301", False),
-        ("Universal Human Values-II", "HSMC-301", False)],
-    4: [("Engineering Mathematics-IV", "BSC-401", False),
-        ("Design & Analysis of Algorithms", "PCC-401", True),
-        ("Operating System", "PCC-402", False),
-        ("Computer Networks", "PCC-403", True),
-        ("Software Engineering", "PCC-404", False),
-        ("Environmental Studies", "MC-401", False)],
-    5: [("Theory of Computation", "PCC-501", False),
-        ("Intelligent Systems", "PCC-502", False),
-        ("Microprocessors", "PCC-503", True),
-        ("Computer Graphics", "PCC-504", True),
-        ("Soft Skills & Interpersonal Comm.", "HSMC-501", False),
-        ("Distributed Systems", "PEC-501", False)],
-    6: [("System Programming & Compiler Const.", "PCC-601", False),
-        ("Machine Learning", "PCC-602", True),
-        ("Cloud Computing", "PEC-601", False),
-        ("Mobile Computing", "PEC-602", False),
-        ("Advanced Operating Systems", "PEC-603", False),
-        ("Project Management", "HSMC-601", False)],
-    7: [("Big Data Analytics", "PEC-701", True),
-        ("Deep Learning", "PEC-702", True),
-        ("Information Security", "PEC-703", False),
-        ("Internet of Things", "PEC-704", False),
-        ("Elective-I", "OEC-701", False),
-        ("Internship & Seminar", "PROJ-701", False)],
-    8: [("Major Project", "PROJ-801", True),
-        ("Elective-II", "OEC-801", False),
-        ("Elective-III", "OEC-802", False),
-        ("Advanced Topics", "PEC-801", False),
-        ("Entrepreneurship", "HSMC-801", False),
-        ("Research Methodology", "MC-801", False)],
+# Real COMP scheme extracted from the sample PDFs (TCET CBCGS-HME 2023).
+# Each subject is modeled as its LECTURE / TUTORIAL / LAB streams, matching the
+# actual class timetable: theory = 3 x 1h lectures, tutorial = 1h, practical =
+# a 2h lab block. ~7 subjects per semester -> ~29 contact hours/week per class
+# (the TE-D timetable: 16 theory + 1 tutorial + 12 practical hours).
+# Stream tuples: (name, code, session_kind, hours_per_week)
+#   session_kind: "L" lecture, "T" tutorial, "P" practical (2h lab block)
+REAL_SCHEME = {
+    1: [
+        ("Engineering Mathematics-I", "BSC-101", "L", 3),
+        ("Engineering Mathematics-I", "BSC-101", "T", 1),
+        ("Engineering Physics", "BSC-102", "L", 3),
+        ("Engineering Physics Lab", "BSC-102", "P", 2),
+        ("Programming & Problem Solving (C)", "PPS", "L", 3),
+        ("Programming & Problem Solving Lab", "PPS", "P", 2),
+        ("Basic Electrical & Electronics", "BEE", "L", 3),
+        ("Basic Electrical & Electronics Lab", "BEE", "P", 2),
+        ("Communication Skills", "HSMC-101", "L", 3),
+        ("Engineering Drawing", "ESC-103", "P", 2),
+    ],
+    3: [
+        ("Universal Human Values-II", "HSMC-301", "L", 2),
+        ("Engineering Mathematics-III", "BSC-301", "L", 3),
+        ("Engineering Mathematics-III", "BSC-301", "T", 1),
+        ("Digital Logic Design & Computer Architecture", "DLD", "L", 3),
+        ("Digital Logic Design Lab", "DLD", "P", 2),
+        ("Database Management System", "DBMS", "L", 3),
+        ("Database Management System Lab", "DBMS", "P", 2),
+        ("Data Structure using Java", "DS", "L", 3),
+        ("Data Structure using Java Tut", "DS", "T", 1),
+        ("Data Structure using Java Lab", "DS", "P", 2),
+        ("Professional Skills-I", "PS-301", "P", 2),
+    ],
+    4: [
+        ("Engineering Mathematics-IV", "BSC-401", "L", 3),
+        ("Engineering Mathematics-IV", "BSC-401", "T", 1),
+        ("Design & Analysis of Algorithm using Python", "DAA", "L", 3),
+        ("DAA Lab", "DAA", "P", 2),
+        ("Operating System", "OS", "L", 3),
+        ("Operating System Lab", "OS", "P", 2),
+        ("Computer Networks", "CN", "L", 3),
+        ("Computer Networks Lab", "CN", "P", 2),
+        ("Professional Skills-II", "PS-401", "P", 2),
+        ("Environmental Studies", "MC-401", "L", 1),
+    ],
+    5: [
+        ("Soft Skill & Interpersonal Communication", "SSIC", "L", 3),
+        ("Computer Graphics", "CG", "L", 3),
+        ("Computer Graphics Lab", "CG", "P", 2),
+        ("Theory of Computation", "TOC", "L", 3),
+        ("Theory of Computation Tut", "TOC", "T", 1),
+        ("Introduction to Intelligent Systems", "IIS", "L", 3),
+        ("Intelligent Systems Lab", "IIS", "P", 2),
+        ("Microprocessor", "MP", "L", 3),
+        ("Microprocessor Lab", "MP", "P", 2),
+        ("Professional Skills-IV", "PS-501", "P", 2),
+        ("Indian Constitution", "MC-501", "L", 1),
+    ],
+    6: [
+        ("Work Place Mental Health", "HSMC-601", "L", 2),
+        ("System Programming & Compiler Construction", "SPCC", "L", 3),
+        ("SPCC Lab", "SPCC", "P", 2),
+        ("Software Engineering", "SE", "L", 3),
+        ("Software Engineering Lab", "SE", "P", 2),
+        ("Professional Elective-I", "PEC-601", "L", 3),
+        ("Open Elective-I", "OEC-601", "L", 3),
+        ("Research Based Learning", "RBL-601", "P", 2),
+        ("Professional Skills-V", "PS-601", "P", 2),
+    ],
+    7: [
+        ("Data Warehousing and Mining", "DWM", "L", 3),
+        ("DWM Lab", "DWM", "P", 2),
+        ("Cryptography and System Security", "CSS", "L", 3),
+        ("Cryptography Lab", "CSS", "P", 2),
+        ("Professional Elective-II", "PEC-701", "L", 3),
+        ("Professional Elective-II Lab", "PEC-701", "P", 2),
+        ("Professional Elective-III", "PEC-702", "L", 3),
+        ("Open Elective-II", "OEC-701", "L", 3),
+        ("Project-I", "PROJ-701", "P", 4),
+    ],
+    8: [
+        ("Distributed Computing", "PCC-801", "L", 3),
+        ("Software Architecture", "PCC-802", "L", 3),
+        ("Professional Elective-IV", "PEC-801", "L", 3),
+        ("Professional Elective-IV Lab", "PEC-801", "P", 2),
+        ("Open Elective-III", "OEC-801", "L", 3),
+        ("Project-II", "PROJ-801", "P", 12),
+    ],
 }
+
+# Map session kind -> (session_type, hours, requirements)
+def _stream_spec(kind: str):
+    if kind == "P":
+        return {"session_type": "LAB", "room_types": ["LAB"], "min_capacity": 40}
+    if kind == "T":
+        return {"session_type": "TUTORIAL", "room_types": ["CLASSROOM"]}
+    return {"session_type": "LECTURE", "room_types": ["CLASSROOM"]}
 
 # Real COMP faculty from the TCET PDF, padded with generated names.
 COMP_FACULTY = [
@@ -265,22 +316,20 @@ def seed(db) -> dict:
         # One subject set per year-semester (Sem 1/3/5/7), each with 6 subjects
         # (2 labs + 4 theory). Codes carry the year label so COMP-TE-3 reads as
         # "Computer Engineering, Third Year, subject 3".
-        # Hours reflect the real TCET contact load: a theory subject is ~5h/wk
-        # (3-4 lectures + 1 tutorial), a lab subject ~4h/wk (a 2h practical
-        # block twice, or 1h theory + practicals) — NOT the old flat 3h that
-        # left every class looking half-empty.
+        # Subjects mirror the REAL TCET scheme (see REAL_SCHEME): each subject
+        # is split into its lecture / tutorial / lab streams so a class's week
+        # matches the reference timetable — 3 x 1h lectures, 1h tutorial, 2h
+        # lab blocks, ~29 contact hours/week (16 theory + 1 tutorial + 12 lab).
         subjects: list[Subject] = []
         for sem, label in YEAR_LABELS:
-            for j, (sname, code, is_lab) in enumerate(SEM_SUBJECTS[sem]):
-                reqs = None
-                if is_lab:
-                    reqs = {"session_type": "LAB", "room_types": ["LAB"],
-                            "min_capacity": 40}
+            for (sname, code, kind, hours) in REAL_SCHEME.get(sem, []):
+                reqs = _stream_spec(kind)
                 subjects.append(Subject(
-                    name=f"{sname}", subject_code=f"{dept_code}-{label}-{j + 1}",
+                    name=f"{sname}",
+                    subject_code=f"{dept_code}-{label}-{code}-{kind}",
                     department=dept_name, semester=sem,
-                    hours_per_week=4 if is_lab else 5,
-                    requires_lab=is_lab,
+                    hours_per_week=hours,
+                    requires_lab=(kind == "P"),
                     requirements_json=reqs,
                 ))
         db.add_all(subjects)
@@ -289,6 +338,12 @@ def seed(db) -> dict:
         counts["subjects"] += len(subjects)
 
         # ── assignments: each subject → one faculty per division ──
+        # Every class-year (4 divisions) needs 6 subject-faculty roles. The
+        # rotor spreads across the whole department faculty pool, so a faculty
+        # can teach the same subject to several divisions (or several subjects).
+        # The faculty count per department is scaled so the average weekly load
+        # stays well under max_hours_per_week=20 — otherwise later classes run
+        # out of unreserved faculty slots (cross-timetable) and drop sessions.
         assignments = 0
         faculty_rotor = 0
         for sem, label in YEAR_LABELS:
@@ -409,7 +464,12 @@ def _attach_resources(db, prof, rooms, faculty, groups, subjects) -> None:
 
 
 def _attach_params(db, prof) -> None:
-    """The TCET grid: 8 x 1h slots, 08:30 start, lunch after slot 4, Mon-Sat."""
+    """The TCET grid: 8 x 1h slots, 08:30 start, lunch after slot 4, Mon-Sat.
+
+    Also attaches the CONTIGUOUS_LAB_SLOTS hard rule with default_block_length=2
+    so every practical subject's weekly hours are scheduled as 2h lab blocks —
+    matching the reference timetable's "Lab X D1 D2" 2-period sessions.
+    """
     params = {
         "slots_per_day": ("8", ParamType.INT),
         "day_start_time": ("08:30", ParamType.STRING),
@@ -422,6 +482,13 @@ def _attach_params(db, prof) -> None:
     for key, (value, ptype) in params.items():
         db.add(ProfileParameter(profile_id=prof.id, param_key=key,
                                 param_value=value, param_type=ptype))
+    # Labs are 2h blocks.
+    db.add(HardConstraint(
+        profile_id=prof.id,
+        constraint_type="CONTIGUOUS_LAB_SLOTS",
+        config_json={"default_block_length": 2},
+        description="Seed: 2h lab blocks (real TCET practicals)",
+    ))
 
 
 def _or_tools_smoke(db) -> None:
