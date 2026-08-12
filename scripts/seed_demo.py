@@ -337,27 +337,35 @@ def seed(db) -> dict:
         all_subjects[dept_code] = subjects
         counts["subjects"] += len(subjects)
 
-        # ── assignments: each subject → one faculty per division ──
-        # Every class-year (4 divisions) needs 6 subject-faculty roles. The
-        # rotor spreads across the whole department faculty pool, so a faculty
-        # can teach the same subject to several divisions (or several subjects).
-        # The faculty count per department is scaled so the average weekly load
-        # stays well under max_hours_per_week=20 — otherwise later classes run
-        # out of unreserved faculty slots (cross-timetable) and drop sessions.
+        # ── assignments: each class gets a DEDICATED faculty team ──
+        # The cleanest way to get every class a full, unbroken morning is to
+        # give each class its own teachers: 16 classes per department each take
+        # a distinct slice of the faculty pool (~4 teachers cover the 6
+        # subjects). No teacher crosses classes, so publishing one class never
+        # reserves teachers that block another class's morning slots — the
+        # cross-timetable contention that scattered sessions disappears.
         assignments = 0
-        faculty_rotor = 0
-        for sem, label in YEAR_LABELS:
+        class_names = [
+            f"{label}-{div}" for label in (l for _s, l in YEAR_LABELS)
+            for div in DIVISIONS
+        ]
+        per_class = max(3, len(faculty) // len(class_names))
+        for ci, cls_name in enumerate(class_names):
+            label = cls_name.split("-")[0]
+            sem = next(s for s, l in YEAR_LABELS if l == label)
+            div = cls_name.split("-")[1]
+            grp = next(g for g in groups if g.semester == sem and g.name.endswith(f"-{div}"))
+            team_start = (ci * per_class) % len(faculty)
+            team = [faculty[(team_start + i) % len(faculty)]
+                    for i in range(per_class)]
             sem_subjects = [s for s in subjects if s.semester == sem]
-            sem_groups = [g for g in groups if g.semester == sem]
-            for subj in sem_subjects:
-                for grp in sem_groups:
-                    fac = faculty[faculty_rotor % len(faculty)]
-                    faculty_rotor += 1
-                    db.add(SubjectAssignment(
-                        subject_id=subj.id, faculty_id=fac.id, group_id=grp.id,
-                        weekly_hours=subj.hours_per_week, load_share=1.0,
-                    ))
-                    assignments += 1
+            for j, subj in enumerate(sem_subjects):
+                fac = team[j % len(team)]
+                db.add(SubjectAssignment(
+                    subject_id=subj.id, faculty_id=fac.id, group_id=grp.id,
+                    weekly_hours=subj.hours_per_week, load_share=1.0,
+                ))
+                assignments += 1
         counts["assignments"] += assignments
 
         # ── profiles ──────────────────────────────────────

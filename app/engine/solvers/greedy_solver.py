@@ -433,32 +433,32 @@ class GreedySolver:
     def _group_balance_scan(
         self, session, working_days: list[int], slot_times: list
     ) -> list[tuple]:
-        """Order (day, slot) so a class's load spreads across ALL working days
-        AND across the slots of each day.
+        """Order (day, slot) as a slot-major round-robin: fill every day's
+        morning before the afternoon, and fill all days before any day is
+        overloaded — like a real college week.
 
-        Without this the greedy solver packs every weekly session of a class
-        into the minimum number of days (each subject can appear once per day,
-        so 6 subjects x 3h = 18 sessions fits into 3 days of 6), leaving the
-        other weekdays empty — which does not look like a real college
-        timetable. Ordering by the group's current per-day session count (least
-        loaded day first, least-occupied slot within it) makes each class fill
-        the week ~evenly (e.g. 18 sessions over 6 days = 3/day) and spread
-        within each day, while every candidate is still checked against the
-        full hard checker, so validity is unchanged — only the search order.
+        Packs sessions into the morning of every day first (slot 1 on the
+        least-loaded day, then slot 1 on the next, ...), so a class shows a
+        compact block of morning lectures with a single 1h lunch break, not a
+        thin scatter with whole mornings empty beside the break. Days are
+        cycled by their current load so no day fills up while others stay
+        empty. Every candidate is still checked against the full hard checker —
+        only the order changes.
         """
         group_day_load: dict[int, int] = defaultdict(int)
-        group_slot_load: dict[int, int] = defaultdict(int)
         for s in self.committed_slots:
-            if s.student_group_id != session.student_group_id:
-                continue
-            if s.day_of_week is not None:
+            if s.student_group_id == session.student_group_id and s.day_of_week is not None:
                 group_day_load[s.day_of_week] += 1
-            if s.slot_number is not None:
-                group_slot_load[s.slot_number] += 1
+
+        # A sorted day order: least-loaded day first (tie-break by day index).
+        ordered_days = sorted(working_days, key=lambda d: (group_day_load.get(d, 0), d))
 
         def key(item):
             day, (sn, _st, _en) = item
-            return (group_day_load.get(day, 0), group_slot_load.get(sn, 0), sn)
+            # Primary: fill lower slots first (morning before lunch, before
+            # afternoon). Secondary: day order so the whole week fills evenly.
+            day_rank = ordered_days.index(day)
+            return (sn, day_rank)
 
         return sorted(
             ((d, st) for d in working_days for st in slot_times), key=key
