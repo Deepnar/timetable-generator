@@ -26,6 +26,13 @@ uv run alembic revision --autogenerate -m "message"  # new migration after model
 uv add <package>                                     # add a dependency
 ```
 
+**Frontend type-checking: use `npm run typecheck`, NEVER `npm run build` while the dev server
+is running.** `next build` corrupts the running `next dev` `.next` cache — the HTML still renders
+but every JS chunk 404s and the app freezes on "Checking session…". `npm run typecheck` is
+`tsc --noEmit`: it verifies types without touching `.next`, so the dev server keeps serving.
+If the dev server is ever stuck on "Checking session…": kill it, `rm -rf frontend/.next`,
+restart `npm run dev -- -p 3001`, and hard-refresh the browser.
+
 **Postgres runs on host port `5433`**, not the default 5432 (`docker/docker-compose.yml` maps
 `5433:5432`; `.env` must set `DB_PORT=5433`). Note `app/config.py` still defaults `DB_PORT` to
 `5432` — the `.env` value is what matters at runtime.
