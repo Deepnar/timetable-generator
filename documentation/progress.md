@@ -26,6 +26,15 @@ New engine capabilities added in the same pass (with tests):
 
 Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
+- **DD-029 — full-project security audit remediated** (v4-pro subagent deepscan, then fixed +
+  regression-tested, 209 total). The critical find: the global auth gate authenticated but never
+  authorized (only 4 endpoints used `require_roles`), so any teacher/student could do admin
+  actions, and public self-registration granted admin. Fixed: router-level role gates (admin+hod,
+  or admin-only for constraints/settings/reset/audit), self-registration hardcoded to student,
+  sanitized `/health`/generation errors, 8-128 char passwords, CSV upload caps, security headers,
+  docs hidden in production, `/generate` rate limit, JWT-expiry check in the frontend. Accepted
+  items (httpOnly-cookie JWT, psycopg2-binary, Next/React patch bumps) tracked as follow-ups.
+
 - **DD-024 — real-college scheduling rules are only partially modeled** (flagged by the founder;
   see `design-decisions.md`). Batches (2 batches 2nd–4th yr, 3 in 1st yr; parallel 2h practicals
   per batch) have a `BATCH` group_type but no seed/solver support; "max one practical subject per
@@ -144,6 +153,8 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Student portal (DD-022 #1)**: `/my-timetable` — role-based login redirects students to it; a **Today card** (their group's sessions from `GET /my/today`), the group's published timetable as a read-only grid (cells show the faculty name), and own iCal/PDF via `GET /my/export`. The group is found via a new `student_groups.student_email` column (migration `9fe4f7187298`); the seed links the demo student login to a group. Empty states for unlinked/unpublished.
 - [x] **Two-channel notifications (DD-027)**: on publish and on mid-year changes, the relevant people are notified in-app (new `app_notifications` table — one row per recipient Admin, resolved by email from the schema links) plus email (existing publish mailer + a compact change email). `notification_service.dispatch_publish` / `dispatch_change` run after the commits, best-effort. The topbar **bell** shows the caller's unread count and a dropdown; `/notifications` lists/marks rows (`GET /notifications`, `unread-count`, `{id}/read`, `read-all`). Also fixed a real bug: override validation no longer conflicts with the instance being changed itself (`Scheduler._load_published_conflicts(exclude_instance_id=...)`).
 - [x] **Date-resolution day layer (DD-022 #2 / DD-026 follow-up)**: `app/services/override_resolver.py` resolves `timetable_overrides` against a real date — a permanent cover/room change applies every date, a TEMP window wins inside its `date_from`/`date_to`, a SWAP exchanges the two slots' faculty/room, and a covered slot reports the new teacher/room. `/my/schedule` + `/my/timetable` accept `?date=YYYY-MM-DD` and `/my/today` resolves against today, so "is there class on date X" and the day card are truthful. The teacher/student Today cards gained a date picker.
+- [x] **Full-college timetable (founder's final seed goal)**: `scripts/generate_college.py` generates + publishes a timetable for the ENTIRE college — one whole-department instance per department (best-wins variation), all semesters/divisions at once. Ran clean: 12/12 departments published, 3456 slots. (`--only`, `--dry-run`, `--clear-locks` options.)
+- [x] **Security audit (DD-029)**: see "Newly Identified" — role gates, least-privilege registration, hardened error/upload/header surfaces, `/generate` rate limit, JWT-expiry check. 209 tests.
 - [ ] **CSV upload modals** (part of Resource Management).
 - [x] **Assignment grid**: `/assignments` — a subject × group matrix scoped by department + semester (rows = subjects, columns = division groups), with faculty avatar + weekly-hours badge per cell, an anchored cell editor (assign/change faculty + hours, remove), per-subject coverage chips, and a least-loaded-faculty **Auto-fill unassigned** bulk action. Drives the same `subject_assignments` CRUD the solver reads.
 - [x] **Profile & Constraint Builder**: `/profiles` (card grid of presets with create drawer + archive) and `/profiles/[id]` (four tabs: **Resources** per-type shuttles, **Parameters** catalog-driven key/value rows with JSON validation, **Constraints** hard + soft rows from the `GET /constraints/types` catalog with inline soft-weight editing, **Runs** generation history). The Generate button preselects the profile via `?profile=N`.

@@ -18,9 +18,10 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 
 ## Session summary (committed & pushed)
 
-State at handoff: **204/204 tests passing** (`uv run python -m app.tests`), frontend builds
+State at handoff: **209/209 tests passing** (`uv run python -m app.tests`), frontend builds
 (`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
-:3001) — see Gotchas if not.
+:3001) — see Gotchas if not. **The DB holds a published timetable for the ENTIRE college**
+(12/12 departments, 3456 slots) via `scripts/generate_college.py`.
 
 **Login credentials** (TCET-style seed data, 12 departments, 204 rooms / 576 subjects etc.):
 `admin@example.com` / `admin123` (admin) · **teacher: the seed now provisions a login whose
@@ -30,29 +31,41 @@ email is a real Faculty row's email** — check the "teacher login:" line printe
 The seed force-resets portal passwords on re-seed, so the printed credentials are always
 truthful.
 
-**This session shipped public registration and decided the auth story (DD-028):**
+**This session shipped the final proper seed AND the full-project security audit (DD-029):**
 
-1. **Registration (commits `75fd24d` → `f0b99b7`)** — the backend `POST /auth/register` existed
-   but the frontend was login-only. A split-screen `/register` page (matching the login design)
-   collects name/email/password, creates the account, and redirects to sign-in; the login page
-   links to it ("No account yet? Create one"). A backend test locks the register→login→/auth/me
-   round-trip (204 total).
-2. **DD-028 auth decision** — **email+password self-registration now; Google OAuth deferred**
-   until a college asks (it needs a Google Cloud OAuth client, callback wiring, and an
-   identity→faculty/group mapping — none exist; under the single-college posture it can be added
-   later without a migration). Public registration defaults to `admin` role; non-admin roles are
-   provisioned via admin-only `POST /auth/users`. Still OPEN: whether public registration should
-   default to a limited role and whether to gate it (invite code) before launch.
-3. Earlier this session: the **date-resolution day layer** (DD-022 #2, `74cbd34` → `72f2c7d`)
-   and the **two-channel notification system** (DD-027) shipped — see the prior handoffs.
+1. **Full-college timetable** (`scripts/generate_college.py`, `3ac77ab`) — the founder's
+   end-of-project goal: generate + publish a timetable for the entire college. One
+   whole-department instance per department (best-wins variation), all semesters/divisions at
+   once. Ran clean: **12/12 departments published, 3456 slots**. Options `--only`, `--dry-run`,
+   `--clear-locks`. Note: a killed run leaves a Redis generation lock for the 600s TTL —
+   `--clear-locks` deletes them when safe.
+2. **Security audit (DD-029, commits `a4be957` → `35ce0cf`)** — a read-only deepscan by the
+   v4-pro subagent over the whole codebase (the available grok-4.5 agent is vision-only and
+   cannot read code). It found the project's biggest real gap: the global auth gate
+   **authenticated but never authorized** — only 4 endpoints used `require_roles`, so any
+   logged-in teacher/student could do admin things (CRUD, generate, publish, reset, settings,
+   audit), and public self-registration granted admin. **All remediated + regression-tested:**
+   - **C-1** register now hardcodes `STUDENT` (no role field; admin provisions via `/auth/users`).
+   - **C-2/C-3** every resource router is role-gated (admin+hod, or admin-only for
+     constraints/settings/reset/audit).
+   - **C-4** `/health` no longer leaks the raw DB exception.
+   - **H-2** passwords 8–128 chars. **H-4** generation 500s are generic (detail on `error_log`).
+     **H-5** DB URLs via `sqlalchemy.engine.URL`. **H-6** CSV uploads capped 10 MB / 50k rows.
+   - **M-1** `POST /generate` rate-limited per IP. **M-2** security headers middleware.
+     **M-5** docs/OpenAPI hidden in production (`SHOW_DOCS`/`ENV`). **M-4** frontend `getToken()`
+     clears expired JWTs.
+   - 4 new security-regression tests (209 total). Accepted-not-fixed (M-3 cookie auth, M-7
+     psycopg2-binary, M-8 Next/React patch bumps) are tracked as DD-029 follow-ups.
+3. Earlier this session: the **registration page** (DD-028, `75fd24d` → `f0b99b7`) — see the
+   prior handoff.
 
 **Backend reality that matters for the product**: rooms are a shared pool — the solver assigns a
 room per session from the subject's `requirements_json`, so a subject is taught in different
 rooms across the week (matches the user's college; no fixed classroom per subject). The engine,
 RBAC, exports, async generation, constraint registry, all six soft constraints, compare,
 slot-override revalidation, the assignment grid, the profile builder, the mid-year change loop,
-both role portals, two-channel notifications, the date-resolution day layer, and public
-registration are built and tested.
+both role portals, two-channel notifications, the date-resolution day layer, registration, the
+full-college timetable, and the security remediation are built and tested.
 
 ---
 
@@ -105,38 +118,40 @@ registration are built and tested.
     today — a TEMP window wins inside its dates, a permanent cover wins outside it, a SWAP
     exchanges faculty/room). Remaining: a college flag to gate whether changes are allowed on
     locked timetables at all, and surfacing effective dates in the admin change list.
-12. **Registration + auth** — **email+password register page shipped (DD-028)**; public
-    self-registration defaults to `admin` (provisioning non-admin roles stays admin-only via
-    `/auth/users`). Still OPEN: whether public self-registration should default to a limited role
-    and whether to gate it before launch; **Google OAuth is deferred** until a college asks (see
-    the DD-028 entry).
-13. **Final proper seed (OPEN)** — before launch, re-seed the DB with real college data and
-    generate the timetable for the **entire** college (not the demo seed), per the founder. This
-    is end-of-project polish; the seed scripts live in `scripts/` (DD-020) and the engine
-    already scales to whole-department runs. Decide a source for the real data.
+12. **Registration + auth** — **email+password register page shipped (DD-028)**, and the
+    security audit (DD-029 C-1) locked self-registration to the **student** role (no role field,
+    least privilege). Elevated roles are admin-provisioned via `/auth/users`. Still OPEN: whether
+    to gate registration (invite code) before launch and the **Google OAuth** question (deferred
+    until a college asks, see DD-028).
+13. **Final proper seed** — the **full-college timetable is generated and published**
+    (`scripts/generate_college.py`, 12/12 departments, 3456 slots in the local DB). Remaining:
+    replace the TCET-style *demo* data with the college's **real** data before public launch
+    (decide a source), then re-run the seed + `scripts/full_stack_test.py` at whole-college scale.
 14. **DD-027 follow-up** — the two-channel notification system (in-app + email) is shipped for
     publish and mid-year changes. Remaining: an email retry queue (DD-003), per-recipient
     opt-out, re-sending when a change is reverted, a college flag to disable the in-app channel,
     and WebSocket/SSE push if the product ever needs live delivery.
+15. **DD-029 follow-up** — the security audit is remediated and regression-tested. Accepted
+    items to revisit before public launch: switch JWT storage to httpOnly cookies (M-3),
+    evaluate `psycopg2-binary` in the prod image (M-7), bump Next/React patch levels and run
+    `npm audit` (M-8).
 
 ---
 
-## Next task — the final proper seed and launch polish
+## Next task — pre-launch hardening and real-data rollout
 
-Registration (DD-028) is done; all of DD-022 #1/#2, DD-026, and DD-027 are shipped. Remaining,
-in order:
+The full-college timetable and the security audit (DD-029) are done; all of DD-022, DD-026,
+DD-027, and DD-028 are shipped. Remaining, in order:
 
-1. **Final proper seed (OPEN 13)** — re-seed the DB with real college data and generate the
-   timetable for the **entire** college before launch (the founder's end-goal). Decide a data
-   source, then extend `scripts/seed_demo.py` (or add a real-data seed) and run
-   `scripts/full_stack_test.py` at whole-college scale. The engine already scales to
-   whole-department runs.
-2. **Registration hardening (DD-028 follow-up)** — decide whether public self-registration should
-   default to a limited role and whether to gate it (invite code / college setting) before launch.
-3. Optional polish: CSV upload modals; WebSocket/SSE push (DD-027 follow-up); a `/constraints`
-   reference catalog page; a college flag to gate changes on locked timetables (DD-026
-   follow-up); surfacing effective dates in the admin change list; the DD-024 batch/tutorial/
-   per-day-grid domain layer (verify each against the real data first, under the DD-025 posture).
+1. **DD-029 pre-launch items (OPEN 15)** — httpOnly-cookie JWT storage (M-3), `psycopg2-binary`
+   vs source build in the prod image (M-7), Next/React patch bumps + `npm audit` (M-8), and an
+   invite-code/registration gate decision.
+2. **Real data rollout (OPEN 13)** — replace the demo seed with the college's real data (source
+   TBD) and re-run `scripts/seed_demo.py --wipe` + `scripts/generate_college.py --instances 3`
+   + `scripts/full_stack_test.py` to re-baseline at whole-college scale.
+3. Optional polish: CSV upload modals; WebSocket/SSE push; a `/constraints` reference catalog
+   page; a college flag to gate changes on locked timetables (DD-026); the DD-024 batch/
+   tutorial/per-day-grid domain layer (verify against real data first, under the DD-025 posture).
 
 Keep the docs in sync (architecture §3/§4/§5/§8, plan.md, progress.md) and record any new
 decision in `design-decisions.md`.
@@ -157,6 +172,9 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 # seed the TCET-style dataset (12 depts / 576 subjects / 345 faculty / 204 rooms / 108 profiles)
 # NOTE: prints a "teacher login:" line with the portal teacher credential
 uv run python -m scripts.seed_demo --wipe
+
+# generate + publish a timetable for the ENTIRE college (all 12 departments)
+uv run python -m scripts.generate_college --instances 3   # ~6-10 min; --clear-locks if a killed run left a Redis lock
 
 # frontend on :3001 (port 3000 is owned by an unrelated container on this machine)
 cd frontend && npm install && npm run dev -- -p 3001 &
@@ -185,7 +203,14 @@ Full backend verification: `uv run python -m app.tests` (191) · scale: `scripts
 - **Tests**: `uv run python -m app.tests` (not pytest). New test modules must be imported in
   `app/tests/__main__.py` and new routers must be in the conftest patch loop.
 - **The auth gate is global** — every route except `/health` and `/auth/*` needs a JWT;
-  `/api/v1/*` is not exempt. Role claims ride the JWT; `require_roles()` gates finer endpoints.
+  `/api/v1/*` is not exempt. **Role gates (DD-029)**: resource routers are admin+hod, and
+  constraints/settings/reset/audit are admin-only; `/my/*` and `/notifications/*` stay
+  per-endpoint. Public self-registration creates a **student** account only.
+- **Security posture (DD-029)**: security headers set on every response; `/docs` + OpenAPI hidden
+  when `SHOW_DOCS=false`/`ENV=production`; `POST /generate` is per-IP rate-limited; CSV uploads
+  capped at 10 MB / 50k rows; `/health` never returns the raw DB error; passwords require 8–128
+  chars. Accepted-not-fixed: JWT in localStorage (M-3), `psycopg2-binary` (M-7), Next/React patch
+  bumps (M-8).
 - **Error envelope**: every error returns `{"detail": ...}`; 422/500 add `request_id`. The CORS
   `expose_headers` exposes `X-Total-Count`/`X-Request-ID` — keep that.
 - **Frontend data fetching**: all via TanStack Query (`src/hooks/use-resources.ts`); pages are
