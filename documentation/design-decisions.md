@@ -383,6 +383,9 @@ Rules: every detail gets two tags — **source** (`system rule` = solver/checker
 | 11 | Option for a temporary timetable for some period (date-scoped) | system rule (UI) | teacher-set | DD-026 |
 | 12 | Option to swap two lectures | system rule (UI) | teacher-set | DD-026 |
 | 13 | A visible change list; changes saved and shown, revertible | system rule (UI) | — | DD-026 |
+| 14 | A registration flow exists on the frontend (backend `POST /auth/register` exists, UI is login-only) | system rule (UI) | — | OPEN |
+| 15 | Question: should sign-in/registration use Google OAuth? Unknown for now — decide later | college data? | — | OPEN |
+| 16 | Before launch: re-seed the DB with PROPER real data and generate the timetable for the ENTIRE college (not the demo seed) — final polish work | college data | — | OPEN |
 
 ---
 
@@ -424,8 +427,10 @@ Address these in the next session; resolved ones move up into the log with their
    endpoints by the caller's identity once the frontend defines which views each role needs.
 7. **DD-022 follow-up** — build order for the teacher-workload roadmap: (1) teacher self-service
    schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
-   (3) the change loop (room change + cover + notifications). The strategist brief recommends
-   exactly this sequence; the assignment grid has shipped and the teacher portal is next.
+   (3) the change loop (room change + cover + notifications). **#1 shipped** (`/my/schedule`
+   portal: Today card, weekly grid, own exports; role-based login redirect). Next: the student
+   portal, then the date-resolution `GET /my/today` layer resolving overrides by date (#2), then
+   the change-loop notifications (#3).
 8. **DD-023 follow-up** — block-level overrides: the slot editor edits a single per-slot row, so
    moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
    whole block. Also re-check the client-side "moved session" heuristic when the teacher portal
@@ -447,6 +452,15 @@ Address these in the next session; resolved ones move up into the log with their
      the `GET /my/today` date-resolution layer (DD-022 #2) should resolve overrides by date (a
      TEMP window hides a covered slot outside its dates, a permanent cover wins inside it), and a
      college flag could gate whether changes are allowed on locked timetables at all.
+12. **Registration + auth (OPEN)** — the backend has `POST /auth/register` (public, defaults to
+     `admin` role) but the frontend is login-only. A register page/form is needed; whether it
+     should also offer **Google OAuth** is undecided (founder flagged it as a question). Decide
+     the auth story (email+password vs Google) and record it before the teacher/student portals
+     ship, since those roles need a way for users to get accounts without admin provisioning.
+13. **Final proper seed (OPEN)** — before launch, re-seed the DB with real college data and
+     generate the timetable for the **entire** college (not the demo seed), per the founder. This
+     is end-of-project polish; the seed scripts live in `scripts/` (DD-020) and the engine
+     already scales to whole-department runs. Decide a source for the real data.
 
 ---
 

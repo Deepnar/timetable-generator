@@ -90,7 +90,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
   - **Mid-year change loop (DD-026) shipped:** `timetable_overrides` exceptions for a **published** timetable — teacher covers, room changes, lecture swaps, temporary windows — conflict-checked and revertible; **change mode** on the published viewer with a candidate-teacher picker and a Mid-year changes panel.
 - [x] **Profile & Constraint Builder**: visual form for profiles and dynamic constraints.
   - **Shipped:** `/profiles` (preset card grid with create drawer + archive) and `/profiles/[id]` (four tabs: **Resources** per-type shuttles over rooms/faculty/groups/subjects, **Parameters** catalog-driven key/value rows with JSON validation, **Constraints** hard + soft rows from the `GET /constraints/types` catalog with inline soft-weight editing, **Runs** generation history). The generate page accepts `?profile=N` to preselect from a profile detail page.
-  - **Remaining:** teacher/student portals (DD-022).
+  - **Remaining:** student portal (DD-022 #1) — teacher portal shipped: `/my-schedule` (role-based login redirect, Today card, weekly grid, own iCal/PDF exports via `GET /my/schedule`, `/my/today`, `/my/export/{pdf,csv,ical}`; teacher identity resolved by email→Faculty match). Seed provisions a linked demo teacher login.
 
 ## Phase 5: Enterprise Polish, Exports & Notifications
 *Goal: Production-grade APIs and stakeholder communication.*
