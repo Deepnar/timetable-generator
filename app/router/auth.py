@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.database import get_db
-from app.models.admin import Admin
+from app.models.admin import Admin, AdminRole
 from app.schemas.admin import (
-    AdminCreate, AdminResponse, AdminLogin, Token, MeResponse,
+    AdminCreate, AdminResponse, AdminLogin, Token, MeResponse, RegisterRequest,
 )
 from app.utils.auth import (
     hash_password, verify_password, create_access_token,
@@ -36,7 +36,7 @@ def _rate_limit(scope: str, limit: int, window: int):
 @router.post("/register", response_model=AdminResponse,
              status_code=status.HTTP_201_CREATED,
              dependencies=[Depends(_rate_limit("register", _AUTH_REGISTER_LIMIT, _AUTH_WINDOW))])
-def register_admin(admin: AdminCreate, db: Session = Depends(get_db)):
+def register_admin(admin: RegisterRequest, db: Session = Depends(get_db)):
     existing = db.scalars(
         select(Admin).where(Admin.email == admin.email)
     ).first()
@@ -50,11 +50,14 @@ def register_admin(admin: AdminCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail="Name already registered"
         )
+    # Public self-registration creates a STUDENT account only (C-1, DD-028):
+    # the request has no role field and this is hardcoded to the least
+    # privilege. Elevated roles are provisioned by an admin via /auth/users.
     new_admin = Admin(
         email=admin.email,
         password=hash_password(admin.password),
         name=admin.name,
-        role=admin.role,
+        role=AdminRole.STUDENT,
     )
     db.add(new_admin)
     db.commit()

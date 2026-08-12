@@ -1,11 +1,24 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from app.models.admin import AdminRole
 
 class AdminCreate(BaseModel):
     name: str
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=128)
     role: AdminRole = AdminRole.ADMIN
+
+
+class RegisterRequest(BaseModel):
+    """Public self-registration — deliberately has NO role field.
+
+    Self-registration must never grant elevated roles (a public endpoint
+    accepting a role would be vertical privilege escalation). The account is
+    created with the least-privilege default; admins provision other roles via
+    ``POST /auth/users``.
+    """
+    name: str
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
 
 class AdminResponse(BaseModel):
     id: int
