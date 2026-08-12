@@ -18,7 +18,7 @@ checks; use `opencode-go/qwen3.8-max` ONLY for frontend design critique; use the
 
 ## Session summary (committed & pushed)
 
-State at handoff: **191/191 tests passing** (`uv run python -m app.tests`), frontend builds
+State at handoff: **196/196 tests passing** (`uv run python -m app.tests`), frontend builds
 (`npm run build`), tree clean, all pushed. Both dev servers running (backend :8000, frontend
 :3001) — see Gotchas if not.
 
@@ -26,40 +26,35 @@ State at handoff: **191/191 tests passing** (`uv run python -m app.tests`), fron
 `admin@example.com` / `admin123` (admin) · **teacher: the seed now provisions a login whose
 email is a real Faculty row's email** — check the "teacher login:" line printed at seed time
 (currently `comp.1@tcet.edu.in` / `teach123`, R.R. Sedamkar) · `student1@tcet.edu.in` /
-`stud123` (student) · `hod@tcet.edu.in` / `teach123` (HOD, new seed account).
+`teach123` (student, linked to group COMP-S1-A) · `hod@tcet.edu.in` / `teach123` (HOD).
+The seed force-resets portal passwords on re-seed, so the printed credentials are always
+truthful.
 
-**This session built the teacher portal (DD-022 #1) and recorded the auth + final-seed notes:**
+**This session shipped BOTH role portals (DD-022 #1) and recorded the auth + final-seed notes:**
 
-1. **Teacher portal (DD-022 #1, commits `df84d4c` → `02172dc`)**:
-   - **Backend** `/my/*` (teacher role only; identity = the `Admin.email` that matches a
-     `Faculty` row): `GET /my/schedule` (the caller's OWN published slots with subject/room/group
-     names resolved + published instance ids), `GET /my/today` (the current weekday's sessions —
-     the day card), and `GET /my/export/{pdf,csv,ical}` (the caller's own filtered export from
-     the newest published instance, no ids needed). An account with no matching Faculty row gets
-     an empty schedule.
-   - **Frontend** `/my-schedule`: role-based login redirect (teacher → `/my-schedule`, admin/hod →
-     `/dashboard`, student → `/my-timetable`), a **Today card**, a read-only weekly TimetableGrid,
-     and one-click iCal/PDF. Empty states for "no faculty linked" and "nothing published yet".
-   - **Seed**: `scripts/seed_demo.py` now provisions a teacher login using a real Faculty row's
-     email (so /my resolves), plus student + HOD accounts (all password `teach123`).
-   - 5 new tests (191 total): own-slots-with-names, unmatched-account-empty, admin 403 gate,
-     own iCal export, today endpoint.
-2. **Notes recorded (founder detail log rows 14–16, OPEN items 12–13)**:
-   - **Registration UI**: the backend has `POST /auth/register` (public, defaults to admin) but
-     the frontend is login-only. A register page/form is needed; **Google OAuth is an open
-     question** (decide the auth story before the student portal ships, since roles need a
-     signup path).
-   - **Final proper seed**: before launch, re-seed with real college data and generate the
-     timetable for the ENTIRE college (end-of-project polish; decide a data source).
-3. Earlier this session: the mid-year change loop (DD-026) and single-college posture (DD-025)
-   shipped — see the previous handoff's summary if needed (commits `ea3978c` → `3bcb945`).
+1. **Teacher portal** (previous session, `df84d4c` → `02172dc`) — `/my-schedule`: Today card,
+   weekly grid, own exports; `GET /my/schedule`, `/my/today`, `/my/export`; identity by
+   email→Faculty match; role-based login redirect.
+2. **Student portal** (this session, `bec4833` → `deb36bc`) — `/my-timetable`, the mirror:
+   - **Backend**: new `student_groups.student_email` column (migration `9fe4f7187298`, still 23
+     tables) links a student login to a group. `GET /my/timetable` returns that group's
+     published slots with subject/room/group/**faculty** names resolved; `/my/today` and
+     `/my/export/{pdf,csv,ical}` now serve students too (their group's slots / filtered
+     export). `MySlot` gained `faculty_name` so the student grid shows the teacher.
+   - **Frontend**: `/my-timetable` — Today card, the group's read-only grid, own iCal/PDF.
+     Role-based login already routed students there. Seed links the demo student login to the
+     first group and force-resets portal passwords.
+   - 5 new tests (196 total): own-group timetable with names, unmatched-student empty, teacher↔
+     student role gates, student group iCal export, student `/my/today`.
+3. **Notes recorded** (founder detail log rows 14–16, OPEN items 12–13): registration UI +
+   Google OAuth question; final proper seed for the entire college.
 
 **Backend reality that matters for the product**: rooms are a shared pool — the solver assigns a
 room per session from the subject's `requirements_json`, so a subject is taught in different
 rooms across the week (matches the user's college; no fixed classroom per subject). The engine,
 RBAC, exports, async generation, constraint registry, all six soft constraints, compare,
 slot-override revalidation, the assignment grid, the profile builder, the mid-year change loop,
-and the teacher portal are built and tested.
+and both role portals are built and tested.
 
 ---
 
@@ -120,20 +115,18 @@ and the teacher portal are built and tested.
 
 ---
 
-## Next task — student portal, then the date-resolution day layer (DD-022 #2)
+## Next task — the date-resolution day layer (DD-022 #2)
 
-1. **Student portal** (DD-022 #1) — `/my-timetable`: a student's `Admin.email` → their
-   `StudentGroup` (currently no email on StudentGroup, so either add `student_groups.incharge_email`
-  -style column for a student rep, or link students to a group another way — design decision).
-   Student sees their group's published timetable read-only + exports (mirror the `/my/*` pattern:
-   `GET /my/timetable`, `GET /my/export/...`). Login redirect already routes students there.
-2. **Date-resolution layer** (DD-022 #2 / DD-026 follow-up) — `GET /my/today` should resolve
+Both role portals (DD-022 #1) are done. Remaining, in order:
+
+1. **Date-resolution layer** (DD-022 #2 / DD-026 follow-up) — `GET /my/today` should resolve
    `timetable_overrides` by the real date: a TEMP cover wins inside its `date_from`/`date_to`, a
    permanent cover wins outside it, and a covered slot is hidden while its cover applies. This is
-   what makes "is there class on date X" and the day card truthful.
-3. **Change-loop notifications** (DD-022 #3) — hooks on override/cover creation → SMTP (DD-003/4
+   what makes "is there class on date X" and the day card truthful. Needs a date-aware slots read
+   shared by `/my/*`, the change list, and the grid.
+2. **Change-loop notifications** (DD-022 #3) — hooks on override/cover creation → SMTP (DD-003/4
    follow-ups become relevant); room change + cover notifications reuse `mail_service`.
-4. Optional polish: register page/form + the Google OAuth decision (OPEN 12); CSV upload modals;
+3. Optional polish: register page/form + the Google OAuth decision (OPEN 12); CSV upload modals;
    WebSocket progress for async runs; a `/constraints` reference catalog page.
 
 Keep the docs in sync (architecture §3/§4/§5/§8, plan.md, progress.md) and record any new
@@ -171,8 +164,8 @@ Full backend verification: `uv run python -m app.tests` (191) · scale: `scripts
 
 ## Gotchas
 
-- Postgres :5433, Redis :6379; Alembic head `d319882e1438` (`timetable_overrides`, DD-026).
-  **23 tables.**
+- Postgres :5433, Redis :6379; Alembic head `9fe4f7187298` (`student_groups.student_email`,
+  the student-portal link; prior `d319882e1438` added `timetable_overrides`). **23 tables.**
 - **`npm run build` corrupts a running `next dev` `.next` cache** — after any build, kill the dev
   server, `rm -rf frontend/.next`, restart dev. Also always restart dev after pulling/committing.
 - **The backend dev server runs WITHOUT `--reload`** (uvicorn started by `nohup`). After editing
