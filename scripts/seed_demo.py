@@ -49,23 +49,23 @@ from app.models import (
 
 # ── college shape (from the TCET sample) ────────────────────
 DEPARTMENTS = [
-    # (name, code, faculty count). Scaled for 16 classes x 6 subjects = 96
-    # assignments per department at ~28h/class (448h/wk of teaching): with
-    # max_hours_per_week=20 the pool needs ~30+ faculty so the assignment rotor
-    # never overloads one teacher, which starved later classes of unreserved
-    # faculty slots (cross-timetable) and made OR-Tools drop sessions.
-    ("Computer Engineering", "COMP", 64),
-    ("Information Technology", "IT", 56),
-    ("Electronics & Telecommunication", "EXTC", 52),
-    ("Electronics Engineering", "ELX", 48),
-    ("Mechanical Engineering", "MECH", 54),
-    ("Civil Engineering", "CIVIL", 48),
-    ("Electrical Engineering", "ELEC", 46),
-    ("Chemical Engineering", "CHEM", 44),
-    ("Instrumentation Engineering", "INST", 42),
-    ("Artificial Intelligence & Data Science", "AIDS", 46),
-    ("Artificial Intelligence & ML", "AIML", 46),
-    ("Computer Science & Business Systems", "CSBS", 44),
+    # (name, code, faculty count). Scaled for 16 classes per department with a
+    # DEDICATED teaching team each: a class has up to 11 subject streams, and
+    # teachers must not cross classes (otherwise publishing one class reserves
+    # teachers that block another class's morning — the cross-timetable hole
+    # scatter). 16 x 11 = 176 per department gives every class its own team.
+    ("Computer Engineering", "COMP", 176),
+    ("Information Technology", "IT", 176),
+    ("Electronics & Telecommunication", "EXTC", 176),
+    ("Electronics Engineering", "ELX", 176),
+    ("Mechanical Engineering", "MECH", 176),
+    ("Civil Engineering", "CIVIL", 176),
+    ("Electrical Engineering", "ELEC", 176),
+    ("Chemical Engineering", "CHEM", 176),
+    ("Instrumentation Engineering", "INST", 176),
+    ("Artificial Intelligence & Data Science", "AIDS", 176),
+    ("Artificial Intelligence & ML", "AIML", 176),
+    ("Computer Science & Business Systems", "CSBS", 176),
 ]
 
 SEMESTERS = 8
