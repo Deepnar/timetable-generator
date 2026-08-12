@@ -11,10 +11,13 @@ import type { GridSession } from "./TimetableGrid";
  */
 export function useGridSessions(instanceId: number | undefined) {
   const slotsQ = useInstanceSlots(instanceId);
-  const subjectsQ = useSubjects({ limit: 200 });
-  const facultyQ = useFaculty({ limit: 200 });
-  const roomsQ = useRooms({ limit: 200 });
-  const groupsQ = useGroups({ limit: 200 });
+  // The whole college has 288 subjects / 345 faculty / 324 rooms / 192 groups —
+  // fetch at the raised cap so every id in a slot resolves to a name (a missing
+  // lookup renders a bare dash cell).
+  const subjectsQ = useSubjects({ limit: 1000 });
+  const facultyQ = useFaculty({ limit: 1000 });
+  const roomsQ = useRooms({ limit: 1000 });
+  const groupsQ = useGroups({ limit: 1000 });
 
   const sessions = useMemo<GridSession[]>(() => {
     const slots = slotsQ.data ?? [];

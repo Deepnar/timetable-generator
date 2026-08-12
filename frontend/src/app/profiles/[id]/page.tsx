@@ -73,10 +73,10 @@ export default function ProfileDetailPage() {
   const soft = useSoftConstraints(profileId);
   const types = useConstraintTypes();
 
-  const roomsQ = useRooms({ limit: 200 });
-  const facultyQ = useFaculty({ limit: 200 });
-  const groupsQ = useGroups({ limit: 200 });
-  const subjectsQ = useSubjects({ limit: 200 });
+  const roomsQ = useRooms({ limit: 1000 });
+  const facultyQ = useFaculty({ limit: 1000 });
+  const groupsQ = useGroups({ limit: 1000 });
+  const subjectsQ = useSubjects({ limit: 1000 });
   const generations = useGenerations({ limit: 200 });
 
   const invalidateProfile = () => {

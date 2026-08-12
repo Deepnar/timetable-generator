@@ -66,7 +66,7 @@ export function ChangeEditor({
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const roomsQ = useRooms({ limit: 200 });
+  const roomsQ = useRooms({ limit: 1000 });
 
   const candidates = useAvailableFaculty(
     instanceId,

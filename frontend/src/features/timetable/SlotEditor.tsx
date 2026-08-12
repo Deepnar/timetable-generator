@@ -38,8 +38,8 @@ export function SlotEditor({
   slotTime = (s) => `${String(8 + Math.floor((s - 1) / 2)).padStart(2, "0")}:${(s - 1) % 2 ? "30" : "00"}`,
   onSaved,
 }: SlotPopoverProps) {
-  const roomsQ = useRooms({ limit: 200 });
-  const facultyQ = useFaculty({ limit: 200 });
+  const roomsQ = useRooms({ limit: 1000 });
+  const facultyQ = useFaculty({ limit: 1000 });
 
   const [day, setDay] = useState(session.day);
   const [slot, setSlot] = useState(session.startSlot);
