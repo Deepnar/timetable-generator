@@ -34,7 +34,7 @@ export default function InstanceViewerPage() {
   const all = useAllInstances({ limit: 200 });
   const instance = all.data?.rows.find((i) => i.id === instanceId);
 
-  const { sessions, isLoading, isError, error, refetch, totalSlots } = useGridSessions(instanceId);
+  const { sessions, isLoading, isError, error, refetch, totalSlots, slotCount, slotTime } = useGridSessions(instanceId);
 
   const [editing, setEditing] = useState<GridSession | null>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -42,7 +42,6 @@ export default function InstanceViewerPage() {
   const [changing, setChanging] = useState<{ session: GridSession; x: number; y: number } | null>(null);
 
   const days = Array.from({ length: 6 }, (_, i) => i); // Mon-Sat default
-  const slotCount = 8;
 
   const editable = instance?.status === "DRAFT" || instance?.status === "SELECTED";
   const changeable = instance?.status === "PUBLISHED";
@@ -150,6 +149,7 @@ export default function InstanceViewerPage() {
                 sessions={sessions}
                 days={days}
                 slotCount={slotCount}
+                slotTime={slotTime}
                 readOnly={!editable && !(changeable && changeMode)}
                 onCellClick={(s, e) => openEditor(s, e)}
               />

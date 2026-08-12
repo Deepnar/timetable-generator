@@ -72,6 +72,23 @@ export function useGridSessions(instanceId: number | undefined) {
     return out;
   }, [sessions]);
 
+  // Real time grid from the instance's actual slots: the largest slot_number is
+  // the slot count, and each slot's start_time is its label. This fixes the old
+  // hardcoded 8-slot / 30-min heuristic that showed 08:00-11:30 instead of the
+  // profile's real 08:30 + 8 x 1h grid.
+  const timeGrid = useMemo(() => {
+    const byNumber = new Map<number, string>();
+    for (const sl of slotsQ.data ?? []) {
+      if (sl.slot_number != null && sl.start_time && !byNumber.has(sl.slot_number)) {
+        byNumber.set(sl.slot_number, String(sl.start_time).slice(0, 5));
+      }
+    }
+    const numbers = [...byNumber.keys()];
+    const maxSlot = numbers.length ? Math.max(...numbers) : 8;
+    const labelFor = (slot: number) => byNumber.get(slot);
+    return { maxSlot, labelFor };
+  }, [slotsQ.data]);
+
   return {
     sessions: grouped,
     isLoading: slotsQ.isLoading,
@@ -79,5 +96,7 @@ export function useGridSessions(instanceId: number | undefined) {
     error: slotsQ.error,
     refetch: slotsQ.refetch,
     totalSlots: slotsQ.data?.length ?? 0,
+    slotCount: timeGrid.maxSlot,
+    slotTime: (slot: number) => timeGrid.labelFor(slot) ?? `${slot}`,
   };
 }

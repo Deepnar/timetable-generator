@@ -37,7 +37,22 @@ export default function MyTimetablePage() {
   });
 
   const days = Array.from({ length: 6 }, (_, i) => i);
-  const slotCount = 8;
+
+  // Real time grid from the group timetable's slot start times.
+  const timeGrid = useMemo(() => {
+    const byNumber = new Map<number, string>();
+    for (const s of timetable.data?.slots ?? []) {
+      if (s.slot_number != null && s.start_time && !byNumber.has(s.slot_number)) {
+        byNumber.set(s.slot_number, String(s.start_time).slice(0, 5));
+      }
+    }
+    const numbers = [...byNumber.keys()];
+    const maxSlot = numbers.length ? Math.max(...numbers) : 8;
+    return {
+      slotCount: maxSlot,
+      slotTime: (slot: number) => byNumber.get(slot) ?? `${slot}`,
+    };
+  }, [timetable.data]);
 
   const sessions = useMemo<GridSession[]>(
     () =>
@@ -173,7 +188,7 @@ export default function MyTimetablePage() {
               body="Pick another date or check back after the admin publishes a timetable."
             />
           ) : (
-            <TimetableGrid sessions={sessions} days={days} slotCount={slotCount} readOnly />
+            <TimetableGrid sessions={sessions} days={days} slotCount={timeGrid.slotCount} slotTime={timeGrid.slotTime} readOnly />
           )}
         </div>
       </div>

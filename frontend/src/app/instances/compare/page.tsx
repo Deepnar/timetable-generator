@@ -23,10 +23,6 @@ const DIFF_TONE: Record<string, "success" | "info" | "danger" | "neutral"> = {
   removed: "danger",
 };
 
-function slotTimeLabel(slot: number) {
-  return `${String(8 + Math.floor((slot - 1) / 2)).padStart(2, "0")}:${(slot - 1) % 2 ? "30" : "00"}`;
-}
-
 function CompareInner() {
   const params = useSearchParams();
   const router = useRouter();
@@ -48,7 +44,8 @@ function CompareInner() {
   };
 
   const days = Array.from({ length: 6 }, (_, i) => i);
-  const slotCount = 8;
+  const slotCount = a.slotCount || 8;
+  const slotTime = a.slotTime;
 
   if (!aId || !bId || !instA || !instB) {
     return (
@@ -139,6 +136,7 @@ function CompareInner() {
                 sessions={a.sessions}
                 days={days}
                 slotCount={slotCount}
+                slotTime={slotTime}
                 markers={diff.markersA}
                 readOnly
                 scrollRef={gridARef}
@@ -153,6 +151,7 @@ function CompareInner() {
                 sessions={b.sessions}
                 days={days}
                 slotCount={slotCount}
+                slotTime={slotTime}
                 markers={diff.markersB}
                 readOnly
                 scrollRef={gridBRef}
@@ -183,14 +182,14 @@ function CompareInner() {
                   className="flex w-full items-start gap-3 px-4 py-2.5 text-left hover:bg-muted/50"
                 >
                   <span className="mt-0.5 w-24 shrink-0 font-mono text-xs text-ink-soft">
-                    {DAY_NAMES[e.day]} {slotTimeLabel(e.slot)}
+                    {DAY_NAMES[e.day]} {slotTime(e.slot)}
                   </span>
                   <Badge variant={DIFF_TONE[e.type]}>{e.type}</Badge>
                   <span className="min-w-0 flex-1 text-sm text-ink-soft">
                     <CellLine session={e.type === "removed" ? e.a : e.b} />
                     {e.type === "changed" && e.a && e.b && (
                       <span className="block text-xs text-muted-foreground">
-                        was {e.a.subjectCode ?? "—"} in {DAY_NAMES[e.a.day]} {slotTimeLabel(e.a.startSlot)}
+                        was {e.a.subjectCode ?? "—"} in {DAY_NAMES[e.a.day]} {slotTime(e.a.startSlot)}
                         {e.a.roomCode ? ` · ${e.a.roomCode}` : ""}
                       </span>
                     )}
