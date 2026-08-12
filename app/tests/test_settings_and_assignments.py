@@ -1195,7 +1195,7 @@ def _phase5_rbac(s):
         for role in ("teacher", "student", "hod"):
             r = client.post("/auth/users", headers=headers, json={
                 "name": f"User {role}", "email": f"{role}@tcet.edu.in",
-                "password": "pass123", "role": role,
+                "password": "pass1234", "role": role,
             })
             assert r.status_code == 201, (role, r.text)
             assert r.json()["role"] == role, r.json()
@@ -1207,28 +1207,30 @@ def _phase5_rbac(s):
         admin = _login(client)
         r = client.post("/auth/users", headers=admin, json={
             "name": "Teacher", "email": "teacher@tcet.edu.in",
-            "password": "pass123", "role": "teacher",
+            "password": "pass1234", "role": "teacher",
         })
         assert r.status_code == 201, r.text
-        teacher = _login(client, "teacher@tcet.edu.in", "pass123")
+        teacher = _login(client, "teacher@tcet.edu.in", "pass1234")
         r = client.post("/auth/users", headers=teacher, json={
             "name": "Nope", "email": "nope@tcet.edu.in",
             "password": "x", "role": "admin",
         })
         assert r.status_code == 403, r.text
 
-    @test("a teacher still passes the global auth gate on reads")
+    @test("a teacher passes the auth gate but is role-blocked from admin resources")
     def t_teacher_reads(client):
         from app.tests.test_runner import reset_db, create_admin
         reset_db(); create_admin()
         admin = _login(client)
         client.post("/auth/users", headers=admin, json={
             "name": "Teacher", "email": "teacher@tcet.edu.in",
-            "password": "pass123", "role": "teacher",
+            "password": "pass1234", "role": "teacher",
         })
-        teacher = _login(client, "teacher@tcet.edu.in", "pass123")
+        teacher = _login(client, "teacher@tcet.edu.in", "pass1234")
+        # The global gate is passed (valid JWT) but the resource routers now
+        # require admin/hod roles (C-2) — a teacher gets 403, not 200.
         r = client.get("/rooms/", headers=teacher)
-        assert r.status_code == 200, r.text
+        assert r.status_code == 403, r.text
 
     @test("a duplicate name returns 409, not a 500")
     def t_dup_name(client):
@@ -1237,13 +1239,13 @@ def _phase5_rbac(s):
         admin = _login(client)
         r = client.post("/auth/users", headers=admin, json={
             "name": "Dup Name", "email": "dup1@tcet.edu.in",
-            "password": "pass123", "role": "teacher",
+            "password": "pass1234", "role": "teacher",
         })
         assert r.status_code == 201, r.text
         # same name, different email -> the name unique constraint would 500
         r = client.post("/auth/users", headers=admin, json={
             "name": "Dup Name", "email": "dup2@tcet.edu.in",
-            "password": "pass123", "role": "teacher",
+            "password": "pass1234", "role": "teacher",
         })
         assert r.status_code == 409, r.text
 

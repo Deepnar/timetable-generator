@@ -21,26 +21,42 @@ def _phase5_registration(s):
             db.close()
 
         r = client.post("/auth/register", json={
-            "name": "New User", "email": "new@x.com", "password": "pass123",
+            "name": "New User", "email": "new@x.com", "password": "pass1234",
         })
         assert r.status_code == 201, r.text
         created = r.json()
         assert created["email"] == "new@x.com"
-        assert created["role"] == "admin"  # public self-registration default
+        # Public self-registration is least-privilege (C-1): never admin.
+        assert created["role"] == "student", created
 
         # duplicate email is rejected
         r2 = client.post("/auth/register", json={
-            "name": "New User 2", "email": "new@x.com", "password": "pass123",
+            "name": "New User 2", "email": "new@x.com", "password": "pass1234",
         })
         assert r2.status_code == 409, r2.text
 
-        token = login_token(client, email="new@x.com", password="pass123")
+        token = login_token(client, email="new@x.com", password="pass1234")
         headers = auth_headers(token)
         me = client.get("/auth/me", headers=headers)
         assert me.status_code == 200, me.text
         assert me.json()["email"] == "new@x.com"
 
-    return [t_register_flow]
+    @test("short passwords are rejected on register and user provisioning")
+    def t_password_length(client):
+        from app.tests.test_runner import seed_minimal
+        seed_minimal()
+        r = client.post("/auth/register", json={
+            "name": "Weak Pass", "email": "weak@x.com", "password": "123",
+        })
+        assert r.status_code == 422, r.text
+        admin_headers = auth_headers(login_token(client))
+        r2 = client.post("/auth/users", headers=admin_headers, json={
+            "name": "Weak 2", "email": "weak2@x.com", "password": "short",
+            "role": "teacher",
+        })
+        assert r2.status_code == 422, r2.text
+
+    return [t_register_flow, t_password_length]
 
 
 def _seed_publish_scenario():
