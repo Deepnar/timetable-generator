@@ -105,6 +105,14 @@ export interface LoginResponse {
   token_type: string;
 }
 
+export interface AdminResponse {
+  id: number;
+  name: string;
+  email: string;
+  is_active: boolean;
+  role: string;
+}
+
 export interface Me {
   id: number;
   name: string;
