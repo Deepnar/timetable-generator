@@ -23,11 +23,11 @@ State at handoff: **209/209 tests passing** (`uv run python -m app.tests`), fron
 :3001) — see Gotchas if not. **The DB holds a published timetable for the ENTIRE college**
 (12/12 departments, 3456 slots) via `scripts/generate_college.py`.
 
-**Login credentials** (TCET-style seed data, 12 departments, 204 rooms / 576 subjects etc.):
+**Login credentials** (TCET-style seed data, 12 departments, 16 classes each — FE/SE/TE/BE × A-D):
 `admin@example.com` / `admin123` (admin) · **teacher: the seed now provisions a login whose
 email is a real Faculty row's email** — check the "teacher login:" line printed at seed time
 (currently `comp.1@tcet.edu.in` / `teach123`, R.R. Sedamkar) · `student1@tcet.edu.in` /
-`teach123` (student, linked to group COMP-S1-A) · `hod@tcet.edu.in` / `teach123` (HOD).
+`teach123` (student, linked to group COMP-FE-A) · `hod@tcet.edu.in` / `teach123` (HOD).
 The seed force-resets portal passwords on re-seed, so the printed credentials are always
 truthful.
 
@@ -58,6 +58,17 @@ truthful.
      psycopg2-binary, M-8 Next/React patch bumps) are tracked as DD-029 follow-ups.
 3. Earlier this session: the **registration page** (DD-028, `75fd24d` → `f0b99b7`) — see the
    prior handoff.
+4. **Realistic timetables** (commits `8558ba7` → `999795b`) — three fixes the founder's review
+   of the first college-wide run surfaced:
+   - **Empty days**: the greedy solver packed a class's 18 weekly sessions into the minimum 3
+     days (6 subjects × 1/day), leaving Mon/Thu/Sat empty. A `_group_balance_scan` now spreads
+     each class across all working days and slots (48 sessions every day, Mon–Sat, 08:30–17:30
+     with the lunch gap).
+   - **8:00–11:30 display**: the frontend grid hardcoded 8 slots + a fake 30-min label. It now
+     derives the real time grid from the instance's actual slot start times.
+   - **Class model**: the seed now uses the real college structure — 16 classes per department
+     (FE/SE/TE/BE × A–D, one semester per year: FE→1, SE→3, TE→5, BE→7), rooms scaled 17→27 per
+     dept. Counts: 192 groups / 288 subjects / 324 rooms / 60 profiles.
 
 **Backend reality that matters for the product**: rooms are a shared pool — the solver assigns a
 room per session from the subject's `requirements_json`, so a subject is taught in different
@@ -169,7 +180,7 @@ uv sync
 uv run alembic upgrade head
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
-# seed the TCET-style dataset (12 depts / 576 subjects / 345 faculty / 204 rooms / 108 profiles)
+# seed the TCET-style dataset (12 depts / 16 classes each = 192 groups / 288 subjects / 324 rooms)
 # NOTE: prints a "teacher login:" line with the portal teacher credential
 uv run python -m scripts.seed_demo --wipe
 
