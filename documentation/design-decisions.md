@@ -442,11 +442,11 @@ Address these in the next session; resolved ones move up into the log with their
     row (settings / group / parameter), not engine logic. Revisit multi-tenant only when a second
     college asks. The founder detail log is the inbox for remembered details — keep it pruned as
     items get resolved into DD entries.
-11. **DD-026 follow-up** — the mid-year change layer (schema + conflict-checked endpoints) is
-    built; the frontend change mode on the published instance viewer (select cells, pick a
-    candidate teacher, apply a cover/room change/swap/temp window, revert from a change list) is
-    the remaining half. The `GET /my/today` layer (DD-022 #2) should resolve overrides by date.
-    Consider a college flag to gate whether changes are allowed on locked timetables at all.
+11. **DD-026 follow-up** — the mid-year change layer is fully shipped (schema + conflict-checked
+     endpoints + change-mode UI with candidate-teacher picker and a revertible change list). Next:
+     the `GET /my/today` date-resolution layer (DD-022 #2) should resolve overrides by date (a
+     TEMP window hides a covered slot outside its dates, a permanent cover wins inside it), and a
+     college flag could gate whether changes are allowed on locked timetables at all.
 
 ---
 
