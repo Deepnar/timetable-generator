@@ -380,31 +380,53 @@ class Scheduler:
 
         The solver rejects invalid placements during solving, so committed
         slots should carry zero hard violations — but this is the honest
-        count, computed by treating each slot as a candidate against the
-        instance's *other* slots (plus published cross-timetable reservations
-        and the profile's registry rules). If a bug ever lets an invalid slot
-        through, `instance.hard_violations` reflects it instead of the schema
-        default of 0.
+        count, computed by treating each *block* (contiguous same-session
+        slots, e.g. a 2h lab) as a candidate against the instance's other
+        blocks, the published cross-timetable reservations, and the profile's
+        registry rules. Contiguous lab blocks are validated once with their
+        real block_length; validating each slot individually would flag the
+        second slot of a block as SAME_SUBJECT_SAME_DAY. If a bug ever lets an
+        invalid slot through, `instance.hard_violations` reflects it.
         """
         if not slots:
             return 0
+        ordered = sorted(slots, key=lambda s: (s.day_of_week or 0, s.slot_number))
+        blocks: list[list] = []
+        for slot in ordered:
+            if blocks:
+                prev = blocks[-1][-1]
+                is_continuation = (
+                    prev.day_of_week == slot.day_of_week
+                    and prev.slot_number + 1 == slot.slot_number
+                    and prev.subject_id == slot.subject_id
+                    and prev.faculty_id == slot.faculty_id
+                    and prev.room_id == slot.room_id
+                    and prev.student_group_id == slot.student_group_id
+                )
+                if is_continuation:
+                    blocks[-1].append(slot)
+                    continue
+            blocks.append([slot])
+
         violations = 0
-        for i, slot in enumerate(slots):
-            others = slots[:i] + slots[i + 1:]
+        for bi, block in enumerate(blocks):
+            first = block[0]
+            others = [b for bb in blocks[:bi] + blocks[bi + 1:]
+                      for b in bb]
             candidate = SlotCandidate(
-                instance_id=slot.instance_id,
-                day_of_week=slot.day_of_week,
-                slot_number=slot.slot_number,
-                start_time=slot.start_time,
-                end_time=slot.end_time,
-                faculty_id=slot.faculty_id,
-                room_id=slot.room_id,
-                student_group_id=slot.student_group_id,
-                subject_id=slot.subject_id,
-                session_type=slot.session_type,
-                slot_date=slot.slot_date,
+                instance_id=first.instance_id,
+                day_of_week=first.day_of_week,
+                slot_number=first.slot_number,
+                start_time=first.start_time,
+                end_time=block[-1].end_time,
+                faculty_id=first.faculty_id,
+                room_id=first.room_id,
+                student_group_id=first.student_group_id,
+                subject_id=first.subject_id,
+                session_type=first.session_type,
+                slot_date=first.slot_date,
                 is_cross_department=False,
-                block_length=1,
+                block_length=len(block),
             )
             checker = ConstraintChecker(
                 self.db, others, settings=get_settings(self.db),
