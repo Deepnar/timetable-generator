@@ -442,11 +442,12 @@ Address these in the next session; resolved ones move up into the log with their
    endpoints by the caller's identity once the frontend defines which views each role needs.
 7. **DD-022 follow-up** — build order for the teacher-workload roadmap: (1) teacher self-service
    schedule + own-slot exports, (2) the `timetable_overrides` date-resolution layer + day card,
-   (3) the change loop (room change + cover + notifications). **#1 shipped for both roles**
-   (`/my/schedule` teacher + `/my/timetable` student: Today card, weekly grid, own exports;
-   role-based login redirect; `student_groups.student_email` links a student login to a group).
-   Next: the date-resolution `GET /my/today` layer resolving overrides by date (#2), then the
-   change-loop notifications (#3).
+   (3) the change loop (room change + cover + notifications). **#1 shipped for both roles** and
+   **#2 shipped**: `GET /my/schedule` / `/my/timetable` accept `?date=` and resolve mid-year
+   changes for that date (a permanent cover applies, a TEMP window wins inside its dates, a SWAP
+   exchanges faculty/room), so "is there class on date X" and the day card are truthful. Remaining:
+   the change-loop notifications were already built (DD-027); WebSocket push and the student
+   "today" parity are polish.
 8. **DD-023 follow-up** — block-level overrides: the slot editor edits a single per-slot row, so
    moving one slot of a merged lab block leaves its siblings behind. Consider operating on the
    whole block. Also re-check the client-side "moved session" heuristic when the teacher portal
@@ -464,10 +465,12 @@ Address these in the next session; resolved ones move up into the log with their
     college asks. The founder detail log is the inbox for remembered details — keep it pruned as
     items get resolved into DD entries.
 11. **DD-026 follow-up** — the mid-year change layer is fully shipped (schema + conflict-checked
-     endpoints + change-mode UI with candidate-teacher picker and a revertible change list). Next:
-     the `GET /my/today` date-resolution layer (DD-022 #2) should resolve overrides by date (a
-     TEMP window hides a covered slot outside its dates, a permanent cover wins inside it), and a
-     college flag could gate whether changes are allowed on locked timetables at all.
+     endpoints + change-mode UI with candidate-teacher picker and a revertible change list) and
+     the **date-resolution layer** is now shipped too (`app/services/override_resolver.py`;
+     `/my/schedule` + `/my/timetable` accept `?date=` and `/my/today` resolves overrides against
+     today — a TEMP window wins inside its dates, a permanent cover wins outside it, a SWAP
+     exchanges faculty/room). Remaining: a college flag to gate whether changes are allowed on
+     locked timetables at all, and surfacing effective dates in the admin change list.
 12. **Registration + auth (OPEN)** — the backend has `POST /auth/register` (public, defaults to
      `admin` role) but the frontend is login-only. A register page/form is needed; whether it
      should also offer **Google OAuth** is undecided (founder flagged it as a question). Decide

@@ -700,12 +700,15 @@ GET    /my/schedule                    Teacher self-service (DD-022 #1): the cal
                                         # slots, resolved with subject/room/group names, plus the
                                         # published instance ids. Teacher role only; the caller's
                                         # Faculty row is found by email match (None when unmatched).
+                                        # ?date=YYYY-MM-DD returns only that date's sessions with
+                                        # mid-year changes resolved (DD-022 #2).
 GET    /my/timetable                   Student self-service (DD-022 #1): the caller's GROUP published
                                         # slots with names resolved. Student role only; the group is
                                         # found via StudentGroup.student_email match (None when unmatched).
+                                        # ?date=YYYY-MM-DD resolves changes for that date.
 GET    /my/today                       The caller's sessions for the current weekday (day-card data);
-                                        # works for both teacher (own faculty slots) and student (own
-                                        # group slots).
+                                        # works for both teacher and student; resolves mid-year changes
+                                        # against today's date (DD-022 #2).
 GET    /my/export/{pdf,csv,ical}       The caller's own filtered export from the newest published
                                         # instance — a teacher pulls their schedule, a student their
                                         # group's, without knowing ids.
@@ -898,6 +901,15 @@ GET    /instances/{id}/overrides/available-faculty
                                         # overrides, and published cross-timetable reservations.
                                         # Feeds the cover picker in the change-mode UI (§4.1).
 ```
+
+**Date resolution (DD-022 #2).** A published timetable is a weekly template and
+`timetable_overrides` make exceptions to it. `app/services/override_resolver.py`
+answers "is there class on date X": for a given date it picks the winning
+override per slot — a permanent change applies every date, a TEMP window wins
+inside its `date_from`/`date_to`, a SWAP exchanges the two slots' faculty/room,
+and a covered slot reports the new teacher/room. The `/my/*` endpoints accept
+`?date=YYYY-MM-DD` and `/my/today` resolves against today, so the day card is
+truthful after mid-year edits.
 
 #### Export (implemented — filters on all three)
 
