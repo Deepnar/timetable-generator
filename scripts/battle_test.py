@@ -101,7 +101,7 @@ def main() -> int:
         results = []
 
         # 1) greedy on 2 per-semester profiles (the TCET TE-D-style unit)
-        for frag in ("Computer Engineering — TE", "Mechanical Engineering — SE"):
+        for frag in ("Computer Engineering — TE-A", "Mechanical Engineering — SE-B"):
             prof = _profile(db, frag)
             results.append(_run(db, prof.id, AlgorithmType.GREEDY, admin.id,
                                  instances=args.instances, label=prof.name))
@@ -121,7 +121,7 @@ def main() -> int:
 
         # 3) OR-Tools on a per-semester profile (CP-SAT scale, 5s timeout)
         if args.or_tools:
-            prof = _profile(db, "Computer Engineering — TE")
+            prof = _profile(db, "Computer Engineering — TE-A")
             results.append(_run(db, prof.id, AlgorithmType.OR_TOOLS, admin.id,
                                 instances=args.instances, label=f"{prof.name} [OR-Tools]"))
 

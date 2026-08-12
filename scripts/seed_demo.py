@@ -301,21 +301,27 @@ def seed(db) -> dict:
         counts["assignments"] += assignments
 
         # ── profiles ──────────────────────────────────────
-        # (a) one DIVISION-scoped profile per (dept, year) — 4 classes (A–D)
-        # all scheduled together, exactly the real college unit.
+        # (a) one DIVISION-scoped profile per CLASS — 16 per department
+        # (4 years x 4 divisions). Each profile schedules exactly ONE division
+        # (e.g. COMP-TE-B), so every class gets its own clean timetable with no
+        # years merged.
         for sem, label in YEAR_LABELS:
-            prof = TimetableProfile(
-                name=f"{dept_name} — {label}", scope_type=ScopeType.DIVISION,
-                academic_year=ACADEMIC_YEAR, semester=sem,
-                department=dept_name, created_by=admin.id,
-            )
-            db.add(prof)
-            db.flush()
-            _attach_resources(db, prof, rooms, faculty,
-                              [g for g in groups if g.semester == sem],
-                              [s for s in subjects if s.semester == sem])
-            _attach_params(db, prof)
-            counts["profiles"] += 1
+            for div in DIVISIONS:
+                group = next(g for g in groups
+                             if g.semester == sem and g.name.endswith(f"-{div}"))
+                prof = TimetableProfile(
+                    name=f"{dept_name} — {label}-{div}",
+                    scope_type=ScopeType.DIVISION,
+                    academic_year=ACADEMIC_YEAR, semester=sem,
+                    department=dept_name, created_by=admin.id,
+                )
+                db.add(prof)
+                db.flush()
+                _attach_resources(db, prof, rooms, faculty,
+                                  [group],
+                                  [s for s in subjects if s.semester == sem])
+                _attach_params(db, prof)
+                counts["profiles"] += 1
 
         # (b) one DEPARTMENT-scoped profile covering all four years
         prof = TimetableProfile(
@@ -421,7 +427,7 @@ def _or_tools_smoke(db) -> None:
     from app.models.generation import SessionType
 
     profiles = db.scalars(select(TimetableProfile).where(
-        TimetableProfile.name.like("%— Sem 5%"))).all()
+        TimetableProfile.name.like("%— TE-A%"))).all()
     for prof in profiles[:2]:
         resolved = ProfileResolver(db).resolve(prof.id)
         subj_ids = resolved.resource_ids(ResourceType.SUBJECT)
