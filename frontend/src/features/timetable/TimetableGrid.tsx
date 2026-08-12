@@ -45,6 +45,11 @@ export interface TimetableGridProps {
   markers?: Record<string, GridCellMarker>;
   /** Scroll listener forwarded to the container (compare scroll sync). */
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  /** If set, render an explicit full-width break/lunch row after this slot
+   * (e.g. 4 = lunch after the 4th slot), so the 1h lunch is visible instead of
+   * looking like a 2-hour gap in the times. */
+  breakAfterSlot?: number;
+  breakLabel?: string;
 }
 
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -61,6 +66,8 @@ export function TimetableGrid({
   scrollRef,
   markers,
   onScroll,
+  breakAfterSlot,
+  breakLabel = "LUNCH BREAK",
 }: TimetableGridProps) {
   // index sessions by (day, startSlot) for O(1) lookup; skip spans of blocks
   const byDaySlot = useMemo(() => {
@@ -73,6 +80,11 @@ export function TimetableGrid({
   }, [sessions]);
 
   const rowHeight = density === "compact" ? 44 : 64;
+  // A break row (1h) is inserted after breakAfterSlot; slots after it shift down.
+  const breakSlot = breakAfterSlot ?? 0;
+  const breakRow = breakSlot > 0 ? breakSlot + 1 : 0;
+  const totalRows = breakRow ? slotCount + 1 : slotCount;
+  const rowFor = (slot: number) => (breakRow && slot > breakSlot ? slot + 1 : slot);
 
   const cells: React.ReactNode[] = [];
   for (const day of days) {
@@ -91,7 +103,7 @@ export function TimetableGrid({
         <div
           key={`${day}:${slot}`}
           className="border-t border-l border-border first:border-l-0"
-          style={{ gridColumn: day + 2, gridRow: slot + 1 }}
+          style={{ gridColumn: day + 2, gridRow: rowFor(slot) + 1 }}
         >
           {session ? (
             <GridCell session={session} density={density} readOnly={readOnly} marker={marker} onClick={(e) => onCellClick?.(session, e)} />
@@ -107,7 +119,7 @@ export function TimetableGrid({
         className="grid min-w-[820px]"
         style={{
           gridTemplateColumns: `56px repeat(${days.length}, minmax(150px, 1fr))`,
-          gridTemplateRows: `36px repeat(${slotCount}, ${rowHeight}px)`,
+          gridTemplateRows: `36px repeat(${totalRows}, ${rowHeight}px)`,
         }}
       >
         {/* corner */}
@@ -129,11 +141,20 @@ export function TimetableGrid({
             key={slot}
             data-slot={slot}
             className="sticky left-0 z-10 flex items-start justify-end bg-muted pr-2 font-mono text-[11px] text-ink-faint"
-            style={{ gridColumn: 1, gridRow: slot + 1 }}
+            style={{ gridColumn: 1, gridRow: rowFor(slot) + 1 }}
           >
             {slotTime(slot)}
           </div>
         ))}
+        {/* break / lunch row */}
+        {breakRow > 0 && (
+          <div
+            className="col-span-full flex items-center justify-center border-t border-border bg-muted/60 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-soft"
+            style={{ gridColumn: `1 / span ${days.length + 1}`, gridRow: breakRow + 1 }}
+          >
+            {breakLabel}
+          </div>
+        )}
         {cells}
       </div>
     </div>

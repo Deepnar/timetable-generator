@@ -137,6 +137,8 @@ function CompareInner() {
                 days={days}
                 slotCount={slotCount}
                 slotTime={slotTime}
+                breakAfterSlot={4}
+                breakLabel="LUNCH BREAK"
                 markers={diff.markersA}
                 readOnly
                 scrollRef={gridARef}
@@ -152,6 +154,8 @@ function CompareInner() {
                 days={days}
                 slotCount={slotCount}
                 slotTime={slotTime}
+                breakAfterSlot={4}
+                breakLabel="LUNCH BREAK"
                 markers={diff.markersB}
                 readOnly
                 scrollRef={gridBRef}

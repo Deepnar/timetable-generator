@@ -188,7 +188,7 @@ export default function MySchedulePage() {
               body="Pick another date or check back after the admin publishes a timetable."
             />
           ) : (
-            <TimetableGrid sessions={sessions} days={days} slotCount={timeGrid.slotCount} slotTime={timeGrid.slotTime} readOnly />
+            <TimetableGrid sessions={sessions} days={days} slotCount={timeGrid.slotCount} slotTime={timeGrid.slotTime} breakAfterSlot={4} breakLabel="LUNCH BREAK" readOnly />
           )}
         </div>
       </div>

@@ -150,6 +150,8 @@ export default function InstanceViewerPage() {
                 days={days}
                 slotCount={slotCount}
                 slotTime={slotTime}
+                breakAfterSlot={4}
+                breakLabel="LUNCH BREAK"
                 readOnly={!editable && !(changeable && changeMode)}
                 onCellClick={(s, e) => openEditor(s, e)}
               />
