@@ -8,10 +8,12 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.database import get_db
+from app.utils.auth import require_roles
 from app.models.audit import AuditLog
 from app.utils.pagination import Pagination, pagination, paginate
 
-router = APIRouter(prefix="/audit", tags=["Audit"])
+router = APIRouter(prefix="/audit", tags=["Audit"],
+                 dependencies=[Depends(require_roles("admin"))])
 
 
 class AuditLogResponse(BaseModel):

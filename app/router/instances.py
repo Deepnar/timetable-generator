@@ -8,7 +8,7 @@ from app.models.generation import (TimetableInstance, TimetableSlot,
 from app.models.profiles import ResourceType
 from app.schemas.generation import (InstanceResponse, SlotResponse,
                                     SlotOverride, SlotOverrideDraft)
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, require_roles
 from app.utils.pagination import Pagination, pagination, paginate
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.profile_resolver import ProfileResolver
@@ -20,7 +20,8 @@ import logging
 
 logger = logging.getLogger("timetable")
 
-router = APIRouter(prefix="/instances", tags=["Instances"])
+router = APIRouter(prefix="/instances", tags=["Instances"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
 
 @router.get("/", response_model=list[InstanceResponse])
 def list_instances(

@@ -14,11 +14,12 @@ from ..schemas.profiles import (ProfileCreate, ProfileResponse,
                                    ProfileCombinationCreate, ProfileCombinationResponse,
                                    ProfileCombinationListResponse,
                                    ProfileCombinationResolveResponse)
-from ..utils.auth import get_current_admin
+from ..utils.auth import get_current_admin, require_roles
 from ..engine.profile_resolver import ProfileResolver
 from ..services import redis_client
 
-router = APIRouter(prefix="/profiles", tags=["Profiles"])
+router = APIRouter(prefix="/profiles", tags=["Profiles"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
 
 _PROFILES_CACHE_PREFIX = "timetable:cache:profiles"
 

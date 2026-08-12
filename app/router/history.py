@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Optional
 from app.database import get_db
+from app.utils.auth import require_roles
 from app.utils.pagination import Pagination, pagination, paginate
 from app.models.history import TimetableHistory, TimetableResetLog, ArchiveReason, ResetType
 from app.models.generation import TimetableInstance, TimetableSlot, InstanceStatus
@@ -10,7 +11,8 @@ from app.models.profiles import TimetableProfile, ProfileResource, ProfileParame
 from datetime import datetime
 import json
 
-router = APIRouter(prefix="/history", tags=["History"])
+router = APIRouter(prefix="/history", tags=["History"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
 
 
 @router.get("/", )

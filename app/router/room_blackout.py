@@ -3,12 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..utils.auth import get_current_admin
+from ..utils.auth import get_current_admin, require_roles
 from ..utils.pagination import Pagination, pagination, paginate
 from .. import models
 from .. import schemas
 
-router = APIRouter(prefix="/blackouts", tags=["Room Blackouts"])
+router = APIRouter(prefix="/blackouts", tags=["Room Blackouts"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
 
 @router.post("/", status_code=status.HTTP_201_CREATED,response_model=schemas.RoomBlackoutResponse)
 def create_room_blackout(blackout: schemas.RoomBlackoutCreate, db: Session = Depends(get_db), current_admin: models.Admin = Depends(get_current_admin)):

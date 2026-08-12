@@ -21,9 +21,10 @@ from app.schemas.assignments import (
     SubjectAssignmentResponse,
     SubjectAssignmentUpdate,
 )
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, require_roles
 
-router = APIRouter(prefix="/assignments", tags=["Subject Assignments"])
+router = APIRouter(prefix="/assignments", tags=["Subject Assignments"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
 
 
 def _validate_dependencies(payload, db: Session) -> None:

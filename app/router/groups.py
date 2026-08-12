@@ -7,14 +7,15 @@ from sqlalchemy.orm import Session
 from app.models.groups import GroupType
 
 from ..database import get_db
-from ..utils.auth import get_current_admin
+from ..utils.auth import get_current_admin, require_roles
 from ..utils.pagination import Pagination, pagination, paginate
 from .. import models
 from .. import schemas
 
 router = APIRouter(
     prefix="/groups",
-    tags=["Student Groups"]
+    tags=["Student Groups"],
+    dependencies=[Depends(require_roles("admin", "hod"))]
 )
 
 @router.get("/", response_model=list[schemas.StudentGroupResponse])

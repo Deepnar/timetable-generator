@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.database import get_db
+from app.utils.auth import require_roles
 from app.models.generation import TimetableInstance
 from app.services.export_service import (
     get_filtered_slots,
@@ -22,7 +23,8 @@ from app.services.export_service import (
     generate_timetable_ical,
 )
 
-router = APIRouter(prefix="/export", tags=["Export"])
+router = APIRouter(prefix="/export", tags=["Export"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
 
 
 def _require_instance(instance_id: int, db: Session) -> TimetableInstance:

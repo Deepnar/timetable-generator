@@ -10,15 +10,34 @@ from app.models.faculty import Faculty
 from app.models.groups import StudentGroup, GroupType
 from app.models.subjects import Subject
 from app.models.admin import Admin
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, require_roles
 
-router = APIRouter(prefix="/import", tags=["CSV Import"])
+router = APIRouter(prefix="/import", tags=["CSV Import"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
+
+# Upload hardening (security audit H-6): cap the file size and row count so a
+# malicious or accidental upload cannot exhaust server memory or spin the
+# all-or-nothing import for minutes.
+MAX_CSV_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_CSV_ROWS = 50_000
 
 
 def parse_csv(file: UploadFile) -> list[dict]:
-    content = file.file.read().decode("utf-8")
-    reader = csv.DictReader(io.StringIO(content))
-    return [row for row in reader]
+    content = file.file.read(MAX_CSV_BYTES + 1)
+    if len(content) > MAX_CSV_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Upload too large (max {MAX_CSV_BYTES // (1024 * 1024)} MB)",
+        )
+    text = content.decode("utf-8")
+    reader = csv.DictReader(io.StringIO(text))
+    rows = [row for row in reader]
+    if len(rows) > MAX_CSV_ROWS:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Too many rows (max {MAX_CSV_ROWS})",
+        )
+    return rows
 
 
 def _atomic_import(db: Session, rows: list[dict], build) -> dict:

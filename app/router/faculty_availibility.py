@@ -3,13 +3,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..utils.auth import get_current_admin
+from ..utils.auth import get_current_admin, require_roles
 from ..utils.pagination import Pagination, pagination, paginate
 from .. import models
 from .. import schemas
 
 router = APIRouter(
-    prefix="/faculty_availability",tags=["Faculty Availability"]
+    prefix="/faculty_availability", tags=["Faculty Availability"],
+    dependencies=[Depends(require_roles("admin", "hod"))]
 )
 
 @router.post("/", status_code=status.HTTP_201_CREATED,response_model=schemas.FacultyAvailabilityResponse)

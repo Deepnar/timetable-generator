@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -6,16 +6,35 @@ from app.database import get_db
 from app.models.admin import Admin
 from app.models.generation import TimetableGeneration
 from app.schemas.generation import GenerationRequest, GenerationResponse
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, require_roles
 from app.utils.pagination import Pagination, pagination, paginate
 from app.engine.scheduler import Scheduler, GenerationLockError
 from app.tasks.generation import enqueue_generation
+from app.services import redis_client
 from app.config import settings
 import logging
 
 logger = logging.getLogger("timetable")
 
-router = APIRouter(prefix="/generate", tags=["Generate"])
+router = APIRouter(prefix="/generate", tags=["Generate"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
+
+# Security audit M-1: cap how many generation runs one admin/hod can trigger per
+# window so a misbehaving client cannot spin the solver endlessly (Redis-backed;
+# a no-op when Redis is unavailable).
+_GENERATE_LIMIT = 20
+_GENERATE_WINDOW = 60
+
+
+def _rate_limit_generation(request: Request) -> None:
+    ip = request.client.host if request.client else "unknown"
+    allowed = redis_client.check_rate_limit(
+        "generate", ip, _GENERATE_LIMIT, _GENERATE_WINDOW)
+    if allowed is False:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many generation runs, please wait a moment",
+        )
 
 @router.get("/", response_model=list[GenerationResponse])
 def list_generations(
@@ -36,7 +55,8 @@ def list_generations(
     return paginate(db, query, page, response)
 
 @router.post("/", response_model=GenerationResponse,
-             status_code=status.HTTP_201_CREATED)
+             status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(_rate_limit_generation)])
 def trigger_generation(
     request: GenerationRequest,
     db: Session = Depends(get_db),
@@ -75,9 +95,13 @@ def trigger_generation(
             detail=str(e)
         )
     except Exception as e:
+        # Never leak the raw solver/ORM exception to the client (it can carry
+        # internal paths, SQL fragments, or user input). The full error is
+        # stored on the run row's error_log; the client gets a generic message.
+        logger.exception("Generation failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Generation failed: {str(e)}"
+            detail="Generation failed; check the run status for details"
         )
 
 

@@ -7,9 +7,10 @@ from app.models import Admin
 from app.schemas.settings import CollegeSettingsResponse, CollegeSettingsUpdate
 from app.services.settings_service import get_settings, update_settings
 from app.services import redis_client
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, require_roles
 
-router = APIRouter(prefix="/settings", tags=["College Settings"])
+router = APIRouter(prefix="/settings", tags=["College Settings"],
+                 dependencies=[Depends(require_roles("admin"))])
 
 _SETTINGS_CACHE_KEY = "timetable:cache:settings"
 

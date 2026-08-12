@@ -6,13 +6,14 @@ from app.models.history import TimetableHistory, TimetableResetLog, ArchiveReaso
 from app.models.generation import TimetableInstance, TimetableSlot, InstanceStatus
 from app.models.profiles import TimetableProfile, ProfileResource, ProfileParameter
 from app.models.admin import Admin
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, require_roles
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 import json
 
-router = APIRouter(prefix="/reset", tags=["Reset"])
+router = APIRouter(prefix="/reset", tags=["Reset"],
+                 dependencies=[Depends(require_roles("admin"))])
 
 
 class ResetRequest(BaseModel):

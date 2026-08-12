@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 from app.models.rooms import RoomType
 
 from ..database import get_db
-from ..utils.auth import get_current_admin
+from ..utils.auth import get_current_admin, require_roles
 from ..utils.pagination import Pagination, pagination, paginate
 from ..services import redis_client
 from .. import models
 from .. import schemas
 
-router = APIRouter(prefix="/rooms", tags=["Rooms"])
+router = APIRouter(prefix="/rooms", tags=["Rooms"],
+                 dependencies=[Depends(require_roles("admin", "hod"))])
 
 _ROOMS_CACHE_PREFIX = "timetable:cache:rooms"
 

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..utils.auth import get_current_admin
+from ..utils.auth import get_current_admin, require_roles
 from ..utils.pagination import Pagination, pagination, paginate
 from ..services import redis_client
 from .. import models
@@ -13,7 +13,8 @@ from .. import schemas
 
 router = APIRouter(
     prefix="/subjects",
-    tags=["Subjects"]
+    tags=["Subjects"],
+    dependencies=[Depends(require_roles("admin", "hod"))]
 )
 
 _SUBJECTS_CACHE_PREFIX = "timetable:cache:subjects"

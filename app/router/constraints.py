@@ -11,9 +11,10 @@ from ..models.constraints import (
 from ..models import Admin
 from ..schemas.constraints import (HardConstraintCreate, HardConstraintResponse,
                                       SoftConstraintCreate, SoftConstraintResponse)
-from ..utils.auth import get_current_admin
+from ..utils.auth import get_current_admin, require_roles
 
-router = APIRouter(prefix="/constraints", tags=["Constraints"])
+router = APIRouter(prefix="/constraints", tags=["Constraints"],
+                 dependencies=[Depends(require_roles("admin"))])
 
 # ── Hard Constraints ──────────────────────────────────────
 
