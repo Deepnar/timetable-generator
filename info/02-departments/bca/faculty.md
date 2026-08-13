@@ -1,0 +1,20 @@
+# Faculty (full roster as published)
+
+## From: BCA-Faculty-Profile.html.md
+
+- **MS. Rinkle Solanki** — Assistant Professor, HOD of MCA / BCA Department ()
+- **Ms. Kamini Pawar** — Assistant Professor ()
+- **Mr. Sandeep Vishwakarma** — Assistant Professor ()
+- **Mr. Jaynish Kumar Mandal** — Assistant Professor, Dy. HOD ()
+- **Mrs. Tamanna Agrawal** — Assistant Professor ()
+- **Mrs. Chhavi Birla** — Assistant Professor ()
+- **Ms. Priya Bharat Salunke** — Assistant Professor ()
+- **Mr. Amitanand Anurag V Mishra** — Assistant Professor ()
+- **Ms. Shruti shukla** — LECTURER ()
+- **Ms. Aditi Shinde** — LECTURER ()
+- **Ms. Shreyasi Karapu** — LECTURER ()
+- **Ms. Riya Shetty** — LECTURER ()
+- **Dr. Deepika Saravagi** — Assistant Professor ()
+- **Mrs. Shallu Khanna** — Assistant Professor ()
+- **Ms. Harshita Singh** — Assistant Professor ()
+- **Mrs. Aruta Jayswal** — Assistant Professor ()

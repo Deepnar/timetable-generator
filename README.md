@@ -516,6 +516,22 @@ combination resolution and override re-validation are tracked TODOs.
 
 ---
 
+## TCET data pack (`info/`)
+
+`info/` holds a structured, markdown dump of everything published on
+**tcetmumbai.in** (crawled Aug 2026): institute facts, all 17 department
+profiles, full faculty rosters, the AY 2026-27 academic calendar, per-division
+UG class timetables, PG timetables, exam timetables, and semester-wise course
+lists — organised so a model or human can consume it directly. Start at
+`info/README.md` for the folder map and coverage notes.
+
+The raw downloads (`info/raw/`) and extracted text (`info/text/`) — including
+official result registers with student names — are **local-only** and
+gitignored, matching the `sample/` policy: the committed docs carry the
+structure, not the personal data.
+
+---
+
 ## License
 
 MIT — see [`LICENSE`](LICENSE). Copyright © 2026 Deepesh Sonar.

@@ -47,3 +47,9 @@ rough_plan.md
 # names) used to model seed data — kept out of the public repo. The seed
 # script embeds the extracted shape; sample/ is not read at runtime.
 sample/
+
+# TCET website crawl archives (raw downloads + extracted text incl. result
+# registers with student names) — local-only; the committed info/ docs carry
+# the structure, not the personal data.
+info/raw/
+info/text/
