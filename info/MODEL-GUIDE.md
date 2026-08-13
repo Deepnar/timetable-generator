@@ -39,9 +39,14 @@ contains, per division:
 - The grid: rows = days, columns = periods (8:30–5:30). Cells are written as
   `Subject Group-IDs Faculty-initials Room` — e.g. `Lab DBMS A1 A2 VK RB 305`
   means: DBMS lab, batch groups A1+A2, faculty VK and RB, room 305.
-- **Faculty initials** (VK, RB, HR, …) are abbreviations — resolve them against
-  the department roster in `02-departments/<branch>/faculty.md` or
-  `04-faculty-directory.md`.
+- **Faculty initials** (VK, RB, HR, …) are abbreviations — resolve them with
+  **`03-timetables/class/UG/FACULTY-INITIALS.md`** (the glossary: initial →
+  name → confidence) or the department roster in
+  `02-departments/<branch>/faculty.md`.
+- Some divisions (SE/TE COMP A/B, AI&ML TT/BT) have been **vision-verified**:
+  their READMEs contain clean day×period tables plus the subject→faculty
+  legend, transcribed from the official PDF images. Treat those tables as the
+  authoritative reading over the flattened raw text.
 - Load totals (e.g. "28 lectures × 15 weeks = 420h") and special blocks:
   BREAK, Notional Learning, Saturday = IP / co-curricular.
 - Signature chain: class in-charge → HOD → Dean Academic → VP → Principal.
