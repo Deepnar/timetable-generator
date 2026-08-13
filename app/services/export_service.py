@@ -158,6 +158,8 @@ def _build_grid(slots, maps, slot_times):
             cell_text = []
             if subject:
                 cell_text.append(subject.name)
+            if slot.batch_number is not None:
+                cell_text.append(f"Batch B{slot.batch_number}")
             if faculty:
                 cell_text.append(f"Faculty: {faculty.name}")
             if room:
@@ -278,7 +280,7 @@ def generate_timetable_csv(slots: list[TimetableSlot], db: Session) -> BytesIO:
     writer.writerow([
         "Day", "Slot Number", "Start Time", "End Time",
         "Subject", "Subject Code", "Faculty", "Room",
-        "Group", "Session Type", "Manual Override",
+        "Group", "Batch", "Session Type", "Manual Override",
     ])
     for slot in slots:
         subject = maps["subjects"].get(slot.subject_id)
@@ -295,6 +297,7 @@ def generate_timetable_csv(slots: list[TimetableSlot], db: Session) -> BytesIO:
             faculty.name if faculty else "",
             room.name if room else "",
             group.name if group else "",
+            f"B{slot.batch_number}" if slot.batch_number is not None else "",
             slot.session_type.value if hasattr(slot.session_type, "value") else slot.session_type,
             "Yes" if slot.is_manual_override else "No",
         ])

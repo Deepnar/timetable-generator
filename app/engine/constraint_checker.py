@@ -41,6 +41,7 @@ class SlotCandidate:
         slot_date=None,
         is_cross_department: bool = False,
         block_length: int = 1,
+        batch_number: int | None = None,
     ):
         self.instance_id = instance_id
         self.day_of_week = day_of_week
@@ -57,6 +58,11 @@ class SlotCandidate:
         # A block session occupies ``block_length`` consecutive slots starting
         # at ``slot_number`` (1 == a single slot, the historical default).
         self.block_length = block_length
+        # Which lab batch this candidate belongs to (1..N). All batches of a
+        # parallel practical occupy the same division at the same time in
+        # different rooms, so the group double-book rule ignores siblings of
+        # the same lab period (they are the same division-wide session).
+        self.batch_number = batch_number
 
     @property
     def slot_numbers(self) -> range:

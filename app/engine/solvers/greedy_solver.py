@@ -46,6 +46,8 @@ class SessionToSchedule:
         is_cross_department: bool = False,
         block_length: int = 1,
         room_requirements: dict | None = None,
+        batch_number: int | None = None,
+        parallel_key=None,
     ):
         self.subject_id = subject_id
         self.faculty_id = faculty_id
@@ -59,6 +61,15 @@ class SessionToSchedule:
         # Declared room requirements (room_types/min_capacity/features); the
         # solver picks rooms that satisfy them. Empty = any active room.
         self.room_requirements = room_requirements or {}
+        # Parallel practicals (DD-024): which lab batch (1..N) this session
+        # covers. Siblings sharing a ``parallel_key`` must be placed at the
+        # same time in distinct rooms. None = whole-division session.
+        self.batch_number = batch_number
+        self.parallel_key = parallel_key
+        # For a batched lab base session: batch -> faculty for ONE weekly
+        # period (e.g. CG lab: {1: SuS, 2: PD} for D1D2, {3: SuS, 4: HP} for
+        # D3D4). The expansion creates one parallel session per entry.
+        self.parallel_batch_map: dict[int, int] | None = None
 
 
 class GreedySolver:
@@ -278,77 +289,42 @@ class GreedySolver:
             ).all()
         } if group_ids else {}
 
-        for assignment in assignments:
-            if not assignment.faculty_id or not assignment.weekly_hours:
-                continue
-            subject = subjects.get(assignment.subject_id)
-            if not subject:
-                continue
-            group = groups.get(assignment.group_id)
+        # Group assignment rows by (subject, group). A lab subject split into
+        # parallel batches has one row per batch (each with ``batch_number`` and
+        # its own faculty). Rows form **weekly periods**: a class runs several
+        # lab periods per week, each a contiguous run of batch ids (TE CG: D1D2
+        # = batches 1,2 on one day, D3D4 = batches 3,4 on another). Each period
+        # is one atomic parallel placement. Non-batched rows expand
+        # independently (multiple teachers sharing a subject stay as today).
+        by_key: dict[tuple[int, int], list] = {}
+        for a in assignments:
+            by_key.setdefault((a.subject_id, a.group_id), []).append(a)
 
-            is_cross_dept = bool(
-                group and group.department and subject.department
-                and group.department != subject.department
-            )
-
-            # The "extreme flexibility" feature flag: if the college
-            # has NOT opted in, we simply skip cross-department sessions.
-            if is_cross_dept and not self.settings.allow_cross_dept_subjects:
+        for (subject_id, group_id), rows in by_key.items():
+            batched = [r for r in rows if getattr(r, "batch_number", None) is not None]
+            if batched:
+                # Batched rows form **weekly periods** (D1D2 on Monday, D3D4 on
+                # Wednesday), grouped by ``period_number``. Each period is one
+                # atomic parallel placement with its own batch->faculty map.
+                by_period: dict = {}
+                for r in batched:
+                    by_period.setdefault(getattr(r, "period_number", 1), []).append(r)
+                for _period, period_rows in sorted(
+                    by_period.items(), key=lambda kv: kv[0] if kv[0] is not None else 1
+                ):
+                    base = period_rows[0]
+                    self._append_base_sessions(
+                        sessions, base, subjects, groups,
+                        parallel_batch_map={
+                            int(r.batch_number): r.faculty_id for r in period_rows
+                        },
+                    )
                 continue
-
-            # Exam mode: one exam per subject-group, not weekly_hours copies.
-            if self._is_exam_mode():
-                sessions.append(SessionToSchedule(
-                    subject_id=subject.id,
-                    faculty_id=assignment.faculty_id,
-                    student_group_id=assignment.group_id,
-                    session_type=SessionType.EXAM,
-                    requires_lab=False,
-                    is_cross_department=is_cross_dept,
-                    room_requirements=effective_requirements(subject),
-                ))
-                continue
-
-            reqs = effective_requirements(subject)
-            session_type = subject_session_type(subject)
-            block_length = (
-                block_lengths.get(subject.id)
-                if session_type == SessionType.LAB else None
-            )
-            if block_length and block_length >= 2:
-                full_blocks, remainder = divmod(assignment.weekly_hours, block_length)
-                for _ in range(full_blocks):
-                    sessions.append(SessionToSchedule(
-                        subject_id=subject.id,
-                        faculty_id=assignment.faculty_id,
-                        student_group_id=assignment.group_id,
-                        session_type=session_type,
-                        requires_lab=subject.requires_lab,
-                        is_cross_department=is_cross_dept,
-                        block_length=block_length,
-                        room_requirements=reqs,
-                    ))
-                for _ in range(remainder):
-                    sessions.append(SessionToSchedule(
-                        subject_id=subject.id,
-                        faculty_id=assignment.faculty_id,
-                        student_group_id=assignment.group_id,
-                        session_type=session_type,
-                        requires_lab=subject.requires_lab,
-                        is_cross_department=is_cross_dept,
-                        room_requirements=reqs,
-                    ))
-            else:
-                for _ in range(assignment.weekly_hours):
-                    sessions.append(SessionToSchedule(
-                        subject_id=subject.id,
-                        faculty_id=assignment.faculty_id,
-                        student_group_id=assignment.group_id,
-                        session_type=session_type,
-                        requires_lab=subject.requires_lab,
-                        is_cross_department=is_cross_dept,
-                        room_requirements=reqs,
-                    ))
+            for assignment in rows:
+                self._append_base_sessions(
+                    sessions, assignment, subjects, groups,
+                    parallel_batch_map=None,
+                )
 
         # most constrained first
         sessions.sort(key=lambda s: (
@@ -369,12 +345,320 @@ class GreedySolver:
             ))
         return sessions
 
+    # ── parallel practicals (batches) ─────────────────────────
+    def _append_base_sessions(self, sessions, assignment, subjects, groups,
+                              parallel_batch_map=None):
+        """Expand one assignment row into base sessions (block-aware).
+
+        ``parallel_batch_map`` (batch -> faculty) is set for a lab period with
+        per-batch faculty; the batch expansion (:meth:`_expand_lab_batches`)
+        turns the base block into one parallel session per batch.
+        """
+        if not assignment.faculty_id or not assignment.weekly_hours:
+            return
+        subject = subjects.get(assignment.subject_id)
+        if not subject:
+            return
+        group = groups.get(assignment.group_id)
+
+        is_cross_dept = bool(
+            group and group.department and subject.department
+            and group.department != subject.department
+        )
+        if is_cross_dept and not self.settings.allow_cross_dept_subjects:
+            return
+        if self._is_exam_mode():
+            sessions.append(SessionToSchedule(
+                subject_id=subject.id,
+                faculty_id=assignment.faculty_id,
+                student_group_id=assignment.group_id,
+                session_type=SessionType.EXAM,
+                requires_lab=False,
+                is_cross_department=is_cross_dept,
+                room_requirements=effective_requirements(subject),
+            ))
+            return
+
+        reqs = effective_requirements(subject)
+        session_type = subject_session_type(subject)
+        block_lengths = self._lab_block_lengths()
+        block_length = (
+            block_lengths.get(subject.id)
+            if session_type == SessionType.LAB else None
+        )
+
+        def _mk(block_len):
+            s = SessionToSchedule(
+                subject_id=subject.id,
+                faculty_id=assignment.faculty_id,
+                student_group_id=assignment.group_id,
+                session_type=session_type,
+                requires_lab=subject.requires_lab,
+                is_cross_department=is_cross_dept,
+                block_length=block_len or 1,
+                room_requirements=reqs,
+            )
+            if parallel_batch_map:
+                s.parallel_batch_map = dict(parallel_batch_map)
+            return s
+
+        if block_length and block_length >= 2:
+            full_blocks, remainder = divmod(assignment.weekly_hours, block_length)
+            for _ in range(full_blocks):
+                sessions.append(_mk(block_length))
+            for _ in range(remainder):
+                sessions.append(_mk(1))
+        else:
+            for _ in range(assignment.weekly_hours):
+                sessions.append(_mk(1))
+
+    def _group_by_id(self, group_id: int):
+        if not hasattr(self, "_group_cache"):
+            self._group_cache: dict[int, StudentGroup] = {}
+        if group_id not in self._group_cache:
+            self._group_cache[group_id] = self.db.get(StudentGroup, group_id)
+        return self._group_cache[group_id]
+
+    def _derive_lab_batch_count(self, group_id: int) -> int:
+        """How many lab batches a division's practicals split into.
+
+        A profile ``lab_batches`` parameter overrides the college default,
+        which is derived from the group's year: FE (year 1) → 3 batches,
+        SE/TE/BE → 2 lab groups. ``1`` means no parallelisation (whole-division
+        practicals, the legacy behaviour).
+        """
+        raw = self._get_param("lab_batches", None)
+        if raw is not None:
+            try:
+                return int(raw)
+            except (TypeError, ValueError):
+                pass
+        group = self._group_by_id(group_id)
+        if group is not None and group.year == 1:
+            return 3
+        return 2
+
+    def _lab_batch_faculty(self, subject_id, group_id, base_faculty_id) -> list:
+        """Faculty ids, one per lab batch, for a (subject, group) practical.
+
+        Assignment rows with ``batch_number`` set are authoritative (the real
+        grids declare one faculty per batch, e.g. "Lab CG D1 D2 SuS/PD"). When
+        none are set, the batch count is derived from the group's year and the
+        remaining batches get the next faculty in the profile's pool
+        (deterministic, lowest id) — a system suggestion the college can
+        override by adding batched assignment rows.
+        """
+        rows = self.db.scalars(
+            select(SubjectAssignment).where(
+                SubjectAssignment.subject_id == subject_id,
+                SubjectAssignment.group_id == group_id,
+                SubjectAssignment.batch_number.isnot(None),
+            )
+        ).all()
+        if rows:
+            by_batch = {int(r.batch_number): r.faculty_id for r in rows if r.faculty_id}
+            if by_batch:
+                return [by_batch.get(b) for b in range(1, max(by_batch) + 1)]
+        count = self._derive_lab_batch_count(group_id)
+        if count <= 1:
+            return [base_faculty_id]
+        others = sorted(
+            f for f in self._get_profile_resources(ResourceType.FACULTY)
+            if f != base_faculty_id
+        )
+        return [base_faculty_id] + others[: count - 1]
+
+    def _expand_lab_batches(self, sessions: list[SessionToSchedule]) -> list[SessionToSchedule]:
+        """Turn whole-division lab blocks into per-batch parallel sessions.
+
+        Each lab block (a 2h contiguous session) becomes ``B`` sibling sessions
+        sharing a ``parallel_key`` — one per batch, each with its own faculty.
+        The greedy solver places siblings at the same time in distinct rooms
+        (see :meth:`_place_parallel_group`). Single-slot lab remainders and all
+        non-lab sessions pass through unchanged. OR-Tools does not call this
+        and keeps the whole-division model.
+        """
+        if self._is_exam_mode():
+            return sessions
+        expanded: list[SessionToSchedule] = []
+        for idx, s in enumerate(sessions):
+            if s.session_type == SessionType.LAB and s.block_length >= 2:
+                # A real period declares its batch->faculty map: expand to one
+                # session per batch (a distinct parallel group per period).
+                if s.parallel_batch_map and len(s.parallel_batch_map) >= 2:
+                    for b, fid in sorted(s.parallel_batch_map.items()):
+                        expanded.append(SessionToSchedule(
+                            subject_id=s.subject_id,
+                            faculty_id=fid,
+                            student_group_id=s.student_group_id,
+                            session_type=s.session_type,
+                            requires_lab=s.requires_lab,
+                            is_cross_department=s.is_cross_department,
+                            block_length=s.block_length,
+                            room_requirements=s.room_requirements,
+                            batch_number=b,
+                            parallel_key=("lab", idx),
+                        ))
+                    continue
+                # No per-batch map: derive faculty from the pool (auto batches).
+                facs = self._lab_batch_faculty(
+                    s.subject_id, s.student_group_id, s.faculty_id)
+                if len(facs) >= 2:
+                    for b, fid in enumerate(facs, start=1):
+                        expanded.append(SessionToSchedule(
+                            subject_id=s.subject_id,
+                            faculty_id=fid,
+                            student_group_id=s.student_group_id,
+                            session_type=s.session_type,
+                            requires_lab=s.requires_lab,
+                            is_cross_department=s.is_cross_department,
+                            block_length=s.block_length,
+                            room_requirements=s.room_requirements,
+                            batch_number=b,
+                            parallel_key=("lab", idx),
+                        ))
+                    continue
+            expanded.append(s)
+        return expanded
+
+    def _scan(self, session, working_days: list[int], slot_times: list) -> list[tuple]:
+        """Order the (day, slot) scan: gap criterion → soft preference → spread."""
+        scan = self._criterion_scan(session, working_days, slot_times)
+        if scan is None:
+            scan = self._preference_scan(session, working_days, slot_times)
+        if scan is None:
+            scan = self._group_balance_scan(session, working_days, slot_times)
+        return scan
+
+    def _parallel_rooms(self, group, day, slot_number, start_time, end_time,
+                        rooms, checker):
+        """Pick one distinct room per batch so the whole group can co-exist.
+
+        Each member's candidate must pass the full checker against the
+        committed slots (siblings are not committed yet, so they do not
+        conflict), the rooms must be distinct, and no two batches may share a
+        faculty. Returns ``[(session, room), ...]`` or ``None``.
+        """
+        options: list[tuple[SessionToSchedule, list]] = []
+        for session in group:
+            member_options = []
+            for room in rooms:
+                candidate = SlotCandidate(
+                    instance_id=self.instance_id,
+                    day_of_week=day,
+                    slot_number=slot_number,
+                    start_time=start_time,
+                    end_time=end_time,
+                    faculty_id=session.faculty_id,
+                    room_id=room.id,
+                    student_group_id=session.student_group_id,
+                    subject_id=session.subject_id,
+                    session_type=session.session_type,
+                    slot_date=self._materialize_slot_date(day),
+                    is_cross_department=session.is_cross_department,
+                    block_length=session.block_length,
+                    batch_number=session.batch_number,
+                )
+                if checker.is_valid(candidate):
+                    member_options.append((room, candidate))
+            if not member_options:
+                return None
+            options.append((session, member_options))
+        options.sort(key=lambda o: len(o[1]))
+
+        used_rooms: set[int] = set()
+        used_faculty: set = set()
+        chosen: list[tuple[SessionToSchedule, object]] = []
+
+        def backtrack(i: int) -> bool:
+            if i == len(options):
+                return True
+            session, member_options = options[i]
+            for room, _cand in member_options:
+                if room.id in used_rooms:
+                    continue
+                if session.faculty_id is not None and session.faculty_id in used_faculty:
+                    continue
+                used_rooms.add(room.id)
+                if session.faculty_id is not None:
+                    used_faculty.add(session.faculty_id)
+                chosen.append((session, room))
+                if backtrack(i + 1):
+                    return True
+                chosen.pop()
+                used_rooms.discard(room.id)
+                if session.faculty_id is not None:
+                    used_faculty.discard(session.faculty_id)
+            return False
+
+        return chosen if backtrack(0) else None
+
+    def _place_parallel_group(self, group, checker, working_days, slot_times,
+                              slot_lookup, max_slot_number) -> bool:
+        """Place all batches of a lab period at the same time in distinct rooms.
+
+        Returns True when placed. The whole division is occupied during the
+        window (every batch is in a lab), so NO_GROUP_DOUBLE_BOOK naturally
+        keeps other subjects out; max-one-lab-per-day falls out because the
+        division has no free student during any lab period.
+        """
+        base = group[0]
+        block_length = base.block_length
+        rooms = self._get_rooms(base.room_requirements)
+        if len(rooms) < len(group):
+            return False
+        if self.rng is not None:
+            rooms = list(rooms)
+            self.rng.shuffle(rooms)
+        for day, (slot_number, _st, _en) in self._scan(base, working_days, slot_times):
+            end_slot = slot_number + block_length - 1
+            if end_slot > max_slot_number:
+                continue
+            start_time = slot_lookup[slot_number][0]
+            end_time = slot_lookup[end_slot][1]
+            placement = self._parallel_rooms(
+                group, day, slot_number, start_time, end_time, rooms, checker)
+            if placement is None:
+                continue
+            slot_date = self._materialize_slot_date(day)
+            for session, room in placement:
+                for n in range(slot_number, end_slot + 1):
+                    n_start, n_end = slot_lookup[n]
+                    self.committed_slots.append(TimetableSlot(
+                        instance_id=self.instance_id,
+                        slot_date=slot_date,
+                        day_of_week=day,
+                        slot_number=n,
+                        start_time=n_start,
+                        end_time=n_end,
+                        faculty_id=session.faculty_id,
+                        room_id=room.id,
+                        student_group_id=session.student_group_id,
+                        subject_id=session.subject_id,
+                        session_type=session.session_type,
+                        is_manual_override=False,
+                        batch_number=session.batch_number,
+                    ))
+            return True
+        return False
+
     def _get_rooms(self, requirements: dict) -> list[Room]:
         room_ids = self._get_profile_resources(ResourceType.ROOM)
         rooms = self.db.scalars(
             select(Room).where(Room.id.in_(room_ids), Room.is_active == True)
         ).all()
-        return [r for r in rooms if room_matches_requirements(r, requirements)[0]]
+        matching = [r for r in rooms if room_matches_requirements(r, requirements)[0]]
+        # Preferred_rooms (profile param): order the class's real venue rooms
+        # first so sessions land in the same rooms the college uses, not the
+        # first arbitrary room in the pool.
+        preferred = self._get_param("preferred_rooms", None)
+        if preferred:
+            try:
+                pref_set = {int(r) for r in preferred}
+            except (TypeError, ValueError):
+                pref_set = set()
+            matching.sort(key=lambda r: (0 if r.id in pref_set else 1, r.id))
+        return matching
 
     # ── main loop ────────────────────────────────────────────
     def _criterion_peer_attr(self) -> str | None:
@@ -574,6 +858,10 @@ class GreedySolver:
             hard_constraints=self._load_hard_constraints(),
         )
         sessions = self._build_sessions()
+        # Lab practicals split into per-batch parallel sessions (DD-024). The
+        # expansion is greedy-only: OR-Tools overrides solve() and keeps the
+        # whole-division CP-SAT model.
+        sessions = self._expand_lab_batches(sessions)
         working_days = self._get_working_days()
         slot_times = self._build_slot_times()
         slot_lookup = {sn: (st, en) for sn, st, en in slot_times}
@@ -587,7 +875,28 @@ class GreedySolver:
             self.rng.shuffle(slot_times)
         unscheduled: list[SessionToSchedule] = []
 
+        # Parallel groups are the most constrained (they consume B rooms and
+        # the whole division at once): place them before anything else, then
+        # let any group that could not find a parallel window degrade to the
+        # normal single-session path rather than being dropped.
+        parallel_groups: dict = {}
+        normal_sessions: list[SessionToSchedule] = []
         for session in sessions:
+            if session.parallel_key is not None:
+                parallel_groups.setdefault(session.parallel_key, []).append(session)
+            else:
+                normal_sessions.append(session)
+        failed_groups: list[list] = []
+        for group in parallel_groups.values():
+            if not self._place_parallel_group(
+                group, checker, working_days, slot_times,
+                slot_lookup, max_slot_number,
+            ):
+                failed_groups.append(group)
+
+        for session in normal_sessions + [
+            member for group in failed_groups for member in group
+        ]:
             placed = False
             rooms = self._get_rooms(session.room_requirements)
             if self.rng is not None:
@@ -600,11 +909,7 @@ class GreedySolver:
             # preferences so the default greedy solver pursues them too.
             # Everything else spreads each class across the week (least-loaded
             # day first) instead of packing all sessions into the earliest days.
-            scan = self._criterion_scan(session, working_days, slot_times)
-            if scan is None:
-                scan = self._preference_scan(session, working_days, slot_times)
-            if scan is None:
-                scan = self._group_balance_scan(session, working_days, slot_times)
+            scan = self._scan(session, working_days, slot_times)
             for day, (slot_number, _start_time, _end_time) in scan:
                 if placed:
                     break
@@ -628,6 +933,7 @@ class GreedySolver:
                         slot_date=self._materialize_slot_date(day),
                         is_cross_department=session.is_cross_department,
                         block_length=session.block_length,
+                        batch_number=session.batch_number,
                     )
                     if checker.is_valid(candidate):
                         slot_date = self._materialize_slot_date(day)
@@ -646,6 +952,7 @@ class GreedySolver:
                                 subject_id=session.subject_id,
                                 session_type=session.session_type,
                                 is_manual_override=False,
+                                batch_number=session.batch_number,
                             ))
                         placed = True
                         break

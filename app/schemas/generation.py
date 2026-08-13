@@ -67,6 +67,7 @@ class SlotResponse(BaseModel):
     faculty_id: Optional[int] = None
     room_id: Optional[int] = None
     student_group_id: Optional[int] = None
+    batch_number: Optional[int] = None
     session_type: SessionType
     is_manual_override: bool
     override_reason: Optional[str] = None

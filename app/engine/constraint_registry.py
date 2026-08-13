@@ -510,11 +510,37 @@ def _no_group_double_book(candidate, committed, config, ctx) -> Optional[str]:
             and s.day_of_week == candidate.day_of_week
             and s.slot_number in candidate.slot_numbers
         ):
+            # A parallel practical splits the division into batches that all
+            # run at the same time in different rooms. The division is one
+            # session during that window, so a candidate batch must not clash
+            # with a *different* session — but its own sibling batches are the
+            # same session and are allowed.
+            if _is_parallel_sibling(candidate, s):
+                continue
             return (
                 f"group {candidate.student_group_id} already scheduled "
                 f"day {candidate.day_of_week} slot {s.slot_number}"
             )
     return None
+
+
+def _is_parallel_sibling(candidate, committed_slot) -> bool:
+    """Whether a committed slot is the same parallel lab period as the candidate.
+
+    True when both carry a batch number and share group, day, overlapping
+    slots, and subject — i.e. batch 2 of the same 2h practical running beside
+    batch 1, not a genuinely different session for the group.
+    """
+    if candidate.batch_number is None:
+        return False
+    if getattr(committed_slot, "batch_number", None) is None:
+        return False
+    return (
+        committed_slot.student_group_id == candidate.student_group_id
+        and committed_slot.day_of_week == candidate.day_of_week
+        and committed_slot.subject_id == candidate.subject_id
+        and committed_slot.slot_number in candidate.slot_numbers
+    )
 
 
 def _published_conflict_for(candidate, ctx, resource_key, attr, label) -> Optional[str]:
@@ -557,6 +583,11 @@ def _room_capacity_sufficient(candidate, committed, config, ctx) -> Optional[str
     room = ctx.room(candidate.room_id)
     group = ctx.group(candidate.student_group_id)
     if room and group and room.capacity < group.strength:
+        # A parallel practical only fills the batch occupying this room (a
+        # ~35-student group in a lab), not the whole division, so the
+        # division-strength comparison does not apply to batch slots.
+        if candidate.batch_number is not None:
+            return None
         return (
             f"room {room.name} capacity {room.capacity} "
             f"< group strength {group.strength}"
@@ -682,9 +713,41 @@ def _same_subject_same_day(candidate, committed, config, ctx) -> Optional[str]:
             and s.student_group_id == candidate.student_group_id
             and s.day_of_week == candidate.day_of_week
         ):
+            if _is_parallel_sibling(candidate, s):
+                continue
             return (
                 f"subject {candidate.subject_id} already scheduled for group "
                 f"{candidate.student_group_id} on day {candidate.day_of_week}"
+            )
+    return None
+
+
+@hard_rule("MAX_ONE_LAB_PER_DAY")
+def _max_one_lab_per_day(candidate, committed, config, ctx) -> Optional[str]:
+    """At most one practical (LAB) subject per group per day.
+
+    config: ``{"group_id"?: int}`` — narrows to one group. A candidate LAB
+    session is rejected when the group already has any LAB session that day
+    (sibling batches of the same parallel practical are skipped, matching
+    NO_GROUP_DOUBLE_BOOK). Real rule (founder + TE/FE grids): each batch does
+    at most one practical subject per day.
+    """
+    config = config or {}
+    group_id = config.get("group_id")
+    if group_id is not None and candidate.student_group_id != group_id:
+        return None
+    if candidate.session_type != "LAB" or candidate.student_group_id is None:
+        return None
+    for s in committed:
+        if (
+            s.student_group_id == candidate.student_group_id
+            and s.day_of_week == candidate.day_of_week
+            and (s.session_type or "").upper() == "LAB"
+            and not _is_parallel_sibling(candidate, s)
+        ):
+            return (
+                f"group {candidate.student_group_id} already has a practical "
+                f"on day {candidate.day_of_week}"
             )
     return None
 
@@ -723,3 +786,4 @@ hard_rule("LAB_BATCH_ROTATION")(_lab_batch_rotation)
 hard_rule("HOLIDAY_CALENDAR")(_holiday_calendar)
 hard_rule("EXAM_DATE_SEPARATION")(_exam_date_separation)
 hard_rule("CONTIGUOUS_LAB_SLOTS")(_contiguous_lab_slots)
+hard_rule("MAX_ONE_LAB_PER_DAY")(_max_one_lab_per_day)

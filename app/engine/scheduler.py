@@ -390,7 +390,9 @@ class Scheduler:
         """
         if not slots:
             return 0
-        ordered = sorted(slots, key=lambda s: (s.day_of_week or 0, s.slot_number))
+        ordered = sorted(
+            slots, key=lambda s: (s.day_of_week or 0, s.batch_number or 0, s.slot_number)
+        )
         blocks: list[list] = []
         for slot in ordered:
             if blocks:
@@ -427,6 +429,7 @@ class Scheduler:
                 slot_date=first.slot_date,
                 is_cross_department=False,
                 block_length=len(block),
+                batch_number=first.batch_number,
             )
             checker = ConstraintChecker(
                 self.db, others, settings=get_settings(self.db),
