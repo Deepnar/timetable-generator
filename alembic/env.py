@@ -21,7 +21,7 @@ config.set_main_option(
         host=settings.DB_HOST,
         port=settings.DB_PORT,
         database=settings.DB_NAME,
-    ).render_as_string(hide_password=True),
+    ).render_as_string(hide_password=False),
 )
 
 if config.config_file_name is not None:
