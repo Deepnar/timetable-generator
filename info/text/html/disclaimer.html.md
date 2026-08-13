@@ -1,0 +1,12 @@
+TCET - Thakur College Of Engineering and TechnologyTop
+[IMG: disclaimer]
+
+## Web Disclaimer
+
+ All information provided in www.tcetmumbai.in is provided for information purposes only and does not constitute a legal contract between the Institute and any person or entity unless otherwise specified. Information on www.tcetmumbai.in website is subject to change without prior notice. Although every reasonable effort is made to present current and accurate information, the Thakur College of Engineering & Technology makes no guarantee of any kind.
+
+ The Thakur College of Engineering & Technology website may contain information that is created and maintained by a variety of sources both internal and external to the Institute. The copyrighted matters appearing on www.tcetmumbai.in belong to Thakur College of Engineering & Technology, and any reproduction or use of the same for gain or commercial utilization without prior written permission amounts to infringement of the copyrighted matters appearing on the above website, under Copyright Act, 1957.
+
+## E-Mail Disclaimer
+
+ The information contained in the email of username@thakureducation.org is confidential and may contain proprietary information. It is meant solely for the intended recipient. Access to this email by anyone else is unauthorized. If you are not the intended recipient, any disclosure, copying, distribution or any action taken or omitted in reliance on this, is prohibited and would be unlawful. No liability or responsibility is accepted if information or data is, for whatever reason corrupted or does not reach its intended recipient. If you have received this message in error, please notify the sender immediately, and delete this email from your system. No warranty is given that this email is free of viruses. The views expressed in this email are, unless otherwise stated, those of the author and not those of Thakur Education Group or its management.Thakur Education Group reserves the right to monitor, intercept and block emails addressed to its users or take any other action in accordance with its email use policy. If you consider the contents of the mails inappropriate or as spam, please forward this mail to spam@thakureducation.org

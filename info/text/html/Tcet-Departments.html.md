@@ -1,0 +1,4 @@
+TCET - Thakur College Of Engineering and TechnologyTop
+
+##  Programmes - Engineering & Technology
+[B.E. Computer Engineering](deptCompEngineering-home.html)[B.E. Information Technology](deptInformationTechnology-home.html)[B.E. Electronics & Tele-Communication](deptEXTC-home.html)[B.E - Electronics and Computer Science](deptElectronicEngg-home.html)[ B.E - Mechanical Engineering](deptmechanical-home.html)[B.E. Civil Engineering](deptcivilengg-home.html)[B.E. Computer Science and Engineering (Cyber Security)](CSE)[B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing) ](MME)[B.Tech – Artificial Intelligence & Machine Learning](AIML)[B.Tech – Artificial Intelligence & Data Science](AI&DS)[B.Tech – Internet of Things (IoT)](IOT)

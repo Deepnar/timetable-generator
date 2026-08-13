@@ -50,6 +50,10 @@ sample/
 
 # TCET website crawl archives (raw downloads + extracted text incl. result
 # registers with student names) — local-only; the committed info/ docs carry
-# the structure, not the personal data.
+# the structure, not the personal data. text/html (plain page conversions)
+# is committed so doc references to source pages resolve; pdf/drive/ocr
+# extraction stay local (they include result registers).
 info/raw/
-info/text/
+info/text/pdf/
+info/text/drive/
+info/text/ocr/

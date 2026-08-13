@@ -1,0 +1,224 @@
+TCET - Thakur College Of Engineering and TechnologyTop
+
+### BE - COMP A A.Y 2023-24
+
+| Sr.No | DIV | ROLL NO | Name of the Candidate |
+| 1 | COMP-A | 1 | Acharekar Shubham |
+| 2 | COMP-A | 2 | Agarwal Himanshu Sunil |
+| 3 | COMP-A | 3 | Agarwal Naman Vipin |
+| 4 | COMP-A | 4 | Agarwal Vinit Anup |
+| 5 | COMP-A | 5 | Agrawal Ishir Kamal |
+| 6 | COMP-A | 6 | Agrawal Nitesh Kuldeep |
+| 7 | COMP-A | 7 | Ansari Anam Shamsad |
+| 8 | COMP-A | 8 | Asopa Khushi Pawan |
+| 9 | COMP-A | 9 | Badhan Atharva Shashikant |
+| 10 | COMP-A | 10 | Bajaj Anmol Kamalnayan |
+| 11 | COMP-A | 11 | Bhat Shweta Ajit |
+| 12 | COMP-A | 12 | Bhatia Harsh Mukesh |
+| 13 | COMP-A | 13 | Bodhankar Amruta Sarang |
+| 14 | COMP-A | 14 | Chaturvedi Hemandra Shailesh |
+| 15 | COMP-A | 15 | Chaubey Hemant Rajendra |
+| 16 | COMP-A | 16 | Chaudhary Aaman Asfaq |
+| 17 | COMP-A | 17 | Chauhan Dhiraj Kumar |
+| 18 | COMP-A | 18 | Chaurasiya Aakash Anil |
+| 19 | COMP-A | 19 | Chetty Maanav Sanjeev |
+| 20 | COMP-A | 20 | Choudhary Dheeraj Rajnish |
+| 21 | COMP-A | 21 | Choudhary Shlok Salil |
+| 22 | COMP-A | 22 | Churi Mahima Rajesh |
+| 23 | COMP-A | 23 | Dabade Aniket Hanmant |
+| 24 | COMP-A | 24 | Dakhera Sanidhya Pavan |
+| 25 | COMP-A | 25 | Om Dalal Anandkumar |
+| 26 | COMP-A | 26 | Dange Rutuja Prakash |
+| 27 | COMP-A | 27 | Dedhia Dhwani Bhavesh |
+| 28 | COMP-A | 28 | Deora Rishikesh Pravin |
+| 29 | COMP-A | 29 | Gore Soham Sunil |
+| 30 | COMP-A | 30 | Dhakan Parth Ashish |
+| 31 | COMP-A | 31 | Dixit Shiv Hemant |
+| 32 | COMP-A | 32 | Dodia Mitanshu Suresh |
+| 33 | COMP-A | 33 | Dubey Adarsh Ramesh |
+| 34 | COMP-A | 34 | Dubey Amankumar Sushil |
+| 35 | COMP-A | 35 | Dubey Sachin Shivbachan |
+| 36 | COMP-A | 36 | Dubey Simmi Krishnakumar |
+| 37 | COMP-A | 37 | Dubey Vijay Rajesh |
+| 38 | COMP-A | 38 | Dubey Yash Sujitkumar |
+| 39 | COMP-A | 39 | Gavande Kartik Hemant |
+| 40 | COMP-A | 40 | Rushikesh Pratap Gharat |
+| 41 | COMP-A | 41 | Ginimav Ruchika Chandrashekar |
+| 42 | COMP-A | 42 | Gopal Vandita Vinay |
+| 43 | COMP-A | 43 | Gujar Arjun Avinash |
+| 44 | COMP-A | 44 | Gujar Samruddhi Shankar |
+| 45 | COMP-A | 45 | Gupta Ashish Chouthi |
+| 46 | COMP-A | 46 | Gupta Khushi Santosh |
+| 47 | COMP-A | 47 | Gupta Rohit Rupesh |
+| 48 | COMP-A | 48 | Gupta Saishivam Gangaram |
+| 49 | COMP-A | 49 | Saiyam Gupta - |
+| 50 | COMP-A | 50 | Gupta Suresh Shambhoonath |
+| 51 | COMP-A | 51 | Jadhao Chaitanya Mahesh |
+| 52 | COMP-A | 52 | Jadhav Sahil Shashank |
+| 53 | COMP-A | 53 | Jagani Amit Dhruvi |
+| 54 | COMP-A | 54 | Jain Siddhant Anil |
+| 55 | COMP-A | 55 | Jain Vinit Gautam |
+| 56 | COMP-A | 56 | Jain Yash Mahendra |
+| 57 | COMP-A | 57 | Jaiswal Aman Kanaiyalal |
+| 58 | COMP-A | 58 | Jaiswal Anup Chhotelal |
+| 59 | COMP-A | 59 | Jaiswal Sandesh Rajendraprasad |
+| 60 | COMP-A | 60 | Jaiswal Siddesh Chhedilal |
+| 61 | COMP-A | 61 | Jaiswar Aman Jeet |
+| 62 | COMP-A | 62 | Jaiswar Anand Arvind |
+| 63 | COMP-A | 63 | Jani Hiteshu Kirankumar |
+| 64 | COMP-A | 64 | Jha Pawankumar Anil |
+| 65 | COMP-A | 65 | Zakir Ashraf Darvesh |
+| 66 | COMP-A | 66 | Parth Sunil Bhosale |
+| 67 | COMP-A | 67 | Chaudhary Vishal Arun |
+| 68 | COMP-A | 68 | Dubey Kaushik Virendrakumar |
+| 69 | COMP-A | 69 | Modi Devshri Naresh |
+| 70 | COMP-A | 70 | Padhye Pranav - |
+| 71 | COMP-A | 71 | Pandey Harsh Harimridul |
+
+### BE - COMP B A.Y 2023-24
+
+| Sr.No | DIV | ROLL NO | Name of the Candidate |
+| 1 | COMP-B | 1 | Jha Aayushi Ajay |
+| 2 | COMP-B | 2 | Jha Harsh Rajesh |
+| 3 | COMP-B | 3 | Jha Sourabh Hemant |
+| 4 | COMP-B | 4 | Kadam Sahil Chandrakant |
+| 5 | COMP-B | 5 | Karthik Santosh Kaimaparambil |
+| 6 | COMP-B | 6 | Kale Yash Sanjay |
+| 7 | COMP-B | 7 | Kalra Eshan Gulveersingh |
+| 8 | COMP-B | 8 | Kandu Vishal Awadesh |
+| 9 | COMP-B | 9 | Karanpuria Kanishk Rajneesh |
+| 10 | COMP-B | 10 | Keni Tejas Purushottam |
+| 11 | COMP-B | 11 | Kulkarni Ankur Parag |
+| 12 | COMP-B | 12 | Kuril Vinod Kumar |
+| 13 | COMP-B | 13 | Kushwaha Ankush Prabhunath |
+| 14 | COMP-B | 14 | Langi Parth Prashant |
+| 15 | COMP-B | 15 | Mandre Vedika Rajnish |
+| 16 | COMP-B | 16 | Mane Ishaan Arun |
+| 17 | COMP-B | 17 | Maurya Ankit Kanchan |
+| 18 | COMP-B | 18 | Maurya Omkar Vinodkumar |
+| 19 | COMP-B | 19 | Mazgaonkar Raj Pradnyan |
+| 20 | COMP-B | 21 | Mishra Ankit Ramji |
+| 21 | COMP-B | 22 | Mishra Harsh Surendra |
+| 22 | COMP-B | 23 | Mishra Harshita Ramesh |
+| 23 | COMP-B | 24 | Nandkishore Mishra - |
+| 24 | COMP-B | 25 | Mishra Shivam Chandra |
+| 25 | COMP-B | 26 | Mishra Suraj Ghanshyam |
+| 26 | COMP-B | 27 | Modi Dhara Nitin |
+| 27 | COMP-B | 28 | Mogare Aditya Prasanna |
+| 28 | COMP-B | 29 | Moolya Roshan Vittala |
+| 29 | COMP-B | 30 | More Yash Rajesh |
+| 30 | COMP-B | 31 | Mourya Sandeep Rajkumar |
+| 31 | COMP-B | 32 | Nair Shrenik Sasidharan |
+| 33 | COMP-B | 33 | Nair Tejas Ajit |
+| 34 | COMP-B | 34 | Nambiar Kartik Vinod |
+| 34 | COMP-B | 35 | Nanra Taranveer Kaur |
+| 35 | COMP-B | 36 | Padam Gaurav Kuldeepsingh |
+| 36 | COMP-B | 37 | Pal Akash Jiledar |
+| 37 | COMP-B | 38 | Pal Anujkumar Suresh |
+| 38 | COMP-B | 39 | Pal Nikhil Jayprakash |
+| 39 | COMP-B | 40 | Chirag Paliwal |
+| 40 | COMP-B | 41 | Pandey Adityavikram Abhaychandra |
+| 41 | COMP-B | 42 | Pandey Ayush Ramesh |
+| 42 | COMP-B | 43 | Pandey Pratik Kamlesh |
+| 43 | COMP-B | 44 | Pandey Puneet Suryakant |
+| 44 | COMP-B | 45 | Pandey Vivek Narendra |
+| 45 | COMP-B | 46 | Pandey Vivekanand Shriprakash |
+| 46 | COMP-B | 47 | Pandit Kanak Anand |
+| 47 | COMP-B | 48 | Pandit Mrutunjay Vishnukumar |
+| 48 | COMP-B | 49 | Parmar Dipesh Manoj |
+| 49 | COMP-B | 50 | Patel Anand Munna |
+| 50 | COMP-B | 51 | Pathak Vinit Shashiprakash |
+| 51 | COMP-B | 52 | Patil Jyeshtha Nandkumar |
+| 52 | COMP-B | 53 | Vaishnav Santosh Patil |
+| 53 | COMP-B | 54 | Pol Vedant Tanaji |
+| 54 | COMP-B | 55 | Prajapati Aditya Bhajanram |
+| 55 | COMP-B | 56 | Prajapati Anisha Ramdas |
+| 56 | COMP-B | 57 | Prajapati Dhwani Shantilal |
+| 57 | COMP-B | 58 | Rai Aditya Ajay |
+| 58 | COMP-B | 59 | Rai Himanshu Santosh Kumar |
+| 59 | COMP-B | 60 | Rai Shashank Sanjay |
+| 60 | COMP-B | 61 | Rai Sudhanshu Vivek |
+| 61 | COMP-B | 62 | Rajak Rajbeer Rohit |
+| 62 | COMP-B | 64 | Rawat Vishal Mahipal |
+| 63 | COMP-B | 65 | Desai Raj Vithal |
+| 64 | COMP-B | 66 | Nishad Aruna Ramsevak |
+| 65 | COMP-B | 67 | Patil Rina Dilip |
+| 66 | COMP-B | 68 | Patil Rohit Mangesh |
+| 67 | COMP-B | 69 | Qureshi Abdur Razzaq |
+| 68 | COMP-B | 70 | Aditi Keyur Shah |
+| 69 | COMP-B | 71 | Singh Ananya Rakesh |
+| 70 | COMP-B | 72 | Singh Harsh Anil |
+
+### BE - COMP C A.Y 2023-24
+
+| Sr.No | DIV | ROLL NO | Name of the Candidate |
+| 1 | COMP-C | 1 | Sadiwala Siddh Vipul |
+| 2 | COMP-C | 2 | Sah Aneeshkumar Sriniwash |
+| 3 | COMP-C | 3 | Sahib Bhat Himanshu Raj |
+| 4 | COMP-C | 4 | Sakalle Rudransh Neeraj |
+| 5 | COMP-C | 5 | Sankhe Srushti Nitin |
+| 6 | COMP-C | 6 | Sawant Mugdha Mahesh |
+| 7 | COMP-C | 7 | Saygaonkar Aaryan Prasanna |
+| 8 | COMP-C | 8 | Shah Kartik A |
+| 9 | COMP-C | 9 | Shah Samkit Jignesh |
+| 10 | COMP-C | 10 | Shaikh Subhan Khurshidali |
+| 11 | COMP-C | 11 | Shaikh Sumaiya Javed |
+| 12 | COMP-C | 12 | Sharma Abhishek Panchlal |
+| 13 | COMP-C | 13 | Sharma Ashutosh Avanish |
+| 14 | COMP-C | 14 | Sharma Jayesh Jayprakash |
+| 15 | COMP-C | 15 | Sharma Sakshi Sanjay |
+| 16 | COMP-C | 16 | Vinit Deepak Sharma |
+| 17 | COMP-C | 17 | Shetty Ananya Brijesh |
+| 18 | COMP-C | 18 | Shetty Karthik Subhash |
+| 19 | COMP-C | 19 | Shetty Sparsha Lava |
+| 20 | COMP-C | 20 | Shirsat Pranali Balasaheb |
+| 21 | COMP-C | 21 | Aman Shrivastav |
+| 22 | COMP-C | 22 | Shrivastava Priyam Rajesh |
+| 23 | COMP-C | 23 | Shukla Rajan Rakesh |
+| 24 | COMP-C | 24 | Siddique Abdul Samad |
+| 25 | COMP-C | 25 | Siddique Rahil Rashid |
+| 26 | COMP-C | 26 | Singh Aastha Dhirendra |
+| 27 | COMP-C | 27 | Singh Ashish Manjit |
+| 28 | COMP-C | 28 | Singh Chandrabhan Kailash |
+| 29 | COMP-C | 29 | Singh Hardik Ravikant |
+| 30 | COMP-C | 30 | Singh Ronak Rajesh |
+| 31 | COMP-C | 31 | Singh Satyam Devendra |
+| 32 | COMP-C | 32 | Singh Siddharth Manish Kumar |
+| 33 | COMP-C | 33 | Vikrant Singh - |
+| 34 | COMP-C | 34 | Sinha Yash Sunil |
+| 35 | COMP-C | 35 | Soni Aditya Ramesh |
+| 36 | COMP-C | 36 | Soni Hariom Devraj |
+| 37 | COMP-C | 37 | Sour Gurmat Singh |
+| 38 | COMP-C | 38 | Surve Ayushi Naresh |
+| 39 | COMP-C | 39 | Thakur Digvijay Mahesh |
+| 40 | COMP-C | 40 | Tiwari Achyutmanas Manoj |
+| 41 | COMP-C | 41 | Adityanarayan Shrikrishnakant Tiwari |
+| 42 | COMP-C | 42 | Tiwari Asimvaibhav Vinod |
+| 43 | COMP-C | 43 | Tiwari Hrishikesh Akhilesh |
+| 44 | COMP-C | 44 | Upadhyay Yash Jayshankar |
+| 45 | COMP-C | 45 | Vaghasiya Maitri Jitendrabhai |
+| 46 | COMP-C | 46 | Vaghasiya Yashvi Bhavesh |
+| 47 | COMP-C | 47 | Vala Jenil Ashok |
+| 48 | COMP-C | 48 | Vishwakarma Abhay Ramshiromani |
+| 49 | COMP-C | 49 | Vishwakarma Ankit Santosh |
+| 50 | COMP-C | 50 | Vishwakarma Jatin Sanjay |
+| 51 | COMP-C | 51 | Vishwakarma Saurabh Mahesh |
+| 52 | COMP-C | 52 | Vora Diya Chirag |
+| 53 | COMP-C | 53 | Yadav Aditya Ramesh |
+| 54 | COMP-C | 54 | Yadav Ankit Saheblal |
+| 55 | COMP-C | 55 | Yadav Dhiraj Rakesh |
+| 56 | COMP-C | 56 | Yadav Harsh Kankan |
+| 57 | COMP-C | 57 | Yadav Kanishk Vijay |
+| 58 | COMP-C | 58 | Yadav Khushi Radheshyam |
+| 59 | COMP-C | 59 | Yadav Manish - |
+| 60 | COMP-C | 60 | Yadav Prateek Ramjee |
+| 61 | COMP-C | 61 | Yadav Rohan Dilipkumar |
+| 62 | COMP-C | 62 | Yadav Shubham Chotelal |
+| 63 | COMP-C | 63 | Yadav Vishal Satyanarayan |
+| 64 | COMP-C | 65 | Rajkumar Siddakdeepsingh Simerjitsingh |
+| 65 | COMP-C | 66 | Janhvi Sherbahadur Singh |
+| 66 | COMP-C | 67 | - Singh Shyam Sanjay |
+| 67 | COMP-C | 68 | - - Singh Siddhant Sanjeev |
+| 68 | COMP-C | 69 | Yadav Aksh Devendrakumar |
+| 69 | COMP-C | 70 | Yadav Neha Madanlal |
+| 70 | COMP-C | 71 | Yadav Ritik Kumar |
