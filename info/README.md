@@ -89,6 +89,7 @@ info/
 | **UG class timetables** | ✅ 55 divisions (COMP SE/TE/BE A–D, AI&ML, E&CS, EXTC, CIVIL, MECH, IT, BCA, MCA, MBA + HNS SIP) | `03-timetables/class/UG/` |
 | PG class timetables | ✅ ME-COMP, ME-IT (faculty-subject maps) | `03-timetables/class/README.md` |
 | Exam timetables | ✅ Sept 2026 in-semester II (all BE/B.T. branches + MBA/BBA, vision-verified tables) + ISA ATKT + FE supplementary (two-stream note) | `03-timetables/exam/` |
+| **Machine-readable import JSON** | ✅ 9 files per `import-format.md` (departments, faculty, subjects, rooms, groups, assignments, grids, timetables×46, calendar) | `import/` (+ generator `scripts/generate_tcet_import.py`) |
 | Courses per semester | ✅ from 560 result registers, branch names normalized (28 sections) | `05-courses-and-results.md` |
 | Syllabi / schemes | ⚠️ ME syllabi + per-dept syllabus pages exist; full UG syllabus PDFs are scattered | `02-departments/*/syllabus.md` |
 | NIRF data | ⚠️ submission forms + report scans (2016–2026); rank numbers are inside image PDFs | `06-notices-reports-nirf.md` |
@@ -111,7 +112,7 @@ info/
 
 | Type | What | Location |
 |---|---|---|
-| UG class timetables (AY 2026-27 odd sem, W.E.F. 06/07/2026) | SE/TE/BE COMP A–D (12), AI&ML ST-A/B/C, TT, BT, E&CS SE/TE/BE, EXTC SE-A/B, TE-A/B, BE-A/B, CIVIL SE/TE/BE, MECH, IT (10), BCA SY/TY, MCA SY, MBA FIN/OP/HR/MKT | `03-timetables/class/UG/` |
+| UG class timetables (AY 2026-27 odd sem, W.E.F. 06/07/2026) | SE/TE COMP A–D, BE COMP A–C (11), AI&ML ST-A/B/C, TT, BT, E&CS SE/TE/BE, EXTC SE-A/B, TE-A/B, BE-A/B, CIVIL SE/TE/BE, MECH, IT (10), BCA SY/TY, MCA SY, MBA FIN/OP/HR/MKT | `03-timetables/class/UG/` |
 | HNS / SIP induction timetables | SIP Week 1/2/3 + Group 1/2 class timetables (FE) | `03-timetables/class/UG/humanities-sciences/` |
 | PG class timetables | ME-COMP SEM II (subject→faculty map), ME-IT SEM II | `03-timetables/class/README.md` |
 | Exam timetables 2026 | In-sem I/II, mid-term, supplementary (July 2026), ISA ATKT | `03-timetables/exam/README.md` |

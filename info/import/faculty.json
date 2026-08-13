@@ -1,0 +1,968 @@
+{
+ "faculty": [
+  {
+   "name": null,
+   "initials": [
+    "AA"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "AAD"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "AB"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Ankush Biradar; Dr. Asha Bhave; Ms. Anvita Birje"
+  },
+  {
+   "name": null,
+   "initials": [
+    "AD"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Mr. Ashish Dwivedi; Ms. Archana Deshpande"
+  },
+  {
+   "name": null,
+   "initials": [
+    "ADM"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "ADSA"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "AIML"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "AM"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Mr. Anand A. Maha; Ms. Amruta Malali"
+  },
+  {
+   "name": null,
+   "initials": [
+    "AMP"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "ANS"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Mr. Ansari Shakeel; Ms. Anamika Singh"
+  },
+  {
+   "name": null,
+   "initials": [
+    "AP"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Ashwin Pathak; Mr. Avinash Prajapati; Ms. Abhilasha Patil"
+  },
+  {
+   "name": null,
+   "initials": [
+    "APM"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "ARS"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "AS"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Mr. Ansari Shakeel; Ms. Aafiya Siddiqui; Ms. Anamika Singh"
+  },
+  {
+   "name": null,
+   "initials": [
+    "ATD"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "AVR"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "AW"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "CB"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "CCF"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "CG"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "CNS"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "COA"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "COGC"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "CP"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "CSS"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "DA"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "DME"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "DMS"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "DSA"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "EDC"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "FM"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "HPK"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "IEM"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "IIS"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "IOT"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "IS"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "JAVA"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "JB"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "JKP"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "JM"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "KG"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "KOM"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "MCA"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "MS"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Mahendra Shelar; Mr. Manoj Sharma; Mr. Mukesh Singh"
+  },
+  {
+   "name": null,
+   "initials": [
+    "NB"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Namdeo Badhe; Ms. Nidhi Bhavsar"
+  },
+  {
+   "name": null,
+   "initials": [
+    "NEP"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Neeta P. Patil; Dr. Neha Patwari"
+  },
+  {
+   "name": null,
+   "initials": [
+    "NLP"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "NP"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Neeta P. Patil; Dr. Neha Patwari"
+  },
+  {
+   "name": null,
+   "initials": [
+    "OK"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "OOPM"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "PD"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Ms. Pratiksha Deshmukh; Ms. Priyanka Deshmukh"
+  },
+  {
+   "name": null,
+   "initials": [
+    "PEII"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "PK"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Mr. Prajual Kotian; Ms. Prajakta Kamble; Ms. Pranjali Kasture"
+  },
+  {
+   "name": null,
+   "initials": [
+    "PP"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Preksha Pareek; Ms. Prisha Pimple"
+  },
+  {
+   "name": null,
+   "initials": [
+    "RB"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Rajesh Bansode; Dr. Rajni Bahuguna; Ms. Roshani Baikar"
+  },
+  {
+   "name": null,
+   "initials": [
+    "RD"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "RE"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "RK"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "RP"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Mr. Rahul Pandey; Mr. Rishi Pandey"
+  },
+  {
+   "name": null,
+   "initials": [
+    "RSD"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "RSH"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "SAS"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Satish Kumar Singh; Mr. Samir Sawant"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SB"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Sainath Bhavsar; Dr. Sultana Begam; Mr. Swapnil Bhagat"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SC"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Savita Chandel; Mr. Sachin Chaubey; Mr. Shailesh Chavan"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SCP"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "SD"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Sanmati Dhanawade; Dr. Siddesh Doddametikurke; Mr. Santanu Das"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SET"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "SJ"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Seema Jagtap; Mrs. Deepali Joshi; Mrs. Jagruti Jadhav"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SK"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Sneha Khandait; Dr. Sukruti Kaulgud; Mr. Sachin Karape"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SKH"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "SM"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Sangeeta Mishra; Mr. Sudhir Mundhra; Mrs. Shilpa Mathur"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SN"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Mr. Sandeep Nishad; Mr. Shubham Nishad"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SP"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Sunita Pachori; Mr. Sandeep Padloskar; Mr. Shivram Poojari"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SS"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Satish Kumar Singh; Dr. Shailendra Shastri; Dr. Shailesh Sangle"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SSH"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "SUS"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Suchitra Nirudas Sapakal; Mr. Suraj Singh"
+  },
+  {
+   "name": null,
+   "initials": [
+    "SV"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Mr. Sushil Vichare; Mrs. Chitralekha Vangale; Mrs. Mary Margarat V"
+  },
+  {
+   "name": null,
+   "initials": [
+    "TBRM"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "TOC"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "TRPW"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "VB"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "VH"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "VN"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Dr. Vaishali Nirgude; Mr. Vikas Nagve"
+  },
+  {
+   "name": null,
+   "initials": [
+    "VNS"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "VS"
+   ],
+   "_note": "ambiguous initial — multiple candidates in glossary",
+   "candidates": "Cdr. Vijay Pratap Singh; Mr. Vikas Singh; Mr. Vinod Salunkhe"
+  },
+  {
+   "name": null,
+   "initials": [
+    "VY"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "WE"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": null,
+   "initials": [
+    "WP"
+   ],
+   "_note": "unresolved initial",
+   "candidates": null
+  },
+  {
+   "name": "Mr. Atul Chaturvedi",
+   "initials": [
+    "AC"
+   ],
+   "department_code": "ES&H"
+  },
+  {
+   "name": "Ms. Aruta Jayswal",
+   "initials": [
+    "AJ"
+   ]
+  },
+  {
+   "name": "Ms. Aditi Naik",
+   "initials": [
+    "AN"
+   ],
+   "department_code": "ES&H"
+  },
+  {
+   "name": "Dr. Arpit Rawankar",
+   "initials": [
+    "AR"
+   ],
+   "department_code": "EXTC"
+  },
+  {
+   "name": "Mr. Atul Tripathi",
+   "initials": [
+    "AT"
+   ],
+   "department_code": "ES&H"
+  },
+  {
+   "name": "Dr. Anil K. Vasoya",
+   "initials": [
+    "AV"
+   ],
+   "department_code": "IT"
+  },
+  {
+   "name": "Ms. Bhumika Malhotra",
+   "initials": [
+    "BM"
+   ],
+   "department_code": "ES&H"
+  },
+  {
+   "name": "Ms. Deepali Joshi",
+   "initials": [
+    "DJ"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Ms. Foram Shah",
+   "initials": [
+    "FS"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Dr. Garima Joshi",
+   "initials": [
+    "GJ"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Mr. Gopal Saw",
+   "initials": [
+    "GS"
+   ]
+  },
+  {
+   "name": "Ms. Harshita Singh",
+   "initials": [
+    "HS"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Ms. Jisha Tinsu",
+   "initials": [
+    "JT"
+   ],
+   "department_code": "IT"
+  },
+  {
+   "name": "Ms. Kriti Das",
+   "initials": [
+    "KD",
+    "KRD"
+   ]
+  },
+  {
+   "name": "Ms. Kajal Patel",
+   "initials": [
+    "KP"
+   ],
+   "department_code": "IT"
+  },
+  {
+   "name": "Dr. Lochan Jolly",
+   "initials": [
+    "LJ"
+   ],
+   "department_code": "EXTC"
+  },
+  {
+   "name": "Dr. Loukik Salvi",
+   "initials": [
+    "LS"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Ms. Megha Gupta",
+   "initials": [
+    "MG"
+   ],
+   "department_code": "IT"
+  },
+  {
+   "name": "Ms. Mimansha S",
+   "initials": [
+    "MIS"
+   ]
+  },
+  {
+   "name": "Ms. Nidhi Bhavsar",
+   "initials": [
+    "NIB"
+   ],
+   "department_code": "IT"
+  },
+  {
+   "name": "Ms. Neha Wankhede",
+   "initials": [
+    "NW"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Ms. Purnima Chandrasekar",
+   "initials": [
+    "PC"
+   ],
+   "department_code": "EXTC"
+  },
+  {
+   "name": "Mr. Parth Mehta",
+   "initials": [
+    "PM"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Dr. Ranjita Asati",
+   "initials": [
+    "RA"
+   ],
+   "department_code": "IT"
+  },
+  {
+   "name": "Ms. Rashmita K Mohapatra",
+   "initials": [
+    "RKM"
+   ],
+   "department_code": "EXTC"
+  },
+  {
+   "name": "Dr. Rahul Neve",
+   "initials": [
+    "RN"
+   ],
+   "department_code": "IT"
+  },
+  {
+   "name": "Shiwani Gupta",
+   "initials": [
+    "SG"
+   ],
+   "department_code": "IT"
+  },
+  {
+   "name": "Ms. Siddeshwari Patil",
+   "initials": [
+    "SIP"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Dr. Satish Kumar Singh",
+   "initials": [
+    "SKS"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Dr. Sajjan Kumar Lal",
+   "initials": [
+    "SL"
+   ]
+  },
+  {
+   "name": "Ms.Soumyamol P.S.",
+   "initials": [
+    "SPS"
+   ]
+  },
+  {
+   "name": "Sheetal Rathi",
+   "initials": [
+    "SR"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Ms. Tanmayi Nagale",
+   "initials": [
+    "TN"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Ms. Tanvi Shah",
+   "initials": [
+    "TS"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Dr. Tamanna Upadhyay",
+   "initials": [
+    "TU"
+   ],
+   "department_code": "ES&H"
+  },
+  {
+   "name": "Dr. Uddhav Nimbalkar",
+   "initials": [
+    "UN"
+   ]
+  },
+  {
+   "name": "Mr. Venkatesh Jamardarkhana",
+   "initials": [
+    "VJ"
+   ],
+   "department_code": "COMP"
+  },
+  {
+   "name": "Mr. Vijesh Vijay Pawar",
+   "initials": [
+    "VP"
+   ],
+   "department_code": "ES&H"
+  }
+ ]
+}

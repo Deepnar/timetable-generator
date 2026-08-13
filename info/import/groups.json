@@ -1,0 +1,372 @@
+{
+ "groups": [
+  {
+   "name": "COMP-SE-A",
+   "department_code": "COMP",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-SE-B",
+   "department_code": "COMP",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-SE-C",
+   "department_code": "COMP",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-SE-D",
+   "department_code": "COMP",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-TE-A",
+   "department_code": "COMP",
+   "year": 3,
+   "semester": 6,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-TE-B",
+   "department_code": "COMP",
+   "year": 3,
+   "semester": 6,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-TE-C",
+   "department_code": "COMP",
+   "year": 3,
+   "semester": 6,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-TE-D",
+   "department_code": "COMP",
+   "year": 3,
+   "semester": 6,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-BE-A",
+   "department_code": "COMP",
+   "year": 4,
+   "semester": 7,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-BE-B",
+   "department_code": "COMP",
+   "year": 4,
+   "semester": 7,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "COMP-BE-C",
+   "department_code": "COMP",
+   "year": 4,
+   "semester": 7,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-SE-A",
+   "department_code": "IT",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-SE-B",
+   "department_code": "IT",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-SE-C",
+   "department_code": "IT",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-SE-D",
+   "department_code": "IT",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-TE-A",
+   "department_code": "IT",
+   "year": 3,
+   "semester": 5,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-TE-B",
+   "department_code": "IT",
+   "year": 3,
+   "semester": 5,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-TE-C",
+   "department_code": "IT",
+   "year": 3,
+   "semester": 5,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-BE-A",
+   "department_code": "IT",
+   "year": 4,
+   "semester": 7,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-BE-B",
+   "department_code": "IT",
+   "year": 4,
+   "semester": 7,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "IT-BE-C",
+   "department_code": "IT",
+   "year": 4,
+   "semester": 7,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "EXTC-SE-A",
+   "department_code": "EXTC",
+   "year": 2,
+   "semester": 4,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "EXTC-SE-B",
+   "department_code": "EXTC",
+   "year": 2,
+   "semester": 4,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "EXTC-TE-A",
+   "department_code": "EXTC",
+   "year": 3,
+   "semester": 5,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "EXTC-TE-B",
+   "department_code": "EXTC",
+   "year": 3,
+   "semester": 6,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "EXTC-BE-A",
+   "department_code": "EXTC",
+   "year": 4,
+   "semester": 8,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "EXTC-BE-B",
+   "department_code": "EXTC",
+   "year": 4,
+   "semester": 8,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "AI&ML-T.T.",
+   "department_code": "AI&ML",
+   "year": 3,
+   "semester": 6,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "AI&ML-B.T.",
+   "department_code": "AI&ML",
+   "year": 4,
+   "semester": 8,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "CIVIL-SE",
+   "department_code": "CIVIL",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "CIVIL-TE",
+   "department_code": "CIVIL",
+   "year": 3,
+   "semester": 5,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "CIVIL-BE",
+   "department_code": "CIVIL",
+   "year": 4,
+   "semester": 7,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "E&CS-SE",
+   "department_code": "E&CS",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "E&CS-TE",
+   "department_code": "E&CS",
+   "year": 3,
+   "semester": 5,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "E&CS-BE",
+   "department_code": "E&CS",
+   "year": 4,
+   "semester": 7,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "MECH-SE",
+   "department_code": "MECH",
+   "year": 2,
+   "semester": 4,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "MECH-TE",
+   "department_code": "MECH",
+   "year": 3,
+   "semester": 6,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "MECH-BE",
+   "department_code": "MECH",
+   "year": 4,
+   "semester": 8,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "BCA-SY-Class",
+   "department_code": "BCA",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "BCA-TY-Class",
+   "department_code": "BCA",
+   "year": 3,
+   "semester": 5,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "MCA-SY-Class",
+   "department_code": "MCA",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "MBA-FINANCE",
+   "department_code": "MBA",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "MBA-OPERATIONS",
+   "department_code": "MBA",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "MBA-HUMAN-RESOURCE",
+   "department_code": "MBA",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "MBA-MARKETING",
+   "department_code": "MBA",
+   "year": 2,
+   "semester": 3,
+   "strength": null,
+   "type": "DIVISION"
+  },
+  {
+   "name": "ES&H-FE-Group-1",
+   "department_code": "ES&H",
+   "year": 1,
+   "semester": 2,
+   "strength": null,
+   "type": "DIVISION"
+  }
+ ]
+}

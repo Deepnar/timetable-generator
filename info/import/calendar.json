@@ -1,0 +1,51 @@
+{
+ "academic_year": "2026-27",
+ "odd_semester": {
+  "start": "2026-06-08",
+  "end": null,
+  "_note": "end = result window 3rd week Nov 2026"
+ },
+ "even_semester": {
+  "start": "2027-01-02",
+  "end": null
+ },
+ "holidays": [
+  "2026-09-15",
+  "2026-09-16",
+  "2026-09-17",
+  "2026-09-18",
+  "2026-09-19"
+ ],
+ "exam_windows": [
+  {
+   "label": "ISE-I",
+   "start": "2026-07-13",
+   "end": "2026-07-15"
+  },
+  {
+   "label": "ISE-II",
+   "start": "2026-08-22",
+   "end": "2026-08-25"
+  },
+  {
+   "label": "ATKT",
+   "start": "2026-08-03",
+   "end": "2026-08-14"
+  }
+ ],
+ "ip_pbl_dates": [
+  "2026-08-08",
+  "2026-08-22",
+  "2026-09-12",
+  "2026-09-26",
+  "2026-10-03"
+ ],
+ "events": {
+  "zephyr": "2026-09-29 to 2026-10-01"
+ },
+ "rules": [
+  "each faculty: min 42 lectures + 10 practical/tutorial sessions per semester",
+  "90 instructional days; holidays compensated in 4th extra slot (first 6 weeks)",
+  "Saturday co/extra-curricular count toward AICTE 100 Activity Points"
+ ]
+}

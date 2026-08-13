@@ -1,0 +1,676 @@
+{
+ "rooms": [
+  {
+   "department_code": "COMP",
+   "name": "606",
+   "room_code": "606",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "326",
+   "room_code": "326",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "304",
+   "room_code": "304",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "609",
+   "room_code": "609",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "324",
+   "room_code": "324",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "325",
+   "room_code": "325",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "513",
+   "room_code": "513",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "532",
+   "room_code": "532",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "608",
+   "room_code": "608",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "718",
+   "room_code": "718",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "607",
+   "room_code": "607",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "306",
+   "room_code": "306",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "305",
+   "room_code": "305",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "610",
+   "room_code": "610",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "308",
+   "room_code": "308",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "336",
+   "room_code": "336",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "COMP",
+   "name": "512",
+   "room_code": "512",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "323",
+   "room_code": "323",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "601",
+   "room_code": "601",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "204",
+   "room_code": "204",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "619",
+   "room_code": "619",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "203",
+   "room_code": "203",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "220",
+   "room_code": "220",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "221",
+   "room_code": "221",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "617",
+   "room_code": "617",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "612",
+   "room_code": "612",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "711",
+   "room_code": "711",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "620",
+   "room_code": "620",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "516",
+   "room_code": "516",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "517",
+   "room_code": "517",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "IT",
+   "name": "518",
+   "room_code": "518",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "621",
+   "room_code": "621",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "105",
+   "room_code": "105",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "120",
+   "room_code": "120",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "104",
+   "room_code": "104",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "214",
+   "room_code": "214",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "712",
+   "room_code": "712",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "719",
+   "room_code": "719",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "622",
+   "room_code": "622",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "624",
+   "room_code": "624",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "616",
+   "room_code": "616",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "AI&ML",
+   "name": "721",
+   "room_code": "721",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "AI&ML",
+   "name": "307",
+   "room_code": "307",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "AI&ML",
+   "name": "603",
+   "room_code": "603",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "AI&ML",
+   "name": "309",
+   "room_code": "309",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "AI&ML",
+   "name": "623",
+   "room_code": "623",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "AI&ML",
+   "name": "416",
+   "room_code": "416",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "AI&ML",
+   "name": "222",
+   "room_code": "222",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "AI&ML",
+   "name": "316",
+   "room_code": "316",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "705",
+   "room_code": "705",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "215",
+   "room_code": "215",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "012",
+   "room_code": "012",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "013",
+   "room_code": "013",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "118",
+   "room_code": "118",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "010",
+   "room_code": "010",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "704",
+   "room_code": "704",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "703",
+   "room_code": "703",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "117",
+   "room_code": "117",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "114",
+   "room_code": "114",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "109",
+   "room_code": "109",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "605",
+   "room_code": "605",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "108",
+   "room_code": "108",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "604",
+   "room_code": "604",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "MECH",
+   "name": "613",
+   "room_code": "613",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "MECH",
+   "name": "410",
+   "room_code": "410",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "MECH",
+   "name": "320",
+   "room_code": "320",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "MECH",
+   "name": "313",
+   "room_code": "313",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "MECH",
+   "name": "614",
+   "room_code": "614",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "MECH",
+   "name": "713",
+   "room_code": "713",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "BCA",
+   "name": "714",
+   "room_code": "714",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "BCA",
+   "name": "717",
+   "room_code": "717",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "BCA",
+   "name": "520",
+   "room_code": "520",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "BCA",
+   "name": "521",
+   "room_code": "521",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "BCA",
+   "name": "522",
+   "room_code": "522",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "BCA",
+   "name": "709",
+   "room_code": "709",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "BCA",
+   "name": "710",
+   "room_code": "710",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "BCA",
+   "name": "523",
+   "room_code": "523",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "ES&H",
+   "name": "006",
+   "room_code": "006",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "ES&H",
+   "name": "519",
+   "room_code": "519",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "ES&H",
+   "name": "315",
+   "room_code": "315",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "ES&H",
+   "name": "505",
+   "room_code": "505",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "ES&H",
+   "name": "216",
+   "room_code": "216",
+   "room_type": "CLASSROOM",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "ES&H",
+   "name": "121",
+   "room_code": "121",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  },
+  {
+   "department_code": "ES&H",
+   "name": "123",
+   "room_code": "123",
+   "room_type": "LAB",
+   "capacity": null,
+   "_note": "capacity not published on site"
+  }
+ ]
+}

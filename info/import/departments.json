@@ -1,0 +1,136 @@
+{
+  "academic_year": "2026-27",
+  "departments": [
+    {
+      "code": "COMP",
+      "name": "Computer Engineering",
+      "established": "AY 2002-03",
+      "fe_group": "I",
+      "divisions": {
+        "SE": 4,
+        "TE": 4,
+        "BE": 3
+      },
+      "strength": {
+        "FE": 63
+      }
+    },
+    {
+      "code": "IT",
+      "name": "Information Technology",
+      "established": "AY 2001-02",
+      "fe_group": "II",
+      "divisions": {
+        "SE": 4,
+        "TE": 3,
+        "BE": 3
+      }
+    },
+    {
+      "code": "EXTC",
+      "name": "Electronics & Telecommunication Engineering",
+      "established": "AY 2001-02",
+      "fe_group": "II",
+      "divisions": {
+        "SE": 2,
+        "TE": 2,
+        "BE": 2
+      }
+    },
+    {
+      "code": "E&CS",
+      "name": "Electronics & Computer Science",
+      "established": "AY 2020-21",
+      "fe_group": "II",
+      "divisions": {
+        "SE": 1,
+        "TE": 1,
+        "BE": 1
+      }
+    },
+    {
+      "code": "MECH",
+      "name": "Mechanical Engineering",
+      "established": "AY 2012-13",
+      "fe_group": "II",
+      "divisions": {
+        "SE": 1,
+        "TE": 1,
+        "BE": 1
+      }
+    },
+    {
+      "code": "CIVIL",
+      "name": "Civil Engineering",
+      "established": "AY 2015-16",
+      "fe_group": "I",
+      "divisions": {
+        "SE": 1,
+        "TE": 1,
+        "BE": 1
+      }
+    },
+    {
+      "code": "AI&ML",
+      "name": "Artificial Intelligence & Machine Learning",
+      "established": "AY 2020-21",
+      "fe_group": "II",
+      "divisions": {
+        "ST": 3,
+        "TT": 1,
+        "BT": 1
+      }
+    },
+    {
+      "code": "AI&DS",
+      "name": "Artificial Intelligence & Data Science",
+      "established": "AY 2020-21",
+      "fe_group": "I"
+    },
+    {
+      "code": "IoT",
+      "name": "Internet of Things",
+      "established": "AY 2021-22",
+      "fe_group": "I"
+    },
+    {
+      "code": "CSE-IoT",
+      "name": "Computer Science & Engineering (IoT)",
+      "established": "AY 2021-22",
+      "fe_group": "I"
+    },
+    {
+      "code": "CS&E",
+      "name": "Computer Science & Engineering (Cyber Security)",
+      "established": "AY 2022-23"
+    },
+    {
+      "code": "MME",
+      "name": "Mechanical & Mechatronics Engineering",
+      "established": "AY 2022-23",
+      "fe_group": "II"
+    },
+    {
+      "code": "BCA",
+      "name": "Bachelor of Computer Applications",
+      "established": "AY 2024-25"
+    },
+    {
+      "code": "MCA",
+      "name": "Master of Computer Applications",
+      "established": "AY 2025-26"
+    },
+    {
+      "code": "MBA",
+      "name": "Master of Business Administration"
+    },
+    {
+      "code": "ES&H",
+      "name": "Engineering Sciences & Humanities",
+      "owns_fe": true,
+      "labs": 18,
+      "classrooms": 14,
+      "_note": "ES&H teaches all FE; FE division counts change per intake (COMP 4 this year, 3 last)"
+    }
+  ]
+}
