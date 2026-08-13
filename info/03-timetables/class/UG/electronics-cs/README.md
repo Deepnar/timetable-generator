@@ -1,107 +1,61 @@
-# electronics-cs — Class Timetables
+# E&CS (Electronics & Computer Science) — Class Timetables
 
-## BE SEM-VII
+Form `TCET/MME/FRM/IP-02/06-(CLASS)` (SE) / dept form, **W.E.F. 01/07/2026**
+(AY 2026-27 odd semester). All grids **vision-verified**. Signature chain:
+Prepared (Sumit Kumar, Aisha Jangid) → HOD E&CS (Dr. Hemant Kasturiwale) →
+Dean Academic → VP → Principal.
 
-- Drive file: `1HGpE-qUMn41cNEbqUCmToK7LO6pssCWF`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1HGpE-qUMn41cNEbqUCmToK7LO6pssCWF_view.txt`
-- Class: B.E- E&CS (SEM VII)
-- Venue: 605
+## SE (SEM III) — venue 605 · in-charge Mrs. Veena Hosamani
 
-### Extracted text (grid)
+Legend: EDC = Electronics Devices & Circuits (JB = Jalpaben Bhatt) · DCD =
+Digital Circuits Design (AJ = Aisha Jangid) · DBMS (VH = Veena Hosamani) ·
+M-III (AN = Aditi Naik) · UHV (SCP = Sanjay Patil) · PS-III (SK = Sumit Kumar
+/ LC = Leena Chakraborty) · AAD (RE = Rajesh Erande, online) · IP (RK =
+Rupinder Kaur / AJ).
 
-```
- TCET/ IT/ FRM/ IP-02/06 – (CLASS)                                                                     CLASS TIME TABLE                                                               Revision: A
- TCET/         of June 2026                                                                             W.E. F: 01/07/2026                                                            Date : 29/06/2026
-                                                                                                                                                                                      Class In charge: Mrs. Aisha Jangid
- CLASS: B.E- E&CS (SEM VII)
-                                                                                                                                                                                      Venue : 605
-        TIME           8:30 AM TO          9:30 AM TO              10.30 AM to                11.30 AM to                     12.30 PM to 1.30        1.30 PM to                       2.30 PM to              3.30 PM to
-DAYS                   9:30 AM              10:30 AM                11.30 AM                   12.30 PM                       PM                       2.30 PM                          3.30 PM                 4.30 PM
-                           CC (VM)         R&CV (HPK)              R&CV (HPK)                                                                                 PE III                       PE III               PE II
-   MONDAY                    114                605                     605                      OE II (SCP)                  BREAK                         DWM (RK)                  DWM (RK) 108           NLP(AJ) 114
-                                                                                                    605                                                    DLA (SK) 605                DLA (SK) 605          DAV(VH) 605
-                           PROJECT           CC (VM)                  CC (VM)                                                                                PE III
-                                                                                                                                                                                              CC (VM) LAB 114
-  TUESDAY                                      605                                               OE II (SCP)                                               DWM (VM)
-                                                                      605                                                                                                                   R&CV (HPK) LAB 109
-                                                                                                    605
-                                                                                                                                                         DLA (LC) 605
-                           PROJECT            R&CV                     R&CV                        PE II                                                    PE II                           R&CV (HPK) LAB 109
- WEDNESDAY                                    (HPK)                    (HPK)                      NLP(AJ)                                                 NLP(AJ) 108                          CC (VM) LAB 114
-                                               605                      605                     DAV(VH) 605                                              DAV(VH) 605
-                          PE III                CC                     R&CV                                                                                 PE II                             DAV (VH) LAB 109
-  THURSDAY             DWM (VM) 109            (VM)                    (HPK)                     OE II (SCP)                                              NLP(AJ) 108
-                                                605                     605                                               
-```
+| Day | 8:30–9:30 | 9:30–10:30 | 11:30–12:30 | 12:30–1:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|
+| MON | EDC JB | DBMS E1E2 VH 114 · EDC E3E4 JB/SK 109 | EDC HPK | DCD AJ | Notional | AAD online RE |
+| TUE | DCD AJ | PS E1E2 SK/LC 114 · DCD E3E4 AJ/RK 109 | M-III AN | UHV SCP | Notional | — |
+| WED | M-III AN | DCD E1E2 AJ/SCP 109 · PS E3E4 SK/LC 114 | DBMS VH | UHV SCP | Notional | — |
+| THU | DBMS VH | EDC E1E2 JB/SK 109 · DBMS E3E4 VH/RK 114 | DCD AJ | M-III AN | Notional | — |
+| FRI | EDC JB | UHV TuT 109 · M-III TuT 605 | EDC TuT VM 109 · EDC TuT VH 114 · M-III TuT 605 · UHV TuT 108 | DBMS VH | Notional | — |
+| SAT | IP / PBL / Co-curricular / Extra-curricular / Notional (all day) | | | | | |
 
-## SE SEM-III
+Load: 15 theory + 3 tutorial + 8 practical + 2 IP + 9 multi-disc = 42 hrs/week.
 
-- Drive file: `1_mOLJ2GAUQR6e0DqjCQnbARiIQG5oaZZ`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1_mOLJ2GAUQR6e0DqjCQnbARiIQG5oaZZ_view.txt`
-- Class: S.E- (SEM III) CLASS INCHARGE: Mrs. Veena Hosamani Venue : 605
-- Venue: 605
-- Wef: 01/07/2026 Date : 29/06/2026
-- Incharge: Mrs. Veena Hosamani Venue : 605
-- Hours: per semester 28 x 15 = 420 + Indirect Contact = 16 x 15 =240 + Internship =60 hrs / semester = 720 hrs/ semester
+## TE (SEM V) — venue 604 · in-charge Mr. Varun Mishra
 
-### Extracted text (grid)
+Legend: MCA = Microcontrollers & Applications (SK / LC) · OS = Operating
+System (RK) · TCS = Theory of Computer Sciences (JB) · SS = Signals & Systems
+(SK) · SSIC (TS = Tanvi Shah) · IC (RE, online) · IP (HS = Harsha Sanap / VH)
+· PBL (SCP / JB).
 
-```
- TCET/ MME/ FRM/ IP-02/06 – (CLASS)                                                                        CLASS TIME TABLE                                                                                         Revision: A
- TCET/        of JUNE 2026                                                                                  W.E.F: 01/07/2026                                                                                       Date : 29/06/2026
- CLASS: S.E- (SEM III)                                                                        CLASS INCHARGE: Mrs. Veena Hosamani                                                                                   Venue : 605
+| Day | 8:30–9:30 | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 |
+|---|---|---|---|---|---|---|
+| MON | SS SK | MCA LC | OS RK | BREAK | MCA E1E2 LC/VM 109 · TCS E3E4 VH 114 | OS E1E2 RK 114 · PS E3E4 AJ 109 |
+| TUE | OS RK | TCS JB | SSIC TS | BREAK | TCS E1E2 JB 114 · MCA E3E4 LC/RK 109 | PS E1E2 SCP 109 · OS E3E4 RK 114 |
+| WED | SS SK | TCS JB | OS RK | BREAK | TCS E1E2 JB 114 · MCA E3E4 LC/RK 109 | PS E1E2 SCP 109 · OS E3E4 RK 114 |
+| THU | TCS JB | MCA LC | SSIC TS | BREAK | SS TuT SK 109 · SS TuT LC 604 | IC online RE (2:30–3:30) |
+| FRI | MCA LC | SS SK | SSIC TS | BREAK | SS TuT SK 109 · SS TuT LC 604 | IC online RE (2:30–3:30) |
+| SAT | IP / PBL / Co-curricular / Extra-curricular / Notional (all day) | | | | | |
 
-          TIME                                                                    10:30 AM to 11:30 AM              11:30 AM           12:30 PM to1:30 PM             1:30 AM to 2:30 PM
-                        8:30 AM to9:30 AM             9:30 AM to10:30 AM                                                                                                                           2:30 PM to 3:30 PM               3:30 PM to 4:30 PM
- DAYS                                                                                                              to12:30 PM
+Load: 16 theory + 1 tutorial + 8 practical + 2 IP + 2 PBL + 10 multi-disc = 42 hrs/week.
 
-                                                                                                                                              EDC (HPK)                   DCD (AJ)                Notional Learning hours as Per NCRF/AICTE for Mini
-                                                               DBMS(VH/VM) (E1, E2) 114
-    MONDAY                    EDC (JB)                                                                                                                                                          Project/Assignment/Seminar Report/ Continuous Evaluation/
-                                                                EDC(JB,SK) (E3, E4) 109                                                                                                                             Self Learning etc.
-                                                                 PS (SK, LC) (E1, E2) 114 /
-    TUESDAY                   DCD (AJ)                                                                                                        M-III (AN)                 UHV (SCP)                                                  AAD (RE) (Online)
-                                                                 DCD(AJ,RK) (E3, E4) 109
-                                                               DCD (AJ, SCP) (E1, E2) 109 /                                                                                                     Notional Learning hours as
-  WEDNESDAY                   M-III (AN)                                                                                                    DBMS (VH)                    UHV (SCP)
-                                                                 PS(SK,LC) (E3, E4) 114                               Break                                                                     Per NCRF/AICTE for Mini           Notional Learning hours as
-                                                                                                                                                                                                Project/Assignment/Seminar        Per NCRF/AICTE for Mini
-                                                               EDC (JB, SK) (E1, E2) 109 /                                                                                                          Report/ Continuous            Project/Assignment/Seminar
-   THURSDAY                   DBMS (VH)                                                                                                       DCD (AJ)                    M-III (AN)             Evaluation/ Self Learning
-                                                               DBMS(VH,RK) (E3, E4) 114                                                             
-```
+## BE (SEM VII) — venue 605 · in-charge Mrs. Aisha Jangid
 
-## TE SEM-V
+Legend: R&CV = Robotics & Computer Vision (HPK = Hemant Kasturiwale) · CCM =
+Cloud Computing (VM = Varun Mishra) · PE-II NLP/DAV (AJ / VH) · PE-III
+DWM/DLA (RK / SK / HS) · OE-II (SCP) · Project · Industry Certification
+(self-learning mode).
 
-- Drive file: `1fe7DipZwdQQslH2rYQULgSNVsVj820X-`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1fe7DipZwdQQslH2rYQULgSNVsVj820X-_view.txt`
-- Class: T.E- (SEM V) CLASS INCHARGE: Mr. Varun Mishra Venue : 604
-- Venue: 604
-- Wef: 01/07/2026 Date : 29/06/2026
-- Incharge: Mr. Varun Mishra Venue : 604
-- Hours: per semester 29 x 15 = 435 + Indirect Contact = 17 x 15 =255 + Internship (60 hrs / semester) = 750 hrs/ semester
+| Day | 8:30–9:30 | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|---|---|
+| MON | CC VM 114 | R&CV HPK 605 | R&CV HPK 605 | OE II SCP 605 | BREAK | PE III DWM RK 108 · DLA SK 605 | PE III cont. | PE II NLP AJ 114 · DAV VH 605 |
+| TUE | PROJECT | CC VM 605 | CC VM 605 | OE II SCP 605 | BREAK | PE III DWM VM 605 · DLA LC 605 | PE III cont. | CC Lab VM 114 · R&CV Lab HPK 109 |
+| WED | PROJECT | R&CV HPK 605 | R&CV HPK 605 | PE II NLP AJ 605 · DAV VH 605 | BREAK | PE II NLP AJ 108 · DAV VH 605 | PE II cont. | R&CV Lab HPK 109 · CC Lab VM 114 |
+| THU | PE III DWM VM 109 · DLA SK 114 | CC VM 605 | R&CV HPK 605 | OE II SCP 605 | BREAK | PE II NLP AJ 108 · DAV VH 605 | PE II cont. | DAV Lab VH 109 · NLP Lab AJ 114 |
+| FRI | CC VM 114 | PE II NLP AJ 108 · DAV VH 114 | PE III DWM RK 108 · DLA LC 605 | OE II SCP 605 | BREAK | PROJECT | PROJECT | PROJECT |
+| SAT | — (no Saturday block on BE) | | | | | | | |
 
-### Extracted text (grid)
-
-```
-TCET/ MME/ FRM/ IP-02/06 – (CLASS)                                                                                                              CLASS TIME TABLE                                                                                                          Revision: A
-TCET/          of JUNE 2026                                                                                                                      W.E.F: 01/07/2026                                                                                                        Date : 29/06/2026
-CLASS: T.E- (SEM V)                                                                                                                 CLASS INCHARGE: Mr. Varun Mishra                                                                                                      Venue : 604
-
-
-                 TIME                                                                                                                                  11.30AM to12.30PM
-                                         8:30 AM to9:30 AM                   9:30 AM to10:30 AM                    10:30 AM to11:30 AM                                                      12:30 AM to 1:30 AM                 1:30 AM to 2:30 AM                       2:30 AM to 4:30AM
-     DAYS
-                                                                                                                                                                                                        MCA(LC,VM) (E1, E2) 109/
-          MONDAY                                 SS (SK)                             MCA(LC)                               OS (RK)
-                                                                                                                                                                                                          TCS (VH) (E3, E4) 114
-                                                                                                                                                                                                          OS(RK) (E1, E2) 114 /
-        TUESDAY                               OS (RK)                                TCS (JB)                              SSIC(TS)
-                                                                                                                                                                                                           PS(AJ) (E3, E4) 109
-                                                                                                                                                                                                                                                                  Notional Learning hours as Per
-                                                                                                                                                                                                          TCS(JB) (E1, E2) 114 /                                     NCRF/AICTE for Mini
-      WEDNESDAY                                  SS(SK)                              TCS (JB)                              OS (RK)                              BREAK                                     MCA(LC,RK) (E,E4) 109                                    Project/Assignment/Seminar
-                                                                                                                                                                                                                                                                Report/ Continuous Evaluation/ Self
-                                                                                                                                                                                                            PS(SCP) (E1, E2) 109                                           Learning etc.
-       THURSDAY                                 TCS (JB)                             MCA (LC)               
-```
+Load: 24 theory + 6 practical + 4 project + 4 industry cert = **38 hrs/week**.

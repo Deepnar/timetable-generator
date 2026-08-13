@@ -1,79 +1,48 @@
-# bca — Class Timetables
+# BCA — Class Timetables (Department of Computer Applications)
 
-## SY Class - Sem III
+Venue: 709/710/714/717 + labs 520-523 · **W.E.F. 01/07/2026** (semester
+01/07/2026–28/10/2026). All grids **vision-verified**. Signature chain:
+Prepared (Priya Salunke) → HOD BCA/MCA (Ms. Rinkle Solanki) → Dean Academic →
+VP → Principal.
 
-- Drive file: `1s2LsT2-fEfsA8eVlZn9wSEJPTbcYgd7P`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1s2LsT2-fEfsA8eVlZn9wSEJPTbcYgd7P_view.txt`
-- Venue: 709/710/714/717 + Labs 520,521,522,523 W.E.F.: 01/07/2026 CLASS INCHARGE : Ms. Akshata Bhimnale
-- Incharge: Ms. Akshata Bhimnale
-- Hours: per semester 26 x 15 = 390 + Indirect Contact = 20 x 15 =300+ Internship =60 hrs / semester = 750
+## SY Class — Sem III · in-charge Ms. Akshata Bhimnale · strength 54
 
-### Extracted text (grid)
+Legend: JAVA = Advanced Java Programming (JM = Jaynish Mandal) · SET =
+Software Engineering & Testing (RS = Rinkle Solanki) · COA = Computer
+Organization & Architecture (VP = Vikram Patalbansi) · PCOMM = Professional
+Communication (SK = Shreyasi Karapu) · AJF = Advanced JavaScript & Frameworks
+(AB = Akshata Bhimnale) · AIML = Basics of AI & ML (DS = Deepika Sarawgi) ·
+DCN = Data Communication & Networking (AJ = Aruta Jayswal) · PS3 (JM / Riya
+Shetty) · IKS = Indian Knowledge System (SK, online).
 
-```
-                                                                                                                         Department of Computer Applications
+| Day | 8:30–9:30 | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 |
+|---|---|---|---|---|---|---|---|
+| MON | SL/CL | SET RS 714 | COA VP 717 | BREAK | AJF AB 520/521/522 · DCN AJ | AJF AB 709/710/717/714 | SL/CL |
+| TUE | SL/CL | PS3 A2 SV/AS 522 · COA A1 AJ/RSH 523 | PCOMM TuT SK 717 | BREAK | — | COA A2 AJ/RSH 520 · JAVA A1 JM/SS 521 | — |
+| WED | SL/CL | AJF AB 709/710/721/714 · DCN AJ | SET RS 717 | COA VP 714 | BREAK | PCOMM SK 717 | JAVA JM 714 |
+| THU | SL/CL | PS3 A1 TA/CP 521 · SET A2 RS/SS 522 | — | BREAK | JAVA JM 717 | SET A1 DS/AS 522 · JAVA A2 JM/SS 523 | — |
+| FRI | SET RS 714 | PCOMM SK 717 | COA VP 717 | BREAK | JAVA JM 714 | AJF AB 520/714/710/717 · DCN AJ | SL/CL |
+| SAT | — | IKS SK (online) | PBL (offline) | Notional learning (NCRF/AICTE) | | | |
 
-                                                                                         CLASS TIMETABLE BCA SY A (Semester - III)                                                                                                   Date: 29/6/2026
-VENUE :                709/710/714/717 + Labs 520,521,522,523                                          W.E.F.:                  01/07/2026                                       CLASS INCHARGE : Ms. Akshata Bhimnale
-                               8.30 AM                      9.30 AM                    10.30 AM                  11.30 AM               12.30 PM                1.30 PM                 2.30 PM              3.30 PM                          4.30 PM                       5.30 PM
-       TIME /
-                                  to                            to                         to                        to                     to                     to                      to                   to                               to                            to
-        DAY
-                               9.30 AM                      10.30 AM                   11.30 AM                  12.30 PM               1.30 PM                 2.30 PM                 3.30 PM              4.30 PM                          5.30 PM                       6.30 PM
-                                                                                                                                                  AJF (AB)
-                                                                                                                                                                                      AJF (AB)
-                                                                                                                                             AIML Batch 1 (DS)
-                                                                                                                                                                                   AIML Batch 1(DS)
-                                SL/CL                     SET (RS)                     COA (VP)                                              AIML Batch 2 (RP)
-     MONDAY                                                                                                      BREAK                                                            AIML Batch 2 (SKS)
-                                                                                                                                             AIML Batch 3 (SKS)
-                                                                                                                                                                                      DCN (AJ)
-                                                                                                                                                  DCN (AJ)
-                                                             714                  717                                                        520/521/522/205/523                    709/710/717/714
-                                                                 PS3 A2 (SV/AS)                                                                                         COA A2 (AJ/RSH)
-                                SL/CL                                                                    PCOMM TUT (SK)
-     TUESDAY                                                    COA A1 (AJ/RSH)                                                        BREAK                            JAVA A1 (JM/SS)
-                                                                      522/523                                      717                                                      520/521
-                                                         AJF (AB)
-                                     
-```
+750 hrs/semester (390 direct + 300 indirect + 60 internship).
 
-## TY Class - Sem V
+## TY Class — Sem V · in-charge Ms. Aruna Jayaswal · strength 50
 
-- Drive file: `1zbMvMH5Etc8ottU-djYzEPEHTOeljQZj`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1zbMvMH5Etc8ottU-djYzEPEHTOeljQZj_view.txt`
-- Venue: 709/710/714/717 + Labs 520,521,522,523 W.E.F.: 01/07/2026 CLASS INCHARGE : Ms. Aruta Jayswal
-- Incharge: Ms. Aruta Jayswal
-- Hours: per semester 24 x 15 = 360 + Indirect Contact = 25 x 15 =375 = 735 hrs/ semester Class Strength: 50 Start of Semester: 01/07/2026 End of Semester: 28/10/2026
+Legend: BDA = Big Data Analytics (PS = Priya Salunke) · SC = Soft Computing
+(HS = Harshita Singh) · WSC = Web Security & Compliance (PC = Pooja Chauhan) ·
+ANS = Advanced Network Security (RP = Ravi Paddy) · DL = Deep Learning (CB =
+Chhavi Birla) · ECOMM = E-Commerce Technology (RS) · MWC = Mobile & Wireless
+Communication (SKS = Sakshi Singh) · COGC = Cognitive Computing (RS) ·
+PROJECT (SV = Sandeep Vishwakarma) · IC = Industry Certification (IM =
+Jaynath Mandal).
 
-### Extracted text (grid)
+| Day | 8:30–9:30 | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|---|---|
+| MON | SL/CL | BDA PS | COGC B1 RS/AS · B2 RS/SH · ECOMM RS · MWC SKS (520-523, 714) | — | BREAK | SC HS 714 | SL/CL | SL/CL |
+| TUE | ECOMM RS · MWC SKS · COGC RP (709/710/714) | BDA PS 717 | WSC PC · ANS RP · DL CB (709/710/714) | SL/CL | SL/CL | SL/CL | SL/CL | SL/CL |
+| WED | SL/CL | SC HS 717 | DL B1 CB/ASH · B2 DS/SS · ANS RP · WSC PC (520-523) | — | BREAK | BDA A1 PS/SS 520 · PROJECT A2 AM 523 | SL/CL | ECOMM RS · MWC SKS · COGC RP |
+| THU | SC A2 HS/AS 520 · PROJECT A1 SV 523 | BREAK | WSC PC · ANS RP · DL CB (709/710/714) | SC HS 710 | BREAK | BDA PS 717 | SL/CL | SL/CL |
+| FRI | SL/CL | SL/CL | SL/CL | SL/CL | SC A1 HS/AS 523 · BDA A2 PS/SS 522 | WSC PC · ANS RP · DL CB | ECOMM RS · MWC SKS · COGC RP | SL/CL |
+| SAT | — | — | IC IM 521 (offline) | Notional learning | | | | |
 
-```
-                                                                                                                                              Department of Computer Applications
-
-TCET/BCA/FRM/IP-02/06 – (CLASS)
-                                                                                                              CLASS TIMETABLE BCA TY A (Semester - V)                                                                                                         Date: 29/6/2026
-VENUE :                   709/710/714/717 + Labs 520,521,522,523                                                     W.E.F.:                     01/07/2026                                              CLASS INCHARGE : Ms. Aruta Jayswal
-
-                                        8.30 AM                  9.30 AM                         10.30 AM                       11.30 AM                 12.30 PM                      1.30 PM                    2.30 PM                   3.30 PM                    4.30 PM                      5.30 PM
-        TIME /
-                                           to                        to                              to                             to                       to                           to                         to                        to                         to                           to
-         DAY
-                                        9.30 AM                  10.30 AM                        11.30 AM                       12.30 PM                 1.30 PM                       2.30 PM                    3.30 PM                   4.30 PM                    5.30 PM                      6.30 PM
-
-                                                                                                       COGC Batch 1 (RP/AS)
-                                                                                                      COGC Batch 2 (CB/RSH)
-                                        SL/CL                    BDA (PS)                                                                                                              SC (HS)                     SL/CL                     SL/CL
-      MONDAY                                                                                             ECOMM (SKH)                                      BREAK
-                                                                                                          MWC (SKS)
-
-                                                                    709                                       520/521/522/523                                                            714
-                                  ECOMM (RS)                                                     WSC (PC)
-                                   MWC (SKS)                     BDA (PS)                        ANS (RP)                         SL/CL                       SL/CL                     SL/CL                      SL/CL                     SL/CL
-      TUESDAY                      COGC (RP)                                                     DL (CB)
-                                   709/710/714                      717                         709/710/714
-                                                                                                        DL Batch 1 (CB/RSH)
-                                                                                                                                                                                                                                         ECOMM (RS)              Notional Learning hours/Continuous Evaluation/Self
-                                                                                                         DL Batch 2 (DS/SS)                                                                      BDA A1 (PS/SS)
-                                        SL/CL                     SC (HS)                                                                                                                           
-```
+735 hrs/semester (360 direct + 375 indirect).

@@ -43,10 +43,10 @@ contains, per division:
   **`03-timetables/class/UG/FACULTY-INITIALS.md`** (the glossary: initial →
   name → confidence) or the department roster in
   `02-departments/<branch>/faculty.md`.
-- Some divisions (SE/TE COMP A/B, AI&ML TT/BT) have been **vision-verified**:
-  their READMEs contain clean day×period tables plus the subject→faculty
-  legend, transcribed from the official PDF images. Treat those tables as the
-  authoritative reading over the flattened raw text.
+- **All 55 UG division timetables are vision-verified**: every branch README
+  under `03-timetables/class/UG/` holds clean day×period tables plus the
+  subject→faculty legend, transcribed from the official PDF images. Treat
+  those tables as the authoritative reading over the flattened raw text.
 - Load totals (e.g. "28 lectures × 15 weeks = 420h") and special blocks:
   BREAK, Notional Learning, Saturday = IP / co-curricular.
 - Signature chain: class in-charge → HOD → Dean Academic → VP → Principal.

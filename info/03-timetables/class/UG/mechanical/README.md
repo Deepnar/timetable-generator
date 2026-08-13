@@ -1,111 +1,64 @@
-# mechanical — Class Timetables
+# Mechanical Engineering — Class Timetables
 
-## BE
+Form `TCET/DEPT/FRM/IP-02/06-(CLASS)`, **W.E.F. 13/01/2026** (AY 2025-26 even
+semester), slots 9:30–6:30. All grids **vision-verified**. Signature chain:
+Prepared (Pawan Tiwari) → HOD MECH (Dr. Uddhav Nimbalkar) → Dean Academic →
+VP → Principal.
 
-- Drive file: `1cDQR1MnIsG0BycJEnLLy_YTueDw594ja`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1cDQR1MnIsG0BycJEnLLy_YTueDw594ja_view.txt`
-- Class: B E (SEM VIII) W.E.F: 13/01/2026 CLASS INCHARGE: Ms. Seema Nagrani Venue : 613,614
-- Venue: 613,614
-- Wef: 13/01/2026 CLASS INCHARGE: Ms. Seema Nagrani Venue : 613,614
-- Incharge: Ms. Seema Nagrani Venue : 613,614
-- Hours: per semester 30x 15 = 450 + Indirect Contact = 12 x 15 =180 = 630 hrs/ semester
+## SE (SEM IV) — venue 613 · in-charge Mr. Pankaj Rawool
 
-### Extracted text (grid)
+Legend: M-IV (PR = Pankaj Rawool) · FM = Fluid Mechanics & Machineries (UN =
+Uddhav Nimbalkar) · KOM = Kinematics of Machinery (RSD = R.S. Deshmukh / SN =
+Seema Nagrani) · AMP = Advanced Manufacturing Processes (JKP = J.K. Patil) ·
+EVS (VM = Vaibhav Madane) · PS-IV = Professional Skill II CAD (KG = Krishna
+Gaikwad / PR) · ABL (KG / RJD = Rupesh Deshbhratar) · IP-II (PR / Iqbal Muzawar).
 
-```
-  TCET/ DEPT /FRM/IP-02/06 – (CLASS)                                                                                     CLASS TIME TABLE                                                                    Revision: A
-  TCET/ MECH/     OF Dec 2025                                                                                                                                                                                Date : 28/11/2025
-    CLASS: B E (SEM VIII)         W.E.F: 13/01/2026                                                         CLASS INCHARGE: Ms. Seema Nagrani                                                               Venue : 613,614
-                                                   10:30 am to 11:30          11:30 pm
-                                                                                             11:45 pm to              12:45 pm to            1.45 pm to                                         3:30 pm to               4:30 pm to       5:30 pm to 6:30
-   DAYS/TIME            9:30 am to 10:30 am                                    to 11:45                                                                        2:30 pm to 3:30 pm
-                                                          am                                  12:45 pm                 1:.45 pm               2:30 pm                                            4:30 pm                  5.30 pm               pm
-                                                                                  pm
-                                                                                                                      PE-IV                                                                                              PE-IV
-                              PROJECT /DMS A2(VB) 320 AAS                                                           AAS(MS)410                                                                                         AAS(MS)410
-    MONDAY                                                                                   IEM-SS 613                                                           CCF-SN 614                   IEM-SS 614
-                                     A3(MS)Gr13                                                                     DMS(VB)320                                                                                         DMS(VB)313
-                                                                                                                    WCM(AB)613                                                                                         WCM(AB)614            Notional
-                               WCM A1(SS)/ CCF A2,A3(SN)                                                                                                                                                                 PE-IV            Learning hours
-                                   (215/CNC Lab)                                                                                                                                               IEM-SS 613              AAS(MS)410              as Per
-    TUESDAY                                                                                  CCF-SN 613              CCF-SN 613                                   IEM-SS 613               (Formative Assessment &                        NCRF/AICTE
-                                                                                                                                                                                               Doubt Solving)
-                                                                                                                                                                                                                       DMS(VB)313
-                                                                                                                                                                                                          
-```
+| Day | 9:30–10:30 | 10:30–11:30 | 11:30–11:45 | 11:45–12:45 | 12:45–1:45 | 1:45–2:30 | 2:30–3:30 | 3:30–4:30 | 4:30–5:30 |
+|---|---|---|---|---|---|---|---|---|---|
+| MON | M-IV PR | FM UN | BREAK | PS-III A1A2 KG/PR · AMP A3 JKP · KOM A4 RSD | AMP A1 SS · FM A2 VM · KOM A3A4 KG/PR | BREAK | AMP JKP | AMP A2 JKP · KOM A3 SN · FM A4 VM | Notional |
+| TUE | FM UN | KOM RSD | BREAK | AMP A1 SS · FM A2 VM · PS-III A3A4 KG/PR | — | BREAK | FM A1 VM · KOM A2 RSD · AMP A4 JKP | KOM A1 SN · FM A3 PT | Notional |
+| WED | KOM RSD | AMP JKP | BREAK | FM UN | M-IV PR | BREAK | — | KOM A1 SN · FM A3 PT | Notional |
+| THU | KOM SN | AMP JKP | BREAK | M-IV PR | FM UN (FA) | BREAK | M-IV TuT PR/UN | Notional | Notional |
+| FRI | AMP JKP (FA) | M-IV PR (FA) | BREAK | KOM SN (FA) | EVS VM | BREAK | Notional | — | — |
+| SAT | ABL / IP / Co-curricular / Extra-curricular / Notional (all day) | | | | | | | | |
 
-## SE
+IP: 17/1/26, 24/1/26, 31/1/26, 7/2/26 · ABL: 14/2/26, 21/2/26, 7/3/26, 14/3/26.
+42 hrs/week.
 
-- Drive file: `1ALpqBNb18KyPn64LsdDQvhd4PS_utWyB`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1ALpqBNb18KyPn64LsdDQvhd4PS_utWyB_view.txt`
-- Class: S.E (SEM IV) W.E.F: 13/01/2026 CLASS INCHARGE: Mr. Pankaj Rawool Venue : 613
-- Venue: 613
-- Wef: 13/01/2026 CLASS INCHARGE: Mr. Pankaj Rawool Venue : 613
-- Incharge: Mr. Pankaj Rawool Venue : 613
-- Hours: per semester 26 x 15 = 390 + Indirect Contact = 16 x 15 =240+ Internship =60 hrs / semester = 690 hrs/ semester
+## TE (SEM VI) — venue 614 · in-charge Mr. Vinay Bhatkar
 
-### Extracted text (grid)
+Legend: WPMH = Workplace Mental Health (SA = Swapnil Alhad) · DME = Design of
+Machine Elements (KG / VB = Vinay Bhatkar) · ATD = Applied Thermodynamics (RD
+= Rupesh Deshbhratar) · PE-I = Automotive Prime Movers / Design of
+Mechatronics Systems / PED (VM / VB / PR) · OE-I = Intro to Industry 4.0 ·
+PS-V (VB / MS = Mahendra Shelar) · RBL (SS = Siddesh Siddappa).
 
-```
-       TCET/ DEPT /FRM/IP-02/06 – (CLASS)                                                                        CLASS TIME TABLE                                                      Revision: A
-       TCET/ MECH/    OF Dec 2025                                                                                                                                                      Date : 28/11/2025
-         CLASS: S.E (SEM IV)           W.E.F: 13/01/2026                                                       CLASS INCHARGE:                     Mr. Pankaj Rawool                                 Venue : 613
-                                                                    11:30 am
-                         9:30 am to            10:30 am to                          11.45 am to              12.45 pm to           1.45 pm to    2:30 pm to 3:30                  3:30 pm to                4:30 pm to    5:30 pm to
-  DAYS/TIME                                                         to 11:45
-                          10:30 am              11:30 am                             12.45 am                  1.45pm               2:30 pm            pm                          4:30 pm                   5.30 pm       6:30 pm
-                                                                       am
-                                                                                         PS-III-A1/A2(KG/PR)                                                                 AMP-A2 (JKP) KOM-A3(SN)
-   MONDAY                M-IV-PR                 FM-UN                                                                                             AMP-JKP
-                                                                                      AMP-A3(JKP)/KOM -A4(RSD)                                                                     FM -A4(VM)
-                                                                                          AMP-A1(SS)/FM –A2(VM)
-   TUESDAY                FM-UN                KOM-RSD                                                                                              FM-A1(VM) KOM-A2(RSD) AMP-A4(JKP)
-                                                                                           PS-III-A3/A4 (KG/PR)
-                                                                                                                                                                                                            Notional Learning hours
- WEDNESDAY                                                                            FM-UN                   M-IV-PR                                       KOM-A1(SN) FM-A3(PT)
-                        KOM--RSD               AMP-JKP                                                                                                                                                      as Per NCRF/AICTE for
-                                                                    BREAK                                                            BREAK                                                                  MiniProject/Assignment/
-                                                                                                               FM-UN                                               Notional Learning hours as Per
-                                                                                                                                                    M-IV(T)-                                                    Seminar Report/
-  THURSDAY               KOM -SN               AMP-JKP                               M-IV-PR             (Formative Assessment &                                       NCRF/AICTE for Mini
-                                                                                                             Doubt Solving)
-                                                                                                                                                     PR/UN
-                    
-```
+| Day | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|---|
+| MON | WPMH SA | PE-I DMS IM · APM VM · PED PR | OE-I | ATD RD | — | PS-V A1A2 VB/MS | DME A3 KG · ATD A4 RD |
+| TUE | ATD RD | DME VB | — | OE-I | DME KG | DME A1 KG · ATD A2 RD | PS-V A3A4 VB/MS |
+| WED | DME KG | WPMH SA | BREAK | OE-I | PE-I DMS/APM/PED | ATD A3 RD · DME A4 VB | — |
+| THU | PE-I DMS/APM/PED | ATD RD | — | OE-I | — | ATD A1 RD · DME A2 VB | Notional |
+| FRI | PE-I (FA) | DME VB (FA) | — | ATD RD (FA) | — | WPMH SA (FA) | Notional |
+| SAT | IP / RBL / Co-curricular / Extra-curricular / Notional (all day) | | | | | | |
 
-## TE
+690 hrs/semester. 42 hrs/week.
 
-- Drive file: `1QV5QRCxvLLHUDS_vTNGmyb73BSFxqbuD`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1QV5QRCxvLLHUDS_vTNGmyb73BSFxqbuD_view.txt`
-- Class: T.E- (SEM VI) W.E.F: 13/01/2026 CLASS INCHARGE: Mr. Vinay Bhatkar Venue : 614
-- Venue: 614
-- Wef: 13/01/2026 CLASS INCHARGE: Mr. Vinay Bhatkar Venue : 614
-- Incharge: Mr. Vinay Bhatkar Venue : 614
-- Hours: per semester 24 x 15 = 360 + Indirect Contact = 18 x 15 =270 + Internship =60 hrs / semester = 690 hrs/ semester
+## BE (SEM VIII) — venue 613/614 · in-charge Ms. Seema Nagrani
 
-### Extracted text (grid)
+Legend: PE-IV AAS/DMS/WCM = Advanced Automotive Systems (MS = Mahendra
+Shelar) / Design of Mechanical Systems (VB) / World Class Manufacturing (AB =
+Ankush Biradar) · CCF = CAD-CAM & FEA (SN) · IEM = Industrial Engineering &
+Management (SS = Siddesh Siddappa) · OE-III (PM = Parth Mehta?) · PROJECT ·
+Industry Certification.
 
-```
-   TCET/ DEPT /FRM/IP-02/06 – (CLASS)                                                                          CLASS TIME TABLE                                                               Revision: A
-   TCET/ MECH/    OF Dec 2025                                                                                                                                                                 Date : 28/11/2025
-     CLASS: T.E- (SEM VI)          W.E.F: 13/01/2026                                             CLASS INCHARGE: Mr. Vinay Bhatkar                                                           Venue : 614
-                                                         10:30 am to      11:30 pm to    12:30 pm to 1:30                                                                  3:30 pm to 4:30          4:30 pm to
-     DAYS/TIME           9:30 am to 10:30 am                                                                        1:30 pm to 2:.30 pm            2:30 pm to 3:30 pm                                5.30 pm            5:30 pm to 6:30 pm
-                                                          11:30am          12:30 pm             pm                                                                               pm
-                                                        PE-I
-                                                                                                                                                          PS-V-A1/A2(VB/MS)
-       MONDAY                 WPMH-SA               DMS(IM)/APM(                               OE-I                      ATD -RD
-                                                                                                                                                        DME-A3(KG)/ATD -A4(RD)
-                                                     VM)/PED(PR)
-                                                                                                                                                        DME-A1(KG)/ATD –A2(RD)                       Notional         Notional Learning
-       TUESDAY                  ATD -RD                   DME-VB                               OE-I                      DME-KG                                                                                          hours as Per
-                                                                                                                                                          PS-V-A3/A4(VB/MS)                         Learning…
-                                                                                                                         PE-I                                                                                         NCRF/AICTE for
-                               DME-KG                    WPMH-SA                               OE-I                DMS(IM)/APM(VM)/P                                                                                         Mini
-     WEDNESDAY                                                                                                                                          ATD- A3(RD) DME- A4(VB)
-                                                                                                                                                                                                                    Project/Assignment/Se
-                                                                                                                        ED(PR)
-                                                                           BREAK                                                                                                                                        minar Report/
-                               PE-I                                                                                                                                                                                   RBL/Continuous
-      THURSDAY          DMS(IM)/APM(VM)       
-```
+| Day | 9:30–10:30 | 10:30–11:30 | 11:30–11:45 | 11:45–12:45 | 12:45–1:45 | 1:45–2:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|---|---|
+| MON | PROJECT/DMS A2 VB 320 · A3 MS | WCM/CCF A1 SS · A2,3 SN 215/CNC | BREAK | IEM SS 613 | PE-IV AAS MS 410 · DMS VB 320 · WCM AB 613 | BREAK | IEM SS 613 | PE-IV AAS 410 · DMS 313 · WCM 614 |
+| TUE | WCM/CCF A1 SS · A2,3 SN 215/CNC | CCF/PROJECT A1 SN | BREAK | CCF SN 613 | CCF SN 613 | BREAK | IEM SS 613 | IEM SS 613 (FA) · PE-IV AAS 410 · DMS 313 · WCM 613 |
+| WED | PE-IV (FA) AAS 410 · DMS 313 · WCM 713 | CCF SN 713 (FA) | BREAK | CCF/PROJECT A1 SN | Industry Cert | BREAK | Industry Cert | Industry Cert · PROJECT |
+| THU | OE-III PM (KG) | OE-III PM (KG) | BREAK | PROJECT | PROJECT | BREAK | Industry Cert | Industry Cert · PROJECT |
+| FRI | OE-III PM (KG) | OE-III PM (KG) (FA) | BREAK | PROJECT | PROJECT | BREAK | PROJECT | PROJECT |
+| SAT | Co-curricular / Extra-curricular / Notional (all day) | | | | | | | |
+
+Load: 12 theory + 2 practical + 4 IC + 12 project + 5 multi-disc = 42 hrs/week.

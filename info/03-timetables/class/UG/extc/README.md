@@ -1,231 +1,126 @@
-# extc — Class Timetables
+# E&TC (EXTC) — Class Timetables
 
-## BE-A
+All divisions: form `TCET/E&TC/FRM/IP-02/06-(CLASS)`, **W.E.F. 13/01/2026**
+(AY 2025-26 even semester), slots 9:30–6:30, lunch 11:30–12:30 (SE/TE) or
+12:30–1:30 (BE), Saturday = ABL/IP/co-curricular/notional. All grids
+**vision-verified** from the official PDFs. Signature chain: Prepared
+(Sangeeta Mishra, Archana Deshpande) → HOD E&TC (Dr. Payel Saha) → Dean
+Academic → VP → Principal.
 
-- Drive file: `1uhzBPO6DbLfJTwkqzzB4RxzWPWjd1Kjd`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1uhzBPO6DbLfJTwkqzzB4RxzWPWjd1Kjd_view.txt`
-- Class: B.E-E&TC-A (SEM VIII) W.E.F: 13/01/2026 CLASS INCHARGE: BE A: Dr. Sangeeta Mishra/ Mr. Niket Amoda
-- Venue: 712
-- Wef: 13/01/2026 CLASS INCHARGE: BE A: Dr. Sangeeta Mishra/ Mr. Niket Amoda
-- Incharge: BE A: Dr. Sangeeta Mishra/ Mr. Niket Amoda
-- Hours: per semester 30x 15 = 450 + Indirect Contact = 12 x 15 =180 = 630 hrs/ semester
+Common: 35 (Mon–Fri) + 7 (Sat) + 60 internship = 42 hrs/week. SE: 13 theory +
+1 tutorial + 8 practical + 2 IP + 2 ABL + 9 multi-disciplinary. IP dates SE:
+17/1/26, 24/1/26, 31/1/26, 7/2/26; ABL: 14/2/26, 21/2/26, 7/3/26, 14/3/26.
+TE: IP 14/2/26…, RBL 17/1/26… (per division notes).
 
-### Extracted text (grid)
+---
 
-```
- TCET/E&TC/FRM/IP-02/06 – (CLASS)                                                                                            CLASS TIMETABLE                                                          Revision: B
-                                                                                                                                                                                                      TCET/E&TC 82 OF 2025
- CLASS: B.E-E&TC-A (SEM VIII)                                              W.E.F: 13/01/2026                                   CLASS INCHARGE:                                   BE A: Dr. Sangeeta Mishra/ Mr. Niket Amoda
+## SE-A (SEM IV) — venue 621 · in-charge Dr. Shailendra Shastri / Ms. Anvita Birje
 
- Venue: 712
+Legend: SS = Signals & Systems (AR = Arpit Rawankar / DS = Deepak Shete) ·
+MPI = Microprocessor Peripherals & Interfacing (RM = Rupali Mane / AD =
+Archana Deshpande) · AC = Analog Circuits (SS = Shailendra Shastri / AB =
+Anvita Birje / SB = Sonia Behra) · M-IV (SSH = Satish Singh) · EVS (AY =
+Ankita Yadav) · PS-III (AB / NT / PC).
 
-                       9:30 AM to          10:30 AM to 11:30             11:30 AM to 12:30                                                                 2:30PM to            3:30 PM to
-DAYS/TIME                                                                                           12:30PM to 1:30PM        1:30 PMto 2:30 PM                                                         4:30 PM to 5:30 PM                    5:30PM to 6:30PM
-                        10:30 AM                  AM                            PM                                                                          3:30PM               4:30 PM
+| Day | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 |
+|---|---|---|---|---|---|---|
+| MON | AC AB 621 | MPI RM 621 | SS AR 621 | BREAK | AC/MPI A1A2 AB-SS 105 · A3A4 RM-AD 120 | Notional |
+| TUE | AC SS 621 | M-IV SSH 621 | AC AB 621 | BREAK | SS/PS-III A1A2 AR-DS 104 · A3A4 AB-PC 214 | M-IV TuT 104 |
+| WED | M-IV SSH 621 | SS AR 621 | MPI RM 621 | BREAK | AC/MPI A3A4 AB-SB 105 · A1A2 RM-AD 120 | Notional |
+| THU | SS AR 621 | MPI RM 621 | M-IV SSH 621 | BREAK | SS/PS-III A3A4 AR-DS 104 · A1A2 AB-NT 214 | M-IV TuT 104 |
+| FRI | M-IV SSH 621 (FA) | MPI RM 621 (FA) | AC SS 621 (FA) | BREAK | SS AR 621 (FA) | EVS AY 621 |
+| SAT | ABL / IP / Co-curricular / Extra-curricular / Notional (all day) | | | | | |
 
-                                                                               SN & RS                        5GN                                                                                ERP / PROJECT
-                                         ERP
-                                                                                                               NT                                           SN & RS                              A1- A2 / A3- A4
- MONDAY                                   NA                                     SM
-                                                                                                                                                            SM (621)                              NA – PC/ PG
-                                         (712)                                  (712)                         (621)
-                                                                                                                                                                                                   (120) / (214)
+---
 
-                                                                                       ERP / PROJECT                                                                             SN & RS
-                             5GN                      ERP                                                                                                                        SM (621)
-                                                                                        A3 A4 / A1 -A2                                                      SN & RS
- TUESDAY                      VD                       NA                                                                                                                        (Formative                 PROJECT
-                                                                                         (120) / (104)                                                      SM (621)
-                             (712)                    (712)                                                                                                                     Assessment &                  (214)
-                                                                                         NA-NT/PG                                   BREAK                                       Doubt Solving)
-                                                     5GN                        ERP
-                            5GN                     NT (712)                   NA (712)                  Industry                                                                Industry Certification                               Noti
-```
+## SE-B (SEM IV) — venue 624 · in-charge Mr. Deepak Shete / Mrs. Archana Deshpande
 
-## BE-B
+Legend: SS (DS / NT = Nikhil Tiwari) · MPI (KP = Kalawati Patil / AD / RM) ·
+AC (SB / SS / AB) · M-IV (SSH) · EVS (AY) · PS-III (NA = Niket Amoda / PC /
+RKM = Rashmita Kumari Mohapatra).
 
-- Drive file: `1W_a3n_i5bjQaiNMCUfacOvVad8MzSi0K`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1W_a3n_i5bjQaiNMCUfacOvVad8MzSi0K_view.txt`
-- Class: B.E-E&TC-B (SEM VIII) W.E.F: 13/01/2026 CLASS INCHARGE: BE B : Ms. Megha Gupta/ Mr. Nikhil Tiwari
-- Venue: 719
-- Wef: 13/01/2026 CLASS INCHARGE: BE B : Ms. Megha Gupta/ Mr. Nikhil Tiwari
-- Incharge: BE B : Ms. Megha Gupta/ Mr. Nikhil Tiwari
-- Hours: per semester 30x 15 = 450 + Indirect Contact = 12 x 15 =180 = 630 hrs/ semester
+| Day | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 |
+|---|---|---|---|---|---|---|
+| MON | SS DS | AC SS | MPI KP | BREAK | SS/PS-III B1B2 DS-NT 104 · B3B4 NA-PC 214 | M-IV TuT B1B2 104 |
+| TUE | MPI KP | SS DS | AC SB | BREAK | M-IV SSH | Notional |
+| WED | MPI AD | M-IV SSH | SS DS | BREAK | SS/PS-III B3B4 DS-NT 104 · B1B2 NA-RKM 214 | M-IV TuT B3B4 104 |
+| THU | SS DS (FA) | M-IV SSH (FA) | AC SB (FA) | BREAK | AC/MPI B1B2 SS-SB 105 · B3B4 RM-AD 120 | EVS AY |
+| FRI | AC SS (FA) | M-IV SSH (FA) | MPI AD (FA) | BREAK | AC/MPI B3B4 SB-AB 105 · B1B2 RM-AD 120 | Notional |
+| SAT | ABL / IP / Co-curricular / Extra-curricular / Notional (all day) | | | | | |
 
-### Extracted text (grid)
+---
 
-```
-TCET/E&TC/FRM/IP-02/06 – (CLASS)                                                                                                 CLASS TIMETABLE                                                    Revision: B
-                                                                                                                                                                                                    TCET/E&TC 82 OF 2025
-CLASS: B.E-E&TC-B (SEM VIII)                                            W.E.F: 13/01/2026                                          CLASS INCHARGE:                              BE B : Ms. Megha Gupta/ Mr. Nikhil Tiwari
-Venue: 719
+## TE-A (SEM V) — venue 712 · in-charge Ms. Sonia Behera / Ms. Aradhana Manekar
 
-                                                                                                                                                             1:30
-                                                                                                                 11:30 AM to            12:30PM to                                                 3:30 PM to           4:30 PM to
-     DAYS/TIME                 9:30 AM to 10:30 AM                     10:30 AM to 11:30 AM                                                                 PMto       2:30PM to 3:30PM                                                 5:30PM to 6:30PM
-                                                                                                                  12:30 PM                1:30PM                                                    4:30 PM              5:30 PM
-                                                                                                                                                           2:30 PM
-                                                                                                                                                                                5GN
-                                                                                                                   SN & RS                                                                               ERP / PROJECT
-                                                              ERP                                                                        SN & RS                                 MG
-      MONDAY                                                                                                      RKM (719)                                                                               B1-B2 / B3 –B4
-                                                             KP (719)                                                                   RKM (624)                               (624)
-                                                                                                                                                                                                           (105)/ (616)
-                                                                                                                                                                                                           KP-AY / PG
-                                                               5GN                                                      ERP / PROJECT
-                                                                NT                                                       B3-B4 / B1 -B2                                     SN & RS                  ERP                PROJECT          Notional Learning
-      TUESDAY                                                                                                                                                                                                                               hours as Per
-                                                               (719)                                                       (105)/ (104)                                    RKM (624)                KP (719)              (104)
-                                                         
-```
+Legend: CCN = Computer Communication Network (SK = Sukruti Kaulgud / AM =
+Aradhana Manekar) · DBMS (PS = Payel Saha / PC / RKM / AY) · PS-V (SM =
+Sangeeta Mishra / SK / AY) · DIP = Digital Image Processing (DS / RKM) · FON
+= Fiber Optics Network (LJ = Lochan Jolly / AR) · WMH = Workplace Mental
+Health (BM = Bhumika Malhotra) · RBL = Research Based Learning (SM / SS =
+Shailendra Shastri) · IP (RKM / MG = Megha Gupta) · OE-I (MG).
 
-## SE-A
+| Day | 9:30–11:30 (double) | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|
+| MON | DBMS/PS-V A1A2 PS-RKM 214 · A3A4 SM-SK 120 | LUNCH | OE-I MG 712 | CCN SK 712 | DBMS PS 712 | Notional |
+| TUE | PS-V/CCN A1A2 SM-AY 120 · A3A4 SK-AM 105 | LUNCH | OE-I MG 712 | DIP/FON RKM/LJ 712/719 | WMH BM 712 | Notional |
+| WED | CCN/DBMS A1A2 SK-AM 105 · A3A4 AY-PC 214 | LUNCH | OE-I MG 712 | CCN SK 712 | DBMS PS 712 | DIP/FON DS/LJ 712/719 |
+| THU | CCN SK 712 | DBMS PS 712 | LUNCH | OE-I MG 712 (FA) | WMH BM 712 | Notional |
+| FRI | DIP/FON RKM/AR 712/719 | DIP/FON DS/AR 712/719 (FA) | LUNCH | CCN SK 712 (FA) | DBMS PS 712 (FA) | WMH BM 712 (FA) |
+| SAT | IP / RBL / Co-curricular / Extra-curricular / Notional (all day) | | | | | |
 
-- Drive file: `1YJetaVF_UdUOgt5AtKrlMOd9MqyipQO9`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1YJetaVF_UdUOgt5AtKrlMOd9MqyipQO9_view.txt`
-- Class: S.E-E&TC-A (SEM IV) W.E.F: 13/01/2026 CLASS INCHARGE: SE A: Dr. Shailendra Shastri / Ms. Anvita Birje
-- Venue: 621
-- Wef: 13/01/2026 CLASS INCHARGE: SE A: Dr. Shailendra Shastri / Ms. Anvita Birje
-- Incharge: SE A: Dr. Shailendra Shastri / Ms. Anvita Birje
-- Hours: per semester 26 x 15 = 390 + Indirect Contact = 16 x 15 =240+ Internship =60 hrs / semester = 690 hrs/ semester
+690 hrs/semester (360 direct + 270 indirect + 60 internship).
 
-### Extracted text (grid)
+---
 
-```
-TCET/E&TC/FRM/IP-02/06 – (CLASS)                                                                                            CLASS TIMETABLE                                                              Revision: B
-                                                                                                                                                                                                  TCET/E&TC 82 OF 2025
-CLASS: S.E-E&TC-A (SEM IV)                                              W.E.F: 13/01/2026                                   CLASS INCHARGE:                            SE A: Dr. Shailendra Shastri / Ms. Anvita Birje
-Venue: 621
-                                     9:30 AM to 10:30 AM                                                                                                              2:30PM to3:30PM         3:30 PM        4:30 PM       5:30PM to 6:30PM
-                                                                        10:30 AM to                                            12:30PM to          1:30 PM to
-      DAYS/TIME                                                                                   11:30 AM to 12:30 PM                                                                         to 4:30        to 5:30
-                                                                         11:30 AM                                                1:30PM             2:30 PM
-                                                                                                                                                                                                 PM             PM
-                                                                                                                                                               AC/MPI
-                                              AC                              MPI                                                                          A1-A2 / A3-A4
-        MONDAY                                                                                              SS                                                                                 Notional Learning…
-                                              AB                              RM                                                                          AB – SS / RM – AD
-                                                                                                            AR
-                                                                                                                                                             (105) / (120)
-                                                                                                                                                              SS/PS III
-                                                                                                                                                                                                     M-IV(T)
-                                              AC                              M-IV                          AC                                             A1-A2 / A3 A4
-        TUESDAY                                                                                                                                                                                      A1-A2
-                                              SS                              SSH                           AB                                            AR – DS / AB - PC
-                                                                                                                                                                                                      (104)                 Notional Learning
-                                                                                                                                                            (104) / (214)
-                                               
-```
+## TE-B (SEM VI) — venue 719 · in-charge Ms. Rashmita Kumari M. / Ms. Purnima C.
 
-## SE-B
+Legend: CCN (AM / MG) · DBMS (PS / MC = Manoj Chavan / RKM / PC / AY) · PS-V
+(SB / AY / MG) · DIP (DS / RKM) · FON (LJ / AR) · WMH (BM) · RBL (AR / SK) ·
+IP (NA / AY) · OE-I (PC).
 
-- Drive file: `13a6T1C1sk6Mu8JS5eae7llQNH8gV5S08`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_13a6T1C1sk6Mu8JS5eae7llQNH8gV5S08_view.txt`
-- Class: S.E-E&TC-B (SEM IV) W.E.F: 13/01/2026 CLASS INCHARGE: SE B: Mr. Deepak Shete / Mrs. Archana Deshpande
-- Venue: 624
-- Wef: 13/01/2026 CLASS INCHARGE: SE B: Mr. Deepak Shete / Mrs. Archana Deshpande
-- Incharge: SE B: Mr. Deepak Shete / Mrs. Archana Deshpande
-- Hours: per semester 26 x 15 = 390 + Indirect Contact = 16 x 15 =240+ Internship =60 hrs / semester = 690 hrs/ semester
+| Day | 9:30–11:30 (double) | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|
+| MON | CCN/PS-V B1B2 AM-MG 105 · B3B4 SB-AY 104 | LUNCH | OE-I PC 719 | CCN AM 719 | DBMS AY | Notional |
+| TUE | DBMS/PS-V B3B4 PS-RKM 214 · B1B2 SB-MG 104 | LUNCH | OE-I PC 719 | DIP/FON RKM/LJ 712/719 | Notional | Notional |
+| WED | WMH BM 622 | DBMS MC 622 | LUNCH | OE-I PC 719 | CCN AM 719 | DBMS AY |
+| THU | CCN/DBMS B3B4 AM-MG 105 · B1B2 RKM-PC 214 | LUNCH | OE-I PC 719 (FA) | CCN AM | WMH BM | Notional |
+| FRI | DIP/FON RKM/AR 712/719 | DIP/FON DS/AR 712/719 (FA) | LUNCH | CCN AM (FA) | WMH BM (FA) | DBMS MC (FA) |
+| SAT | IP / RBL / Co-curricular / Extra-curricular / Notional (all day) | | | | | |
 
-### Extracted text (grid)
+---
 
-```
-          TCET/E&TC/FRM/IP-02/06 – (CLASS)                                                                            CLASS TIMETABLE                                                           Revision: B
-                                                                                                                                                                                             TCET/E&TC 82 OF 2025
-CLASS: S.E-E&TC-B (SEM IV)                                          W.E.F: 13/01/2026                                CLASS INCHARGE:                               SE B: Mr. Deepak Shete / Mrs. Archana Deshpande
-Venue: 624
-                                                          10:30 AM to               11:30 AM to               12:30PM to           1:30 PM to             2:30PM to                                  4:30 PM to 5:30
-  DAYS/TIME            9:30 AM to 10:30 AM                                                                                                                                  3:30 PM to 4:30 PM                            5:30PM to 6:30PM
-                                                           11:30 AM                  12:30 PM                   1:30PM              2:30 PM                3:30PM                                          PM
-                                                                                                                                            SS / PS III
-                                                                                                                                                                                   M-IV(T)
-                                   SS                         AC                                                                          B1 B2 / B3 B4
-   MONDAY                                                                               MPI                                                                                         B1-B2
-                                   DS                         SS                                                                        DS – NT / NA – PC
-                                                                                        KP                                                                                          (104)
-                                                                                                                                           (104) / (214)
+## BE-A (SEM VIII) — venue 712 · in-charge Dr. Sangeeta Mishra / Mr. Niket Amoda
 
-                                   MPI                        SS                        AC                                           M-IV
-   TUESDAY
-                                   KP                         DS                        SB                                           SSH                            Notional Learning…
+Legend: ERP = Enterprise Resource Planning (NA = Niket Amoda) · 5GN = 5G
+Networks (NT = Nikhil Tiwari / VD = Vinitkumar Dongre) · SN & RS = Satellite
+Navigation & Remote Sensing (SM = Sangeeta Mishra) · OE-III (open elective) ·
+PROJECT (guides) · Industry Certification.
 
-                                                                                                                                            SS / PS III                                                   Notional Learning hours as Per
-                                                                                                                                                                                   M-IV(T)
-                                   MPI                       M-IV                        SS                                               B3 B4 / B1 B2                                                       NCRF/AICTE for Mini
- WEDNESDAY                                                                                                                                                                          B3-B4
-                                   AD                        SSH                         DS                    BREAK                   DS – NT / NA – RKM                                                  Project/Assignment/Seminar
-                                                                                                                                                
-```
+| Day | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|---|
+| MON | ERP NA 712 | SN&RS SM 712 | 5GN NT 621 | BREAK | SN&RS SM 621 | ERP/Proj A1A2 NA-PC 120 · A3A4 PG 214 | Notional |
+| TUE | 5GN VD 712 | ERP NA 712 | ERP/Proj A3A4 NA-NT 120 · A1A2 PG 104 | BREAK | SN&RS SM 621 | SN&RS SM 621 (FA) | PROJECT 214 |
+| WED | 5GN NT 712 | 5GN NT 712 (FA) | ERP NA 712 (FA) | Industry Cert | BREAK | Industry Cert | Notional |
+| THU | OE III | OE III (FA) | PROJECT 214 | BREAK | — | PROJECT 616 | Notional |
+| FRI | OE III | OE III (FA) | PROJECT 214 | BREAK | — | PROJECT 214 | Notional |
+| SAT | Co-curricular / Extra-curricular / Notional (all day) | | | | | | |
 
-## TE-A
+630 hrs/semester.
 
-- Drive file: `1bZnQEzcpn1TR9V2aaMlbRdxsDiaesxy1`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1bZnQEzcpn1TR9V2aaMlbRdxsDiaesxy1_view.txt`
-- Class: T.E-E&TC-A (SEM V) CLASS INCHARGE: TE A: MS. SONIA BEHERA / MS. ARADHANA MANEKAR
-- Venue: 712
-- Wef: 13/01/2026
-- Incharge: TE A: MS. SONIA BEHERA / MS. ARADHANA MANEKAR
-- Hours: per semester 24 x 15 = 360 + Indirect Contact = 18 x 15 =270 + Internship =60 hrs / semester = 690 hrs/ semester
+---
 
-### Extracted text (grid)
+## BE-B (SEM VIII) — venue 719 · in-charge Ms. Megha Gupta / Mr. Nikhil Tiwari
 
-```
-TCET/E&TC/FRM/IP-02/06 – (CLASS)                                                                                                        CLASS TIMETABLE                                                          Revision: B
-                                                                                                                                                                                                                 TCET/E&TC 82 OF 2026
-                                                                        W.E.F: 13/01/2026
-CLASS: T.E-E&TC-A (SEM V)                                                                                                                  CLASS INCHARGE:                      TE A: MS. SONIA BEHERA / MS. ARADHANA MANEKAR
-Venue : 712
-                    9:30 AM to 10.30     10:30 AM to 11.30             11:30 AM to                                                                                                 3:30 PM to
- DAYS/TIME                                                                                  12:30 PM to 1.30 PM            1:30 PM to 2:30 PM           2:30 PM to 3:30 PM                            4:30 PM to 5:30 PM           5:30 PM to 6:30 PM
-                          AM                    AM                      12:30 PM                                                                                                    4:30 PM
-                                    DBMS/PS-V                                                       OE-I
-                                                                                                                                   CCN                         DBMS
-  MONDAY                            A1-A2/A3-A4                                                     MG                                                                                     Notional Learning hours as Per NCRF/AICTE for Mini
-                                                                                                                                    SK                          PS
-                            PS-RKM(214)/SM-SK(120)                                                  712                                                                            Project/Assignment/Seminar Report/ RBL/Continuous Evaluation/ Self
-                                     PS-V/CCN                                                       OE-I                        DIP/FON                                                            Learning/ Collaborative Learning etc
-                                                                                                                                                               WMH
-  TUESDAY                           A1-A2/A3-A4                                                     MG                          RKM/LJ
-                                                                                                                                                                BM
-                             SM-AY(120)/SK-AM(105)                                                  712                          712/719
-                                     CCN/DBMS                                                       OE-I                                                                            DIP/FON         Notional Learning hours as Per NCRF/AICTE for Mini
-                                                                                                                                   CCN                         DBMS
- WEDNESDY                           A1-A2/A3-A4                                                     MG                                                                               DS / LJ        Project/Assignment/Seminar Report/ RBL/Continuous
-                                                                                                                                    SK                          PS
-                                SK-
-```
+Legend: ERP (KP = Kalawati Patil) · 5GN (MG / NT) · SN & RS (RKM) · OE-III ·
+PROJECT · Industry Certification.
 
-## TE-B
+| Day | 9:30–10:30 | 10:30–11:30 | 11:30–12:30 | 12:30–1:30 | 1:30–2:30 | 2:30–3:30 | 3:30–4:30 |
+|---|---|---|---|---|---|---|---|
+| MON | ERP KP 719 | ERP KP 719 | SN&RS RKM 719 | SN&RS RKM 624 | BREAK | 5GN MG 624 | ERP/Proj B1B2 KP-AY 105 · B3B4 PG 616 |
+| TUE | 5GN NT 719 | 5GN NT 719 | ERP/Proj B3B4 KP-AY 105 · B1B2 PG 104 | BREAK | SN&RS RKM 624 | ERP KP 719 | PROJECT 104 |
+| WED | SN&RS RKM 719 (FA) | 5GN MG 719 (FA) | ERP KP 719 (FA) | Industry Cert | BREAK | Industry Cert | Industry Cert |
+| THU | OE III | OE III | PROJECT 104 | BREAK | — | PROJECT 621 | Notional |
+| FRI | OE III | OE III (FA) | PROJECT 104 | BREAK | — | PROJECT 104 | Notional |
+| SAT | Co-curricular / Extra-curricular / Notional (all day) | | | | | | |
 
-- Drive file: `1BGMykddcuUAmuGmBahlU8Blvjst7oHvp`
-- OCR: `/home/deepnar/Programs/timetable-api/info/text/drive/file_d_1BGMykddcuUAmuGmBahlU8Blvjst7oHvp_view.txt`
-- Class: T.E-E&TC-B (SEM VI) W.E.F: 13/01/2026 CLASS INCHARGE: TE B: MS. RASHMITA KUMARI M. / MS. PURNIMA C.
-- Venue: 719
-- Wef: 13/01/2026 CLASS INCHARGE: TE B: MS. RASHMITA KUMARI M. / MS. PURNIMA C.
-- Incharge: TE B: MS. RASHMITA KUMARI M. / MS. PURNIMA C.
-- Hours: per semester 24 x 15 = 360 + Indirect Contact = 18 x 15 =270 + Internship =60 hrs / semester = 690 hrs/ semester
-
-### Extracted text (grid)
-
-```
-             TCET/E&TC/FRM/IP-02/06 – (CLASS)                                                            CLASS TIMETABLE                                                                                Revision: B
-                                                                                                                                                                                                TCET/E&TC 82 OF 2025
-CLASS: T.E-E&TC-B (SEM VI)                                        W.E.F:         13/01/2026                                  CLASS INCHARGE:              TE B: MS. RASHMITA KUMARI M. / MS. PURNIMA C.
-        Venue : 719
-                                                                                              11:30 AM to                                                                                             3:30 PM to      4:30 PM to 5:30     5:30 PM to
-     DAYS/TIME            9:30 AM TO 10:30 AM               10:30 AM TO 11:30 AM                                   12:30 PM to 1.30 PM            1:30 PM to 2:30 PM         2:30 PM to 3:30 PM
-                                                                                               12:30 PM                                                                                                4:30 PM               PM             6:30 PM
-                                                                                                                                                                                                       Notional Learning hours as Per NCRF/AICTE
-                                               CCN / PS-V                                                                   OE-I
-                                                                                                                                                          CCN                       DBMS               for Mini Project/Assignment/Seminar Report/
-      MONDAY                                   B1-B2/B3-B4                                                                   PC
-                                                                                                                                                          AM                          AY                RBL/Continuous Evaluation/ Self Learning/
-                                           AM-MG(105)/SB-AY(104)                                                            719
-                                                                                                                                                                                                                Collaborative Learning etc.
-                                                DBMS/PS-V                                                                   OE-I                       DIP/FON                        Notional Learning hours as Per NCRF/AICTE for Mini
-      TUESDAY                                   B3-B4/B1-B2                                                                  PC                        RKM / LJ               Project/Assignment/Seminar Report/ RBL/Continuous Evaluation/ Self
-                                           PS-RKM(214)/SB-MG(104)                                                           719                         712/719                               Learning/ Collaborative Learning etc.
-                                     WMH                       DBMS                                                         OE-I                                                                       DIP/FON
-                                                                                                                                                          CCN                       DBMS                              Notional Learning hours as Per
-    WEDNESDAY                         BM                         MC                                                          PC                                              
-```
+630 hrs/semester (30 direct + 180 indirect... per doc: 35+7=42/week).
