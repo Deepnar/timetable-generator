@@ -17,6 +17,8 @@ export interface GridSession {
   facultyName?: string;
   roomCode?: string;
   groupName?: string;
+  /** Lab batch this session belongs to (parallel practicals), 1-based. */
+  batchNumber?: number;
   day: number; // 0..6
   startSlot: number; // 1-based
   duration: number; // block_length
@@ -69,17 +71,20 @@ export function TimetableGrid({
   breakAfterSlot,
   breakLabel = "LUNCH BREAK",
 }: TimetableGridProps) {
-  // index sessions by (day, startSlot) for O(1) lookup; skip spans of blocks
+  // index sessions by (day, startSlot); a cell may hold several parallel
+  // batches (same time, distinct rooms) — keep them all.
   const byDaySlot = useMemo(() => {
-    const map = new Map<string, GridSession>();
+    const map = new Map<string, GridSession[]>();
     for (const s of sessions) {
-      // only index the START slot; the span covers the rest
-      map.set(`${s.day}:${s.startSlot}`, s);
+      const key = `${s.day}:${s.startSlot}`;
+      const arr = map.get(key) ?? [];
+      arr.push(s);
+      map.set(key, arr);
     }
     return map;
   }, [sessions]);
 
-  const rowHeight = density === "compact" ? 44 : 64;
+  const rowHeight = density === "compact" ? 52 : 76;
   // A break row (1h) is inserted after breakAfterSlot; slots after it shift down.
   const breakSlot = breakAfterSlot ?? 0;
   const breakRow = breakSlot > 0 ? breakSlot + 1 : 0;
@@ -89,15 +94,18 @@ export function TimetableGrid({
   const cells: React.ReactNode[] = [];
   for (const day of days) {
     for (let slot = 1; slot <= slotCount; slot++) {
-      const session = byDaySlot.get(`${day}:${slot}`);
+      const slotSessions = byDaySlot.get(`${day}:${slot}`) ?? [];
       // skip slots covered by a block that started earlier
       const coveredByEarlier = Array.from({ length: slot - 1 }, (_, k) => slot - 1 - k).some((s) => {
         const prev = byDaySlot.get(`${day}:${s}`);
-        return prev && prev.startSlot + prev.duration - 1 >= slot;
+        return prev?.some((p) => p.startSlot + p.duration - 1 >= slot);
       });
       if (coveredByEarlier) continue;
 
-      const marker = session ? markers?.[`${day}:${slot}`] : undefined;
+      const cellSessions = slotSessions.filter(
+        (s) => s.startSlot + s.duration - 1 >= slot,
+      );
+      const marker = cellSessions.length ? markers?.[`${day}:${slot}`] : undefined;
 
       cells.push(
         <div
@@ -105,8 +113,14 @@ export function TimetableGrid({
           className="border-t border-l border-border first:border-l-0"
           style={{ gridColumn: day + 2, gridRow: rowFor(slot) + 1 }}
         >
-          {session ? (
-            <GridCell session={session} density={density} readOnly={readOnly} marker={marker} onClick={(e) => onCellClick?.(session, e)} />
+          {cellSessions.length ? (
+            <CellStack
+              sessions={cellSessions}
+              density={density}
+              readOnly={readOnly}
+              marker={marker}
+              onClick={(s, e) => onCellClick?.(s, e)}
+            />
           ) : null}
         </div>,
       );
@@ -116,10 +130,10 @@ export function TimetableGrid({
   return (
     <div className="overflow-x-auto" ref={scrollRef} onScroll={onScroll}>
       <div
-        className="grid min-w-[820px]"
+        className="grid min-w-[980px]"
         style={{
-          gridTemplateColumns: `56px repeat(${days.length}, minmax(150px, 1fr))`,
-          gridTemplateRows: `36px repeat(${totalRows}, ${rowHeight}px)`,
+          gridTemplateColumns: `64px repeat(${days.length}, minmax(170px, 1fr))`,
+          gridTemplateRows: `38px repeat(${totalRows}, ${rowHeight}px)`,
         }}
       >
         {/* corner */}
@@ -161,21 +175,61 @@ export function TimetableGrid({
   );
 }
 
-function GridCell({ session, density, readOnly, marker, onClick }: {
+function CellStack({ sessions, density, readOnly, marker, onClick }: {
+  sessions: GridSession[];
+  density: "comfortable" | "compact";
+  readOnly: boolean;
+  marker?: GridCellMarker;
+  onClick: (s: GridSession, e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  // Parallel practicals stack several batches in one time window. A single
+  // session renders full-height; multiple sessions share the cell vertically.
+  if (sessions.length === 1) {
+    return (
+      <GridCell session={sessions[0]} density={density} readOnly={readOnly} marker={marker} onClick={(e) => onClick(sessions[0], e)} />
+    );
+  }
+  // Several parallel batches share the window — let them scroll vertically so
+  // every batch stays readable instead of squishing into overlapping text.
+  const scrollable = sessions.length >= 3;
+  return (
+    <div className={cn(
+      "flex h-full w-full flex-col gap-px overflow-hidden",
+      scrollable && "overflow-y-auto",
+    )}>
+      {sessions.map((s) => (
+        <GridCell
+          key={s.key}
+          session={s}
+          density={density}
+          readOnly={readOnly}
+          marker={marker}
+          compact
+          onClick={(e) => onClick(s, e)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function GridCell({ session, density, readOnly, marker, onClick, compact = false }: {
   session: GridSession;
   density: "comfortable" | "compact";
   readOnly: boolean;
   marker?: GridCellMarker;
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  compact?: boolean;
 }) {
   const color = chartColor(session.subjectId ?? 0);
   const isLab = session.sessionType === "LAB";
+  const isOnline = !session.roomId && session.sessionType === "ACTIVITY";
   return (
     <button
       type="button"
       onClick={readOnly ? undefined : onClick}
       className={cn(
-        "flex h-full w-full flex-col justify-center gap-0.5 overflow-hidden rounded-r-sm border-l-[3px] bg-surface px-2 text-left",
+        "flex min-h-0 w-full flex-col justify-center gap-0.5 overflow-hidden rounded-r-sm border-l-[3px] bg-surface px-2 text-left",
+        compact && "flex-[1]",
         !readOnly && "cursor-pointer transition-shadow hover:shadow-md",
         marker === "added" && "border-l-ink ring-2 ring-dashed ring-primary/70 ring-inset",
         marker === "removed" && "opacity-60 ring-2 ring-dashed ring-danger/70 ring-inset",
@@ -185,16 +239,18 @@ function GridCell({ session, density, readOnly, marker, onClick }: {
     >
       <div className="flex items-center gap-1 font-mono text-xs font-semibold" style={{ color }}>
         {session.subjectCode ?? "—"}
+        {session.batchNumber != null && <span className="rounded bg-ink/10 px-1">B{session.batchNumber}</span>}
         {isLab && <FlaskConical className="h-3 w-3" />}
+        {isOnline && <span className="text-[10px] uppercase tracking-wide text-primary">online</span>}
       </div>
-      {density === "comfortable" && session.subjectName && (
+      {density === "comfortable" && !compact && session.subjectName && (
         <div className="truncate text-[13px] font-medium text-ink">{session.subjectName}</div>
       )}
       <div className="flex items-center gap-1 text-xs text-ink-soft">
         {session.facultyName && <span className="truncate">{session.facultyName}</span>}
         {session.roomCode && <span className="shrink-0 font-mono text-muted-foreground">{session.roomCode}</span>}
       </div>
-      {session.groupName && density === "comfortable" && (
+      {session.groupName && density === "comfortable" && !compact && (
         <div className="truncate text-[11px] text-muted-foreground">{session.groupName}</div>
       )}
     </button>

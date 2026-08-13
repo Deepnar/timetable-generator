@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Play, RefreshCw, CalendarDays } from "lucide-react";
+import { Loader2, Play, RefreshCw, CalendarDays, Info } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost } from "@/lib/api";
 import { useGenerationStatus, useGenerations, useProfiles } from "@/hooks/use-resources";
@@ -108,6 +108,19 @@ function GenerateInner() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Form */}
         <div className="rounded-md border bg-surface p-6 shadow-sm">
+          <div className="mb-4 flex flex-col gap-2 rounded-md border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <Info className="h-4 w-4 text-primary" />
+              How a timetable is made — first time here?
+            </div>
+            <ol className="list-decimal space-y-1 pl-5 text-[13px] leading-snug text-muted-foreground">
+              <li><span className="font-medium text-ink">Resources</span> — add rooms, faculty, divisions and subjects (Rooms / Faculty / Groups / Subjects in the sidebar).</li>
+              <li><span className="font-medium text-ink">Assignments</span> — say who teaches which subject to which group. Lab practicals split into batches automatically (3 for FE, 2 for SE+).</li>
+              <li><span className="font-medium text-ink">Profile</span> — bundle a class&apos;s resources with its time grid and rules (Profiles).</li>
+              <li><span className="font-medium text-ink">Generate</span> — pick the profile here, review the candidate instances, then <span className="font-medium text-ink">Select → Publish</span> the one that looks right.</li>
+            </ol>
+          </div>
+
           <h1 className="display text-3xl text-ink">New generation</h1>
           <p className="mt-1 text-sm text-muted-foreground">Pick a profile and run the solver.</p>
 

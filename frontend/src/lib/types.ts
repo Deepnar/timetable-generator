@@ -94,6 +94,7 @@ export interface Slot {
   faculty_id: number | null;
   room_id: number | null;
   student_group_id: number | null;
+  batch_number: number | null;
   session_type: string;
   is_manual_override: boolean;
   override_reason: string | null;

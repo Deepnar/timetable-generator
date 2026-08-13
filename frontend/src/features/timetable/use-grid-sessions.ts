@@ -43,6 +43,7 @@ export function useGridSessions(instanceId: number | undefined) {
         facultyName: fac?.name,
         roomCode: room?.room_code,
         groupName: group?.name,
+        batchNumber: sl.batch_number ?? undefined,
         day: sl.day_of_week ?? 0,
         startSlot: sl.slot_number ?? 1,
         duration: 1, // contiguous blocks are stored per-slot; see grouping below
@@ -64,7 +65,8 @@ export function useGridSessions(instanceId: number | undefined) {
         prev.startSlot + prev.duration === s.startSlot &&
         prev.subjectId === s.subjectId &&
         prev.facultyName === s.facultyName &&
-        prev.roomCode === s.roomCode
+        prev.roomCode === s.roomCode &&
+        prev.batchNumber === s.batchNumber
       ) {
         prev.duration += 1;
       } else {
