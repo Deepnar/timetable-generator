@@ -1,0 +1,2402 @@
+{
+ "generated_from": "COMP real roster scale",
+ "faculty": [
+  {
+   "department_code": "COMP",
+   "name": "Dr. R. R. Sedamkar"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Sheetal Rathi"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Rashmi Thakur"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Vaishali Kaiche"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Shailesh Sangle"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Harshali P. Patil"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Rekha Sharma"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Vikas Singh"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mrs. Lydia Suganya"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mrs. Veena Kulkarni"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mrs. Deepali Joshi"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Loukik Salvi"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Foram Shah"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Siddhi Ambre"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Tanmayi Nagale"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Drashti Shrimal"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Pratiksha Deshmukh"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Swapnil Bhagat"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Ashish Dwivedi"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Abhilasha Patil"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mrs. Vinitta Sunish"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Akshata Raut"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Sudhir Mundhra"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Shubham Parnekar"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Parth Mehta"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Samir Sawant"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Shushant Sawant"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Roshani Baikar"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Venkatesh Jamardarkhana"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Neha Wankhede"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Garima Joshi"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Rishab Singh"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Vrunal Gharat"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Pankaj Singh"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Sushil Vichare"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Deepak Vijaykumar Pal"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Dr. Megharani Patil"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Kshitij Pillai"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Ms. Vikram Bhat"
+  },
+  {
+   "department_code": "COMP",
+   "name": "Mr. Kavita Sharma"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Shraddha Joshi"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Neha Shinde"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Pooja Gupta"
+  },
+  {
+   "department_code": "IT",
+   "name": "Dr. Ritu More"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Amol Pillai"
+  },
+  {
+   "department_code": "IT",
+   "name": "Dr. Anushka Apte"
+  },
+  {
+   "department_code": "IT",
+   "name": "Dr. Om Kadam"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Sandeep Bhat"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mr. Megha Kulkarni"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mr. Gaurav Pillai"
+  },
+  {
+   "department_code": "IT",
+   "name": "Dr. Meera Pillai"
+  },
+  {
+   "department_code": "IT",
+   "name": "Dr. Rahul Tiwari"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Ananya Gupta"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Sahil Shinde"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mr. Vikram Das"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Aarav Desai"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Vaishali Bhat"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Revati Salunkhe"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Sana Reddy"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Ritu Nair"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Revati Datar"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Pooja Kale"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Kavita Naik"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mr. Kshitij Thakur"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mr. Arjun Kadam"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Priya Mehta"
+  },
+  {
+   "department_code": "IT",
+   "name": "Dr. Nitin Kulkarni"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Divya Fernandes"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mr. Nisha Pawar"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mr. Riya Salunkhe"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Rahul Apte"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Rahul Datar"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Ishaan Naik"
+  },
+  {
+   "department_code": "IT",
+   "name": "Dr. Karan Gavde"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Karan Fernandes"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Prajakta Thakur"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mr. Ritu Nair"
+  },
+  {
+   "department_code": "IT",
+   "name": "Mrs. Amol Sawant"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Ishaan Kulkarni"
+  },
+  {
+   "department_code": "IT",
+   "name": "Ms. Revati Verma"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Sana Jadhav"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mr. Harsha Kulkarni"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Ms. Siddharth Pillai"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Harsha Hegde"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Ms. Gaurav Patil"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Ms. Rakesh Mehta"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Mrunal Hegde"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Ms. Vikram Patil"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Rohan Joshi"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Riya Kadam"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Ms. Kiran Iyer"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Shreya Tiwari"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Prajakta Hegde"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mr. Pooja More"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Nisha Chauhan"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Nitin Gupta"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mr. Shreya Sharma"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Dev Hegde"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mr. Gaurav Pillai"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Nikhil Das"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Ms. Prajakta Patil"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Nikhil Sawant"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Sana Gokhale"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Kavita Joshi"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mr. Tanvi Thakur"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Prajakta Iyer"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mr. Sneha Mehta"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Siddharth Mehta"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mr. Ishaan Rao"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Abhishek Shinde"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Nitin Reddy"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Nitin Patil"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Prajakta Joshi"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Ms. Riya Desai"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Divya Pillai"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mr. Karan Patil"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Dr. Tanvi More"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Tanvi Gupta"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Mrs. Neha Jadhav"
+  },
+  {
+   "department_code": "EXTC",
+   "name": "Ms. Shraddha More"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Sahil Thakur"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Megha Verma"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Ishaan Shinde"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mr. Megha Salunkhe"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Kavita Naik"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mr. Tanvi Kale"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mr. Sana Desai"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Nitin Salunkhe"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Arjun Waghmare"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mr. Siddharth Sawant"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Sahil Jadhav"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Karan Pillai"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Pooja Nair"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Kavita Chavan"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Rahul Thakur"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Yash Waghmare"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Amol Joshi"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Sneha Datar"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Sneha Pillai"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Sonali Rao"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Sneha Naik"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Nikhil Rao"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mr. Megha Fernandes"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Riya Rao"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mr. Rohan Joshi"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Nisha Fernandes"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Om Kadam"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Anushka Sharma"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Sahil Naik"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Sonali Chavan"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Yash Das"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Sahil Hegde"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Kavita Verma"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Ishaan Hegde"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mr. Ritu Gavde"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mrs. Mrunal Hegde"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Kiran Pillai"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Mr. Dev Tiwari"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Dr. Aarav Pawar"
+  },
+  {
+   "department_code": "E&CS",
+   "name": "Ms. Sneha Nair"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Aditi Verma"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Yash Bhat"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Harsha Reddy"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Siddharth Kale"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Rakesh Bhosale"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Revati Reddy"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Ms. Dev Bhat"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Ms. Riya Jadhav"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Divya Salunkhe"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Rakesh Apte"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Revati Sharma"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Ms. Mrunal Gupta"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Sahil Pawar"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Divya Salunkhe"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Shreya Das"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Prajakta Das"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Nisha Waghmare"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Megha Mehta"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Nitin Desai"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Karan Singh"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Ishaan Fernandes"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Pooja Apte"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Amit Pillai"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Aarav Gokhale"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Ms. Revati Kadam"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Kavita Mehta"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Priya Bhosale"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Prajakta Thakur"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Dev Bhat"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mr. Pranav More"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Amol Shinde"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Ms. Nisha Gupta"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Anushka Jadhav"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Ms. Mrunal Iyer"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Kunal Shinde"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Aditya Waghmare"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Amol Reddy"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Ms. Nisha Shinde"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Mrs. Rakesh Mehta"
+  },
+  {
+   "department_code": "MECH",
+   "name": "Dr. Vikram Kale"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Ms. Divya Bhosale"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Abhishek Sharma"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Dr. Pooja Desai"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Rohan Singh"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Dev Chavan"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Dr. Nikhil Kulkarni"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Divya Bhat"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Divya Iyer"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Vaishali Pillai"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Dr. Priya Gavde"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Ms. Meera Desai"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Yash Kulkarni"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Priya Apte"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Nitin Desai"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Amit Patel"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Harsha Das"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Nitin Joshi"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Sneha Waghmare"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Ms. Mrunal Kulkarni"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Harsha Shinde"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Megha Fernandes"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Riya Reddy"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Dr. Gaurav Apte"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Ms. Meera Apte"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Ms. Aditi Patel"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Ms. Aarav Gavde"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Sahil Kulkarni"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Pooja Desai"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Sneha Bhat"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Dr. Nisha Gokhale"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Kiran Bhat"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Ms. Harsha Singh"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Ms. Rohan Chavan"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Dr. Nisha Kadam"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Sahil Sharma"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Dr. Kavita Apte"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Dr. Arjun Singh"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mr. Dev Singh"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Om Desai"
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "Mrs. Om Jadhav"
+  }
+ ],
+ "rooms": [
+  {
+   "department_code": "COMP",
+   "name": "606",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "326",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "304",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "609",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "324",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "325",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "513",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "COMP",
+   "name": "532",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "COMP",
+   "name": "608",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "718",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "COMP",
+   "name": "607",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "306",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "305",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "610",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "308",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "336",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "512",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-1",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-2",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-3",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-4",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-5",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-6",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-7",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-8",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-9",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-10",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-11",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-12",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-13",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-14",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-15",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-CR-16",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-LAB-1",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-LAB-2",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-LAB-3",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-LAB-4",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-LAB-5",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-LAB-6",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-LAB-7",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "COMP",
+   "name": "COMP-LAB-8",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "323",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "601",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "204",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 2
+  },
+  {
+   "department_code": "IT",
+   "name": "619",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "203",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 2
+  },
+  {
+   "department_code": "IT",
+   "name": "220",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 2
+  },
+  {
+   "department_code": "IT",
+   "name": "221",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 2
+  },
+  {
+   "department_code": "IT",
+   "name": "617",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "612",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "711",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "IT",
+   "name": "620",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "516",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "IT",
+   "name": "517",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "IT",
+   "name": "518",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-1",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-2",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-3",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-4",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-5",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-6",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-7",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-8",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-9",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-10",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-11",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-12",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-13",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-14",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-15",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-CR-16",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-LAB-1",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-LAB-2",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-LAB-3",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-LAB-4",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-LAB-5",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-LAB-6",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-LAB-7",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "IT",
+   "name": "IT-LAB-8",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "EXTC",
+   "name": "621",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "EXTC",
+   "name": "105",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 1
+  },
+  {
+   "department_code": "EXTC",
+   "name": "120",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 1
+  },
+  {
+   "department_code": "EXTC",
+   "name": "104",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 1
+  },
+  {
+   "department_code": "EXTC",
+   "name": "214",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 2
+  },
+  {
+   "department_code": "EXTC",
+   "name": "712",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "EXTC",
+   "name": "719",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "EXTC",
+   "name": "622",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "EXTC",
+   "name": "624",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "EXTC",
+   "name": "616",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-1",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-2",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-3",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-4",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-5",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-6",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-7",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-8",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-9",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-10",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-11",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-12",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-13",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-14",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-15",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-CR-16",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-LAB-1",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-LAB-2",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-LAB-3",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-LAB-4",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-LAB-5",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-LAB-6",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-LAB-7",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "EXTC",
+   "name": "EXTC-LAB-8",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "E&CS",
+   "name": "114",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 1
+  },
+  {
+   "department_code": "E&CS",
+   "name": "109",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 1
+  },
+  {
+   "department_code": "E&CS",
+   "name": "605",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "E&CS",
+   "name": "108",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 1
+  },
+  {
+   "department_code": "E&CS",
+   "name": "604",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-1",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-2",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-3",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-4",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-5",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-6",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-7",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-8",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-9",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-10",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-11",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-12",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-13",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-14",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-15",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-CR-16",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-LAB-1",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-LAB-2",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-LAB-3",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-LAB-4",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-LAB-5",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-LAB-6",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-LAB-7",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "E&CS",
+   "name": "E&CS-LAB-8",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "613",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "MECH",
+   "name": "410",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 4
+  },
+  {
+   "department_code": "MECH",
+   "name": "320",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "313",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "614",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "MECH",
+   "name": "713",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-1",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-2",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-3",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-4",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-5",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-6",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-7",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-8",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-9",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-10",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-11",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-12",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-13",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-14",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-15",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-CR-16",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-LAB-1",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-LAB-2",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-LAB-3",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-LAB-4",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-LAB-5",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-LAB-6",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-LAB-7",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "MECH",
+   "name": "MECH-LAB-8",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "705",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "215",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 2
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "012",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 0
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "013",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 0
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "118",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 1
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "010",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 0
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "704",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "703",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "117",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 1
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-1",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-2",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-3",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-4",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-5",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-6",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-7",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-8",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-9",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-10",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-11",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-12",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-13",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 1
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-14",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 5
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-15",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 6
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-CR-16",
+   "room_type": "CLASSROOM",
+   "capacity": 80,
+   "floor": 7
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-LAB-1",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-LAB-2",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-LAB-3",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-LAB-4",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-LAB-5",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-LAB-6",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-LAB-7",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  },
+  {
+   "department_code": "CIVIL",
+   "name": "CIVIL-LAB-8",
+   "room_type": "LAB",
+   "capacity": 45,
+   "floor": 3
+  }
+ ]
+}
