@@ -25,6 +25,16 @@ OCR quality varies (scanned PDFs) — dates/subjects are best-effort; verify aga
 ## file_d_19C_otccNlmD3SAXqeUCjAQe6HR1-HfMa_view.ocr.txt
 
 ### EXAMINATION TIME TABLE — Branch: COMP, CIVIL, AI&DS, CSE (IOT), CSE (CS) | F. E./F. T. (CBCGS-HME 2023) Semester: Il
+> **Note (two FE streams merged in one table):** this supplementary table covers
+> F.E./F.T. Sem II (July 2026). Rows 1-4 are the **Chemistry-stream** group
+> (Mathematics-II, PPS, Engineering Mechanics, Introduction to Indian
+> Knowledge System) for the Group-1 branches [COMP, CIVIL, AI&DS, CSE-IoT,
+> CSE-CS]; rows 5-7 are the **Physics-stream** group (Basic Electrical
+> Engineering, Engineering Graphics & Design, Communication Skills) of the
+> same intake. The two streams sit in one OCR document; the exact
+> stream-to-branch assignment is ground-truthed in
+> `sample/esah_fe_department_info.md` (authoritative over this table).
+
 
 | Date | Day | Time | Subject |
 |---|---|---|---|
@@ -34,80 +44,54 @@ OCR quality varies (scanned PDFs) — dates/subjects are best-effort; verify aga
 | 31/07/2026 | Friday | 03.30 pm | to 05.30 pm Introduction to Indian Knowledge System |
 | 29/07/2026 | Wednesday | 03.30 pm | to 05.30 pm Basic Electrical Engineering |
 | 30/07/2026 | Thursday | 03.30 pm | to 06.30 pm Engineering Graphics & Design |
-| 31/07/2026 | Friday | 03.30 pm | to 05.30 pm gitaSs FerGen el ossianal |
+| 31/07/2026 | Friday | 03.30 pm | to 05.30 pm Communication Skills (OCR: "gitaSs FerGen el ossianal") |
 
 
 ## file_d_1B9kkbrPYRX3w-OUNi5iJV9swZ2wpSs7i_view.ocr.txt
 
-### EXAMINATION TIME TABLE — Branch: ? | S. Y.(CBCGS-HME-2025) Semester : |11
+### MID TERM EXAMINATIONS SEPTEMBER 2026 — MBA (S.Y., Sem III, CBCGS-HME 2025)
+Sessions 2.00-2.30 pm and 3.30-4.00 pm, per specialization (vision-verified):
 
+| Date | Time | Finance | Marketing | HR | Operations |
+|---|---|---|---|---|---|
+| 01/09 Tue | 2-2:30 | Strategic Management | Strategic Management | Strategic Management | Strategic Management |
+| 01/09 Tue | 3:30-4 | International Business | International Business | International Business | International Business |
+| 02/09 Wed | 2-2:30 | DSC-1 Security Analysis & Portfolio Mgmt | Marketing Research & Analytics | Performance Management Systems | Operations Analytics |
+| 02/09 Wed | 3:30-4 | DSC-2 Corporate Valuation & Financial Modeling | Marketing Strategy | Compensation & Reward Management | Service Operations Management |
+| 03/09 Thu | 2-2:30 | DSC-3 Financial Analytics | Services Marketing | HR Analytics & Data-Driven Decision Making | Quantitative Models in Operations-II |
+| 03/09 Thu | 3:30-4 | DSE-1 Derivatives & Risk Management | B2B Marketing | Strategic Human Resource Management | Enterprise Resource Planning |
+| 04/09 Fri | 2-2:30 | DSE-2 Financial Planning & Wealth Mgmt | Social Media Marketing | Competency Mapping & Assessment Center | Benchmarking & BPR |
+| 04/09 Fri | 3:30-4 | DSE-3 International Finance | Marketing of Financial Services | Managing Change & Organisational Development | Cybersecurity in Services Operations |
+
+### BBA (S.Y., Sem III, CBCGS-HME 2025) — Sept 2026
 | Date | Day | Time | Subject |
 |---|---|---|---|
-| 02/09/2026 | Analytics |  | Systems Y |
-| 03/09/2026 | © |  | Decision Making | Operations - II |
-| 04/09/2026 | P |  | Management J Assessment Center engineering |
+| 01/09/2026 | Tuesday | (10.00 am session) | — |
+| 05/09/2026 | Saturday | 10.00-10.30 am | Foreign Language-I |
 
-### EXAMINATION TIME TABLE — Branch: Bachelor of Business Administration (BBA) | S. Y.(CBCGS-HME 2025) Semester : ll|
-
-| Date | Day | Time | Subject |
-|---|---|---|---|
-| 01/09/2026 | Tuesday |  | 2 |
-| 05/09/2026 | Saturday | 10.00 am | to 10.30 am Foreign Language-| |
-
-### EXAMINATION TIME TABLE — Branch: Bachelor of Business Administration (BBA) | T. Y.(CBCGS-HME-2024) Semester : V
-
-(schedule rows not machine-readable — see raw OCR text)
+(schedule partially OCR; BBA T.Y. Sem V rows remain image-only — see raw OCR text)
 
 
 ## file_d_1CK_JWiVUXeQWXfMSiJOG-a2iFvG_L3CE_view.ocr.txt
 
-### EXAMINATION TIME TABLE — Branch: Computer Engineering | B. E.(CBCGS-HME 2023) Semester : VIl
+### IN-SEMESTER EXAMINATIONS - II - SEPTEMBER 2026 (all B.E. VII / B.T. VII / B.T. VI)
+Ref TCET/EXAM 1005 of 2026, Revision B, 05/08/2026, signed Dr. Sanjeev
+Chaudhari (Controller of Examinations). Two 1-hour sessions daily: 2.00-3.00
+pm and 4.00-5.00 pm. Vision-verified (replaces earlier unreadable OCR rows).
 
-(schedule rows not machine-readable — see raw OCR text)
-
-### EXAMINATION TIME TABLE — Branch: Electronics & Telecommunication Engineering | B. E.(CBCGS-HME 2023) Semester : VI
-
-(schedule rows not machine-readable — see raw OCR text)
-
-### EXAMINATION TIME TABLE — Branch: Information Technology | B. E.{CBCGS-HME 2023) Semester : VIl
-
-| Date | Day | Time | Subject |
-|---|---|---|---|
-| 01/09/2026 | Tuesday |  | evelopment |
-
-### EXAMINATION TIME TABLE — Branch: Mechanical Engineering | B. E.(CBCGS-HME 2023) Semester : VII
-
-(schedule rows not machine-readable — see raw OCR text)
-
-### EXAMINATION TIME TABLE — Branch: Civil Engineering | B. E.(CBCGS-HME 2023) Semester : VIl
-
-(schedule rows not machine-readable — see raw OCR text)
-
-### EXAMINATION TIME TABLE — Branch: Electronics & Computer Science | B. E.(CBCGS-HME 2023) Semester : VII
-
-(schedule rows not machine-readable — see raw OCR text)
-
-### EXAMINATION TIME TABLE — Branch: Mechanical and Mechatronics Engineering | B. E.(CBCGS-HME 2023) Semester : VII
-
-(schedule rows not machine-readable — see raw OCR text)
-
-### EXAMINATION TIME TABLE — Branch: Computer Science and Engineering (Cyber Security) | B. E.(CBCGS-HME 2023) Semester : VI
-
-| Date | Day | Time | Subject |
-|---|---|---|---|
-| 01/09/2026 | Tuesday |  | Principles |
-
-### EXAMINATION TIME TABLE — Branch: Artifical Intelligence and Data Science | B. T.(CBCGS-HME 2023) Semester : VII
-
-(schedule rows not machine-readable — see raw OCR text)
-
-### EXAMINATION TIME TABLE — Branch: Artifical Intelligence and Machine Learning | B. T.(CBCGS-HME 2023) Semester : VIl
-
-(schedule rows not machine-readable — see raw OCR text)
-
-### EXAMINATION TIME TABLE — Branch: Internet of Things | B. T.(CBCGS-HME 2023) Semester : VI
-
-(schedule rows not machine-readable — see raw OCR text)
+| Branch | Sem | Tue 01/09 2-3pm | Tue 01/09 4-5pm | Wed 02/09 2-3pm | Wed 02/09 4-5pm | Thu 03/09 2-3pm | Thu 03/09 4-5pm |
+|---|---|---|---|---|---|---|---|
+| Computer Engineering | VII | Data Warehousing & Mining | Cryptography & System Security | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Electronics & Telecom (EXTC) | VII | Mobile Communication Systems | Cryptography | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Information Technology | VII | Machine Learning for IT Application Development | Big Data Analytics | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Mechanical Engineering | VII | Design of Power Transmission Devices | Heating, Ventilation & Air Conditioning | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Civil Engineering | VII | Quantity Surveying, Estimation & Costing | Water Resource Engineering | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Electronics & Computer Science | VII | Robotics & Computer Vision | Cloud Computing | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Mechanical & Mechatronics (MME) | VII | Mechatronics System Design | Industrial Automation | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| CS&E (Cyber Security) | VII | Application Security & Secure Coding Principles | Web Application Security | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Artificial Intelligence & Data Science | VII | Cloud Computing | Natural Language Processing | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Artificial Intelligence & ML | VII | Natural Language Processing | Deep Learning | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
+| Internet of Things | VI | Industrial IoT & Security Concepts | Big Data Analytics | Professional Elective-II | Professional Elective-III | Open Elective-II | Specialization / Honours w/ Research |
 
 
 ## file_d_1P-SmCoPejnX8cfgWU6urhp9apfspk_8r_view.ocr.txt

@@ -1,6 +1,6 @@
 # Departments — Index
 
-| Folder | Established | Faculty strength | Labs |
+| Folder | Established | Faculty strength¹ | Labs |
 |---|---|---|---|
 | aids | A.Y 2020-2021 | 27 + 2 | 04 + 01 (Sharing Mode) |
 | aiml | AY 2020-2021 | 23 | 03 |
@@ -21,3 +21,10 @@
 | mme | A.Y. 2022-23 | 10 | 03 |
 
 Each folder: `README.md` (profile), `faculty.md`, `facilities.md`, `syllabus.md`, `activities.md`.
+
+¹ **Faculty strength** = the sanctioned/declared strength printed on the
+department's site page. It is NOT the same as the count of named faculty
+actually published in the site's roster pages (see `04-faculty-directory.md`
+and each `faculty.md`), and neither is a live headcount — treat them as two
+different numbers with two different meanings. E.g. COMP declares 39 but 65
+names are published; MECH declares 16 but only 10 names appear.

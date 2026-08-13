@@ -37,12 +37,13 @@ Compiled from: `institutional-committees.html`, `ICC.html`, `phdrcmpn.html`, `ph
 
 | Department | HOD | Deputy / notes |
 |---|---|---|
-| Computer Engineering (COMP) | Dr. Vaishali Nirgude (Associate Professor) | Dy. HOD: Dr. Shailesh Sangle |
+| Computer Engineering (COMP) | Dr. Vaishali Kaiche (Officiating HOD, Associate Professor) | Dy. HOD: Dr. Shailesh Sangle. Note: some site tables (committee/feedback) spell her "Dr. Vaishali Nirgude" — same person; the official timetable signature and the CMPN Faculty page use **Kaiche** (canonical). |
 | Information Technology (IT) — UG | (see ME page: HOD-PG IT covers PG) | — |
 | IT — PG | Dr. Rajesh Bansode (Professor & HOD-PG IT) | Timetable committee: Ms. Swati Abhang / Mrs. Pratibha Prasad (ME-IT timetable signature) |
 | E&TC (EXTC) | (see below) | Dy. HOD: Dr. Arpit Rawankar |
 | EXTC — PG (CT&M) | Dr. Payel Saha (Professor & HOD P.G. CT&M) | — |
 | Civil | Dr. Seema Jagtap | — |
+| Engineering Sciences & Humanities (ES&H; also called HNS / H&W in older site pages) | Dr. Sunita Pachori | The SIP Week-1 Group-2 timetable signs "HOD: Dr. Ashwin Pathak" — likely officiating/previous incumbent; Pachori is the name on the ES&H dept pages and the Group-1 SIP signature. **ES&H is the canonical department name**; it owns all First Year (F.E./F.T.) teaching. |
 | CS&E (Computer Science & Engineering, Cyber Security) | Dr. Vidyadhari Singh | — |
 | HOC Cell In-charge | Dr. Anil Vasoya (Associate Professor, IT) | — |
 

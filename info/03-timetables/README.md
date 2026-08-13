@@ -15,7 +15,7 @@ artifact found on tcetmumbai.in is here, extracted to text.
 
 | Branch | Divisions |
 |---|---|
-| Computer Engineering | SE A–D, TE A–D, BE A–C (12) + ME SEM I/II |
+| Computer Engineering | SE A–D, TE A–D, BE A–C (11) + ME SEM I/II (PG, stale) |
 | Artificial Intelligence & ML | S.T. A–C, T.T., B.T. (5; ST A–C links are dead on site — TT/BT live) |
 | Information Technology | ~10 divisions (from `IT time table.html`) |
 | E&CS | SE Sem-III, TE Sem-V, BE Sem-VII |

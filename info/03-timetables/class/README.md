@@ -1,8 +1,15 @@
-# Class Lecture Timetables (PG) — Extracted
+# Class Lecture Timetables — PG (M.E.)
 
-**The only class timetables published on the TCET website are PG (M.E.) ones.**
-No UG class timetables are published. This folder holds everything found, fully
-extracted to text so a model can parse the grid.
+**Coverage note (corrected):** this folder holds the PG (M.E.) class timetables
+published on the site. **UG class timetables ARE published** — they live under
+`UG/` (55 vision-verified division grids, linked from the per-branch "Time
+Table" pages as Google Drive PDFs). The older "no UG timetables" statement in
+earlier pack versions predated the discovery of those pages.
+
+**Staleness warning:** both PG timetables below are **out of date** — they do
+not reflect the current AY 2026-27 scheme. ME-COMP SEM II is W.E.F.
+**11/04/2022** and ME-IT SEM II is W.E.F. **15/01/2024**. Use them only as
+format/structure examples, not as current schedules.
 
 ## 1. ME-COMP SEM II — CLASS TIMETABLE (official PDF)
 

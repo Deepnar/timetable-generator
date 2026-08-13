@@ -33,7 +33,23 @@ Ashwin Pathak) → Dean → VP → Principal.
 
 ## FE Group 1 — COMP A Class Timetable (SEM II, full semester)
 
-- Class: COMP A · Group 1 [COMP, CSE(IoT), CIVIL, AI&DS, CSE(CS)]
+> **Phase flag:** this timetable is the **even semester of AY 2025-26**
+> (27-01-2026 → 21-05-2026). All SE/TE/BE UG timetables in the pack are
+> **AY 2026-27 odd** (W.E.F. 06/07/2026). There is **no AY 2026-27 odd FE
+> timetable published on the site yet** — the FE/SIP pages target the August
+> 2026 intake. The SIP Week-1 schedules (above) are the only 2026-27 FE
+> documents available.
+>
+> **Division note:** different FE divisions have different teachers. COMP A
+> (below) is the grid for **COMP A / Group 1**; a second FE grid for
+> **COMP D** (`timetable_info_TE_FE.md` in the crawl archive) lists different
+> names (e.g. Math-II → Mariyam Khan, CHEM → Jitendra Patil, PPS →
+> Chitrakha Vangala, EM → Pawan Tiwari, IKS → Balanabh Kshirsagar). Both
+> grids are real; neither roster is complete. Canonical name spellings follow
+> the rosters: **Pawan Kumar Tiwari** (MECH roster) not "Pavan Tiwari";
+> **Tulshiram Kudale** (H&W roster) not "Tushiram Kadale".
+>
+> - Class: COMP A · Group 1 [COMP, CSE(IoT), CIVIL, AI&DS, CSE(CS)]
 - Semester: II (27-01-2026 → 21-05-2026) · W.E.F. 02-02-2026 · strength 63
 - Venues: 517/518/505/516/512 · in-charge Dr. Pooja Singh · 660 hrs/semester
 

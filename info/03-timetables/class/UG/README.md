@@ -10,6 +10,13 @@ Resolve any initials you still can't place with **`FACULTY-INITIALS.md`**.
 
 ## Coverage by branch (55 divisions total)
 
+**Branches with NO division timetables published on the site (explicitly
+absent, not an oversight of this pack):** AI&DS, CSE-IoT (IoT), MME, CS&E
+(Cyber Security), BBA, B.Voc. AI&ML's S.T. (SE) A–C links are dead on the
+site — only T.T. and B.T. exist. These branches either share grids with
+parent departments (AI&DS/IoT/CSE-IoT use the COMP roster page on the site)
+or publish none at all.
+
 | Branch | Semesters/divisions | Venues | Doc |
 |---|---|---|---|
 | Computer Engineering | SE A–D, TE A–D, BE A–C (11) + ME (PG, in class/README.md) | 513–718 | `computer-engineering/README.md` |

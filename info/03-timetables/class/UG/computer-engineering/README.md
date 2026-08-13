@@ -221,3 +221,5 @@ Load: 38 hrs/week. Note: 5th theory lecture online.
 See `03-timetables/class/README.md` for ME-COMP SEM II (subject→faculty map,
 grid) and the ME-IT timetable. The ME COMP SEM I/II drive PDFs on the
 `CMPN time table.html` page are the PG semester timetables.
+**Both PG grids are stale** (ME-COMP W.E.F. 11/04/2022, ME-IT W.E.F.
+15/01/2024) — format examples only, not current schedules.

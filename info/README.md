@@ -88,8 +88,8 @@ info/
 | **Faculty rosters** | ✅ 7 depts full (COMP 65, H&W 88, IT 42, EXTC 29, MECH 10, CIVIL 7, AI&ML 8) | `02-departments/*/faculty.md`, `04-faculty-directory.md` |
 | **UG class timetables** | ✅ 55 divisions (COMP SE/TE/BE A–D, AI&ML, E&CS, EXTC, CIVIL, MECH, IT, BCA, MCA, MBA + HNS SIP) | `03-timetables/class/UG/` |
 | PG class timetables | ✅ ME-COMP, ME-IT (faculty-subject maps) | `03-timetables/class/README.md` |
-| Exam timetables | ✅ 2026 cycles (11 official PDFs + ISA ATKT) | `03-timetables/exam/` |
-| Courses per semester | ✅ from 560 result registers | `05-courses-and-results.md` |
+| Exam timetables | ✅ Sept 2026 in-semester II (all BE/B.T. branches + MBA/BBA, vision-verified tables) + ISA ATKT + FE supplementary (two-stream note) | `03-timetables/exam/` |
+| Courses per semester | ✅ from 560 result registers, branch names normalized (28 sections) | `05-courses-and-results.md` |
 | Syllabi / schemes | ⚠️ ME syllabi + per-dept syllabus pages exist; full UG syllabus PDFs are scattered | `02-departments/*/syllabus.md` |
 | NIRF data | ⚠️ submission forms + report scans (2016–2026); rank numbers are inside image PDFs | `06-notices-reports-nirf.md` |
 
@@ -99,6 +99,13 @@ info/
    faculty initials exist — the initials are resolvable via rosters).
 3. MBA/BBA/B.Voc/MME/E&CS full rosters (E&CS & MME have no roster page; MBA/BBA/B.Voc none).
 4. AI&DS / IoT / CSE-IoT rosters (site links the COMP roster as fallback).
+5. **Division timetables for AI&DS, CSE-IoT (IoT), MME, CS&E, BBA, B.Voc** — none
+   published; AI&ML S.T. A–C links are dead (only T.T./B.T. live).
+6. **A Y 2026-27 odd FE (first-year) timetable** — the only FE full-semester grid
+   in the pack is the AY 2025-26 even SEM II one; the 2026-27 FE pages only
+   carry the SIP induction schedules.
+7. PG (ME) timetables are **stale** (ME-COMP W.E.F. 11/04/2022, ME-IT 15/01/2024) —
+   format examples only.
 
 ## 4. Timetable artifacts — quick index
 
