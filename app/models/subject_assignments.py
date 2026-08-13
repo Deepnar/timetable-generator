@@ -22,6 +22,19 @@ class SubjectAssignment(Base):
     # Load share (e.g., 0.8 for 80% load share if multiple teachers share a subject)
     load_share: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
+    # Which lab batch this assignment's faculty handles (1..N), when a lab
+    # subject runs as parallel practicals. NULL = the assignment covers the
+    # whole division (lectures/tutorials, or a non-batched lab). Parallel labs
+    # need one row per batch (each with a distinct faculty), matching the real
+    # timetable cells ("Lab CG D1 D2 SuS/PD").
+    batch_number: Mapped[int | None] = mapped_column(nullable=True)
+
+    # Which weekly period (1..N) of a lab subject this batch row belongs to.
+    # A lab runs several parallel practicals a week (TE CG: D1D2 one day,
+    # D3D4 another); ``batch_number`` is a global batch id so it cannot
+    # separate periods on its own. NULL = single-period / non-batched.
+    period_number: Mapped[int | None] = mapped_column(nullable=True)
+
     # Relationships for easy querying
     subject = relationship("Subject", backref="assignments")
     faculty = relationship("Faculty", backref="subject_assignments")

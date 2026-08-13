@@ -111,6 +111,11 @@ class TimetableSlot(Base):
     room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id"))
     student_group_id: Mapped[int | None] = mapped_column(
         ForeignKey("student_groups.id"))
+    # For parallel practicals (DD-024): which lab batch this slot belongs to
+    # (1..N). A class is split into batches (3 for FE, 2 lab groups SE+), and
+    # each batch's practical runs at the same time in a different room. NULL
+    # means a whole-division / non-batched session.
+    batch_number: Mapped[int | None] = mapped_column(nullable=True)
     session_type: Mapped[SessionType] = mapped_column(Enum(SessionType))
     is_manual_override: Mapped[bool] = mapped_column(Boolean, default=False)
     override_reason: Mapped[str | None] = mapped_column(String(300))
