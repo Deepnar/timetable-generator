@@ -2,7 +2,12 @@
 
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
-**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, objective-based instance variation (best / minimize gaps), opt-in async generation (Celery/Redis), a Next.js admin frontend (Auth + Dashboard + Resource CRUD), full-stack Dockerization, and a real-scale seeded college (12 departments, 16 classes each = 192 groups, 288 subjects, 345 faculty, 324 rooms, 1152 assignments, 204 profiles) that battle-tests the engine — greedy spreads each class's 24-25 sessions across all 6 days × 8 slots (4-5 per day, 08:30–17:30 with the lunch break) and all exports hold up.
+**Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, objective-based instance variation (best / minimize gaps), opt-in async generation (Celery/Redis), a Next.js admin frontend (Auth + Dashboard + Resource CRUD), full-stack Dockerization, **parallel per-batch practicals (DD-030)** — a lab splits into B batches placed at the same time in distinct rooms (FE 3, SE+ 2), max-one-lab-per-day rule — and a **real-data import pipeline** (`scripts/import_tcet.py` reads `info/import/*.json`; 46 classes generated + published from real TCET data).
+
+> ⚠️ **The old `scripts/seed_demo.py` is a fabricated demo** (invented departments
+> ELX/ELEC/CHEM/INST/CSBS, uniform FE-under-every-department, 176 faculty/dept, strength
+> 60, made-up FE scheme). The real college structure comes from `info/` (scraped site)
+> via `scripts/import_tcet.py`; see `documentation/real-data-rollout-plan.md`.
 **Project Scope:** This is a **standalone full-stack enterprise application**, not a microservice. It includes the backend API, PostgreSQL database via Docker, and a Next.js frontend interface for college admins.
 
 ---
@@ -19,6 +24,34 @@ These were marked "complete" in earlier docs but were actually broken; now fixed
 New engine capabilities added in the same pass (with tests):
 - **Configurable `day_start_time`** profile param (`"HH:MM"`, default `09:00`) — the day no longer starts at a hardcoded 9 AM, so schools/evening programs work too.
 - **Faculty load limits enforced** — `max_hours_per_day` / `max_hours_per_week` were stored but ignored by the solver; now hard-checked.
+
+## 🧪 Parallel practicals & real-data import (DD-030, 14 Aug 2026)
+
+- [x] **Parallel per-batch practicals** — a lab block expands into B sibling sessions
+  (FE → 3 batches, SE+ → 2 lab groups, `lab_batches` param override) placed atomically
+  at the same (day, slot) in distinct rooms with distinct faculty (`_place_parallel_group`
+  / `_parallel_rooms` in the greedy solver). `timetable_slots.batch_number` +
+  `subject_assignments.batch_number` encode the batch; `MAX_ONE_LAB_PER_DAY` rule added;
+  exports show `Batch B{n}`. Greedy-only (OR-Tools keeps the whole-division model).
+  7 new tests (`test_parallel_labs.py`), 216 total.
+- [x] **Real-data import pipeline** — `scripts/import_tcet.py` seeds Postgres from
+  `info/import/*.json` + `info/import/synthetic_branches.json`, scoped to the 6 branches
+  with published grids (COMP/IT/EXTC/E&CS/MECH/CIVIL). **Branch-bound faculty pools**
+  (~40/branch; COMP uses the real roster), per-branch room pools, real scheme hours
+  (lecture 3 / tutorial 1 / lab 2h / activity 2), retire-own-published-on-republish so a
+  regeneration is not blocked by its own stale morning slots. Full-college generation:
+  **36/36 classes published, morning-filled, ~1,220 slots, ~90 unplaced** (down from 228;
+  MECH-SE 53 → 6). The rest of the college (MBA/MCA/BCA/AI&ML/AI&DS/IoT/CSE-IoT/CS&E/MME/
+  FE) has no published-grid data and is deliberately excluded.
+- [x] **Grid/legend fixes** in `scripts/generate_tcet_import.py` — correct per-slot times,
+  and a legend parser that handles `CODE (INIT = Name)` and `CODE (INIT / INIT)` (was
+  only matching `CODE = Name`, so almost every subject code was lost).
+- [x] **Per-branch synthetic dataset** — `scripts/build_synthetic_branches.py` →
+  `info/import/synthetic_branches.json` (40 branch-bound faculty per branch, 16
+  classrooms + 8 labs + real grid rooms per branch).
+- [x] **Frontend** — TimetableGrid stacks parallel batches in one cell with `B{n}` badges,
+  online badges, wider/taller grid so stacked labs scroll instead of overlapping; the
+  generate page has a first-run guide.
 
 ---
 
@@ -153,7 +186,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 - [x] **Student portal (DD-022 #1)**: `/my-timetable` — role-based login redirects students to it; a **Today card** (their group's sessions from `GET /my/today`), the group's published timetable as a read-only grid (cells show the faculty name), and own iCal/PDF via `GET /my/export`. The group is found via a new `student_groups.student_email` column (migration `9fe4f7187298`); the seed links the demo student login to a group. Empty states for unlinked/unpublished.
 - [x] **Two-channel notifications (DD-027)**: on publish and on mid-year changes, the relevant people are notified in-app (new `app_notifications` table — one row per recipient Admin, resolved by email from the schema links) plus email (existing publish mailer + a compact change email). `notification_service.dispatch_publish` / `dispatch_change` run after the commits, best-effort. The topbar **bell** shows the caller's unread count and a dropdown; `/notifications` lists/marks rows (`GET /notifications`, `unread-count`, `{id}/read`, `read-all`). Also fixed a real bug: override validation no longer conflicts with the instance being changed itself (`Scheduler._load_published_conflicts(exclude_instance_id=...)`).
 - [x] **Date-resolution day layer (DD-022 #2 / DD-026 follow-up)**: `app/services/override_resolver.py` resolves `timetable_overrides` against a real date — a permanent cover/room change applies every date, a TEMP window wins inside its `date_from`/`date_to`, a SWAP exchanges the two slots' faculty/room, and a covered slot reports the new teacher/room. `/my/schedule` + `/my/timetable` accept `?date=YYYY-MM-DD` and `/my/today` resolves against today, so "is there class on date X" and the day card are truthful. The teacher/student Today cards gained a date picker.
-- [x] **One timetable per class (founder's final seed goal)**: `scripts/generate_college.py` generates + publishes a timetable for EVERY class — 192 instances (12 departments × 4 years × 4 divisions), each exactly one division's clean timetable (24-25 sessions — the real TCET L/T/P scheme, no years merged). Ran clean: 192/192 published, ~4700 slots total. (`--only`, `--dry-run`, `--clear-locks` options.)
+- [x] **One timetable per class (demo seed goal)**: `scripts/generate_college.py` generates + publishes a timetable for EVERY class — 192 instances (12 demo departments × 4 years × 4 divisions), each exactly one division's clean timetable (24-25 sessions). Ran clean: 192/192 published, ~4700 slots total. **This runs the fabricated demo data — the real-data rollout is the plan in `documentation/real-data-rollout-plan.md`.** (`--only`, `--dry-run`, `--clear-locks` options.)
 - [x] **Security audit (DD-029)**: see "Newly Identified" — role gates, least-privilege registration, hardened error/upload/header surfaces, `/generate` rate limit, JWT-expiry check. 209 tests.
 - [ ] **CSV upload modals** (part of Resource Management).
 - [x] **Assignment grid**: `/assignments` — a subject × group matrix scoped by department + semester (rows = subjects, columns = division groups), with faculty avatar + weekly-hours badge per cell, an anchored cell editor (assign/change faculty + hours, remove), per-subject coverage chips, and a least-loaded-faculty **Auto-fill unassigned** bulk action. Drives the same `subject_assignments` CRUD the solver reads.
@@ -162,7 +195,7 @@ Bugs/gaps found while auditing that `plan.md` does **not** already cover:
 
 ### 🔵 Deployment & Final Polish
 - [x] **Full Stack Dockerization**: top-level `docker-compose.yml` (App, Frontend, PostgreSQL, Redis) + backend `Dockerfile` (uv, migrates on boot) + `frontend/Dockerfile` (standalone Next). `docker/docker-compose.yml` remains the backend-only dev infra (DD-018). *(`docker compose up` four-service bring-up pending on a free host port 3000 — see DD-018 follow-up.)*
-- [x] **Scale battle test**: `scripts/seed_demo.py` seeds a 12-department college modeled on the `sample/` TCET timetables — **16 classes per department (FE/SE/TE/BE × A-D divisions, one semester per year)**: 492 subject streams, 1976 faculty, 192 groups, 324 rooms, 1968 assignments, 204 profiles. `scripts/battle_test.py`, `scripts/api_drive.py`, `scripts/async_drive.py` run real generations (greedy + OR-Tools, sync + async Celery, generation lock, publish → cross-timetable safety) against live Postgres/Redis. Surfaced and fixed three real bugs: unfiltered multi-group PDF export (ReportLab `LayoutError`), `GenerationResponse` omitting `run_duration_ms`, and the greedy solver packing a class into the minimum days (empty Mon/Thu/Sat) instead of spreading across the week. See DD-020.
+- [x] **Scale battle test**: `scripts/seed_demo.py` seeds a 12-department **fabricated demo** college loosely modeled on the TCET timetable *shape* (16 classes per department, 492 subject streams, 1976 faculty, 192 groups, 324 rooms, 1968 assignments, 204 profiles). `scripts/battle_test.py`, `scripts/api_drive.py`, `scripts/async_drive.py` run real generations (greedy + OR-Tools, sync + async Celery, generation lock, publish → cross-timetable safety) against live Postgres/Redis. Surfaced and fixed three real bugs: unfiltered multi-group PDF export (ReportLab `LayoutError`), `GenerationResponse` omitting `run_duration_ms`, and the greedy solver packing a class into the minimum days (empty Mon/Thu/Sat) instead of spreading across the week. See DD-020. **The department list, FE scheme, strengths, faculty counts, and rooms are demo fabrications — replace per `documentation/real-data-rollout-plan.md`.**
 - [x] **Full-features-at-scale verification**: `scripts/full_stack_test.py` re-verifies every capability at whole-department scale (soft pursuit, `MAX_DAILY_SUBJECTS`/`ALLOW_FREE_LAST_SLOT`, OR-Tools relational rules + greedy fallback, honest `hard_violations`/`placement_warning`, RBAC, conflict audit, real Celery async path). Surfaced and fixed: OR-Tools returning 0 slots on a big relational-rule profile (now greedy-fallback), and duplicate admin names 500ing (now 409).
 - [ ] **README & Docs**: Setup guide, architecture diagram link, API examples.
 - [ ] **Historical Data Import**: Upload past semesters' timetables for pattern reference.

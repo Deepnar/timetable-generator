@@ -298,6 +298,8 @@ CREATE TABLE profile_parameters (
 | `max_daily_load_teacher`   | INT     | 5                       |
 | `min_gap_between_exams`    | INT     | 1 (days) — legacy; superseded by the `EXAM_DATE_SEPARATION` rule's `config_json.min_days` (§5.4) |
 | `lab_slot_duration_minutes`| INT     | 120                     |
+| `lab_batches`             | INT     | 3 — lab batch count override (default auto: FE → 3, SE+ → 2, DD-030) |
+| `preferred_rooms`         | JSON    | `[4, 7]` — order the room pool so the class's real venue/lab rooms are tried first |
 | `allow_saturday`           | BOOLEAN | false                   |
 | `buffer_slots_per_day`     | INT     | 1                       |
 | `max_room_utilization_pct` | FLOAT   | 0.85                    |
@@ -621,6 +623,14 @@ The `engine/` tree intentionally does **not** have a `conflict_detector.py` or
 + `ConstraintChecker._check_published_conflicts()`, and only two solvers exist
 (greedy + OR-Tools). See §5 for the wiring. The frontend talks to the API directly
 (`NEXT_PUBLIC_API_URL`, DD-019) and the browser holds the JWT in localStorage.
+
+> **Retiring the class's own timetable on republish.** Publishing an instance now
+> archives any other PUBLISHED instance that shares one of its student groups —
+> **across generations**, not just the same generation. Without this, a class's own
+> earlier published timetable reserves its slots (cross-timetable safety) and a
+> regeneration is pushed into the evening. `scripts/generate_college.py` also retires
+> the class's old published timetable *before* solving it, so a clean run is never
+> self-blocked.
 
 ### 4.2 Core Endpoints
 
@@ -1075,6 +1085,38 @@ How it works end to end:
 
 Known limitations: `_check_cross_dept_cap` still counts committed *slots* rather than sessions, so a committed block contributes its length to the per-day cross-dept tally; the soft CP-SAT objective builders (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`) key placements by a block's start slot only.
 
+#### Parallel practicals (batches) — DD-030
+
+A class is split into batches (3 for FE, 2 lab groups D1D2/D3D4 for SE+) and every batch
+is in a practical at the same time in a **different room**. The greedy solver places a
+lab period as an atomic group of parallel sessions:
+
+1. **Data** — `subject_assignments.batch_number` tags which lab batch a row's faculty
+   covers; `period_number` tags which weekly period (a subject runs several lab periods a
+   week, e.g. CG: D1D2 Monday, D3D4 Wednesday). `timetable_slots.batch_number` tags each
+   generated slot.
+2. **Expansion** — `_build_sessions` groups batched rows by `(subject, group,
+   period_number)`; each period becomes one base block carrying a `parallel_batch_map`
+   (batch → faculty). `_expand_lab_batches` (greedy only) turns it into one
+   `SessionToSchedule` per batch sharing a `parallel_key`.
+3. **Placement** — `_place_parallel_group` finds a (day, slot) where **B distinct rooms**
+   (and distinct faculty) pass the checker simultaneously; the division is fully occupied
+   during the window, so `NO_GROUP_DOUBLE_BOOK` keeps other subjects out and max-one-lab-
+   per-day holds structurally (`MAX_ONE_LAB_PER_DAY` rule also enforces it for
+   whole-division labs). Without a per-batch map, batch count is auto-derived from the
+   group's year (`lab_batches` profile param overrides).
+4. **Capacity** — a batch slot is exempt from `ROOM_CAPACITY_SUFFICIENT`'s division-
+   strength comparison (the batch only fills part of the class). Parallel siblings are
+   ignored by `NO_GROUP_DOUBLE_BOOK` / `SAME_SUBJECT_SAME_DAY` / `MAX_ONE_LAB_PER_DAY`
+   via `_is_parallel_sibling` (same group/day/slots/subject, both batched).
+5. **OR-Tools** — not modelled yet (keeps the whole-division CP-SAT model; DD-030).
+
+#### Preferred rooms (`preferred_rooms` profile param)
+
+`_get_rooms` orders the pool so the profile's `preferred_rooms` (JSON list of room ids —
+a class's real venue/lab rooms from its published grid) come first, so sessions land in
+the same rooms the college uses.
+
 ### 5.3 Multiple Instances Strategy
 
 **Implemented (objective-based variation on top of the seeded diversity filter).** Solvers are deterministic — re-running with no seed produces the same timetable. To generate meaningfully different candidates the scheduler treats **instance #1 as a deterministic baseline** (seed = `None`) and generates each later instance with a different seed:
@@ -1499,7 +1541,7 @@ This section reflects the **actual** state of the codebase rather than the origi
 - **API versioning + JSON error envelope** — the whole API is mounted at `/api/v1/` via one aggregator router (unversioned paths stay live); global handlers guarantee the `{"detail": ...}` envelope with `request_id` on 422/500 (§7.10).
 - **Frontend** — `frontend/` is a Next.js 14 App Router + TypeScript + Tailwind admin UI (DD-017): login (JWT in localStorage), dashboard (resource counts from `X-Total-Count` + recent runs from `GET /generate` + quick actions), and CRUD tables for rooms/faculty/groups/subjects driven by a shared `ResourcePage` with **drill-down navigation** (category tiles, facet rail, breadcrumbs, URL state). The browser calls `/api/v1/*` directly at `NEXT_PUBLIC_API_URL` (DD-019). Dockerized via `frontend/Dockerfile` (standalone Next image). Styled in the **editorial-light** theme (warm canvas, white shadow-separated cards, serif display headings, charcoal accents, ink sidebar); a raw-CDP screenshot harness (`frontend/scripts/screenshot.mjs`) drives a real login + per-page capture for visual verification. The scheduling read path ships: `/generate` (profile picker + run cards with 2s status polling), `/instances` (all-instances list), `/instances/[id]` (the **TimetableGrid**: pure-CSS day×slot grid with sticky headers, subject-hued color coding, row-spanning blocks, faculty/room/group per cell, PDF/CSV/iCal/Select/Publish/Compare actions), and `/exports`. Phase 4 (editing & comparison) adds `/instances/compare` (two scroll-synced TimetableGrids with per-cell add/remove/change markers, a summary bar, and a click-to-scroll diff list — the diff is computed client-side from the two `/slots` lists, no backend compare endpoint), the **slot override UI** (clicking a DRAFT/SELECTED cell opens an anchored editor with day/slot/room/faculty selects; a debounced `POST …/slots/{id}/revalidate` dry-run gates Save), and the **assignment grid** `/assignments` (a subject × group matrix scoped by department + semester: faculty avatar + weekly-hours badge per cell, anchored cell editor over the `subject_assignments` CRUD, coverage chips, and a least-loaded-faculty Auto-fill for unassigned cells). The drill-down and grid work surfaced and fixed two real backend bugs: CORS never exposed `X-Total-Count` to the browser, and there was no all-instances list endpoint.
 - **Full-stack Dockerization** — top-level `docker-compose.yml` runs App + Frontend + PostgreSQL + Redis in one command (DD-018); backend `Dockerfile` uses the official uv image and runs `alembic upgrade head` before uvicorn. `docker/docker-compose.yml` stays the backend-only dev infra.
-- **Scale battle test** — `scripts/seed_demo.py` + `scripts/battle_test.py` + `scripts/api_drive.py` + `scripts/async_drive.py` verify the engine against a 12-department TCET-style college — **16 classes per department (FE/SE/TE/BE × 4 divisions, one semester per year)**: 492 subject streams / 1976 faculty / 192 groups / 324 rooms / 1968 assignments / 204 profiles. The per-class DIVISION profiles each attach exactly one group, so generation produces 192 clean per-class timetables instead of merged whole-department grids. Greedy spreads every class's ~28 sessions across all 6 days × 8 slots (4-5 per day); OR-Tools places a per-year profile; the real Celery worker + Redis async path, the generation lock, and cross-timetable safety were all exercised live. Surfaced and fixed three scale bugs (multi-group PDF `LayoutError`; missing `run_duration_ms` on `GenerationResponse`; greedy packing classes into minimum days instead of spreading across the week) — see DD-020.
+- **Scale battle test** — `scripts/seed_demo.py` + `scripts/battle_test.py` + `scripts/api_drive.py` + `scripts/async_drive.py` verify the engine against a 12-department **fabricated demo** college — **16 classes per department (FE/SE/TE/BE × 4 divisions, one semester per year)**: 492 subject streams / 1976 faculty / 192 groups / 324 rooms / 1968 assignments / 204 profiles. The per-class DIVISION profiles each attach exactly one group, so generation produces 192 clean per-class timetables instead of merged whole-department grids. Greedy spreads every class's ~28 sessions across all 6 days × 8 slots (4-5 per day); OR-Tools places a per-year profile; the real Celery worker + Redis async path, the generation lock, and cross-timetable safety were all exercised live. Surfaced and fixed three scale bugs (multi-group PDF `LayoutError`; missing `run_duration_ms` on `GenerationResponse`; greedy packing classes into minimum days instead of spreading across the week) — see DD-020. **The demo seed's departments, FE scheme, strengths, faculty counts and rooms are fabrications** (ELX/ELEC/CHEM/INST/CSBS do not exist at TCET); the real college structure is in `info/` and `sample/esah_fe_department_info.md`, with the replacement plan in `documentation/real-data-rollout-plan.md`.
 - **Backend saleability hardening** — the follow-up pass closed the remaining loose ends: all six soft constraint types ship scorers + CP-SAT builders and greedy pursues them during placement; OR-Tools models `MAX_CONSECUTIVE_SAME_TEACHER`, `MAX_DAILY_SUBJECTS`, and `EXAM_DATE_SEPARATION` relationally; `scope_type=EXAM` implies exam mode; `solver_timeout_seconds` / `diversity_threshold` profile params are read; `ALLOW_FREE_LAST_SLOT` and `MAX_DAILY_SUBJECTS` are new data-driven rules; `placement_warning` and honest `hard_violations` surface on runs/instances; and RBAC (roles + `require_roles` + `/auth/me` + `/auth/users`) landed.
 - **Full-features-at-scale verification** — `scripts/full_stack_test.py` re-verifies every capability at whole-department scale (soft pursuit, new rules, OR-Tools relational + greedy fallback, honesty fields, RBAC, conflict audit, real Celery async path). Surfaced and fixed two more real bugs: OR-Tools returned **0 slots** on a big relational-rule profile when CP-SAT exceeded its budget before a first solution (now falls back to greedy — a whole-dept run returns 288/288 instead of empty), and a duplicate admin name returned **500** (now **409**).
 

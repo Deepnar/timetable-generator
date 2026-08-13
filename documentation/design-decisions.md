@@ -523,7 +523,59 @@ Address these in the next session; resolved ones move up into the log with their
 
 ---
 
-## Past misses (found in audit — tracked so they do not repeat)
+## Parallel practicals & real-data import (2026-08-14)
+
+### DD-030 — Labs run as parallel per-batch practicals; the real TCET data now drives the seed
+- **Status:** Decided / Tested (engine) + Decided / Live-verification pending (real-data
+  import — the imported timetables still differ from the published grids).
+- **Context:** the founder's core complaint — a class is split into batches (3 for FE, 2
+  lab groups D1D2/D3D4 for SE+) and every batch is in a **practical at the same time in a
+  different room**. The old engine scheduled a lab as one whole-division 2h block. The
+  scraped `info/` pack now provides machine-readable TCET data (`info/import/*.json`) so
+  the seed no longer has to be hand-fabricated.
+- **Decision:**
+  1. **Parallel lab sessions.** `SessionToSchedule` carries `batch_number` +
+     `parallel_key`; the greedy solver expands a lab block into B sibling sessions and
+     places them atomically — same (day, slot), B distinct rooms, distinct faculty,
+     via `_place_parallel_group`/`_parallel_rooms`. `timetable_slots.batch_number` tags
+     each slot; `subject_assignments.batch_number` lets a lab declare one faculty per
+     batch (matching "Lab CG D1 D2 SuS/PD"). Batch count is auto-derived from the group's
+     year (FE → 3, else → 2) with a `lab_batches` profile-param override. **Greedy-only**
+     for now: OR-Tools keeps the whole-division CP-SAT model (documented limitation).
+  2. **Max one practical subject per day** — new `MAX_ONE_LAB_PER_DAY` registry rule
+     (data-driven; parallel placement satisfies it structurally because the division is
+     occupied during any lab period).
+  3. **Real-data pipeline.** `scripts/generate_tcet_import.py` (scraper session) emits
+     `info/import/*.json`; `scripts/import_tcet.py` seeds Postgres from it (real
+     departments incl. ES&H-owned FE, divisions from the published grids, real faculty,
+     real rooms, real subjects with hours derived from the grids, per-division profiles
+     with the real per-year grid + constraints). `scripts/seed_tcet.py` (hand-built
+     fallback seed) is superseded by the importer.
+- **Rejected alternatives:** whole-division labs (the old model — loses the real batch
+  structure); batch rows the teacher maintains (founder chose **auto-derive from
+  strength**); importing the published timetables as the output (the app **generates** —
+  the published grids are only extraction + verification ground truth).
+- **Follow-up (open):** per-day time grids (FE 08:00–18:30, 15-min breaks, online Saturday
+  IE/ISE), online/notional session kinds, resolving the ~59 unresolved faculty initials,
+  tutorial/kind fidelity, a per-session placement report (blocking-reason, not just a
+  count), and cell-for-cell verification of generated vs published grids.
+- **Additions after the deepseek-pro review (same session):**
+  1. **Branch-bound faculty + room pools.** Teachers are branch-local; every branch gets
+     ~40 (COMP = the real roster) via `scripts/build_synthetic_branches.py` →
+     `info/import/synthetic_branches.json`, and a profile attaches ONLY its own branch's
+     faculty/rooms. Root cause of mass unplaced: synthetic placeholders tagged `"Faculty"`
+     (no branch) were shared across branches, burned their weekly cap, and starved the
+     last branch (MECH-SE 53 unplaced).
+  2. **Real scheme hours** (lecture 3 / tutorial 1 / lab 2h / activity 2) replace the
+     noisy grid cell-count derivation — a class must fit the week, not request 88
+     sessions for a 54-slot one. Unplaced 228 → 90.
+  3. **Retire own published on republish** (router + generate_college) — a class's own
+     stale published timetable no longer blocks its regeneration into the evening.
+  4. **Scoping**: the real-data college is the 6 branches with published grids
+     (COMP/IT/EXTC/E&CS/MECH/CIVIL); MBA/MCA/BCA/AI&ML/AI&DS/IoT/CSE-IoT/CS&E/MME/FE are
+     excluded until real data exists.
+
+---
 
 - **`.env.example` drift** — the Redis session added `REDIS_URL`/`REDIS_ENABLED` but never
   added them to `.env.example`; the email session added `SMTP_*` the same way. Now fixed (both
