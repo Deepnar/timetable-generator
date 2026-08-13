@@ -34,7 +34,7 @@ from app.models.generation import (
     TimetableGeneration, TimetableInstance, TimetableSlot,
     InstanceStatus, AlgorithmType, VariationMode,
 )
-from app.models.profiles import TimetableProfile
+from app.models.profiles import TimetableProfile, ProfileResource
 
 
 def main() -> int:
@@ -83,6 +83,28 @@ def main() -> int:
         results = []
         for prof in profiles:
             t0 = time.monotonic()
+            # Retire this class's own published timetable(s) BEFORE solving, so
+            # the fresh run is not blocked by its own old slots (cross-timetable
+            # safety would otherwise push everything into the evening).
+            profile_group_ids = [
+                pr.resource_id for pr in db.scalars(select(ProfileResource).where(
+                    ProfileResource.profile_id == prof.id,
+                    ProfileResource.resource_type == "STUDENT_GROUP",
+                )).all()
+            ]
+            if profile_group_ids:
+                for old in db.scalars(select(TimetableInstance).where(
+                        TimetableInstance.status == InstanceStatus.PUBLISHED,
+                )).all():
+                    share = db.scalar(
+                        select(TimetableSlot.id).where(
+                            TimetableSlot.instance_id == old.id,
+                            TimetableSlot.student_group_id.in_(profile_group_ids),
+                        ).limit(1)
+                    )
+                    if share is not None:
+                        old.status = InstanceStatus.ARCHIVED
+                db.commit()
             sched = Scheduler(db)
             generation = sched.run(
                 profile_id=prof.id,
@@ -120,11 +142,31 @@ def main() -> int:
             if generation.generation_status.value == "COMPLETED" and instances and not args.dry_run:
                 best = max(instances, key=lambda i: i.soft_score if i.soft_score is not None else -1)
                 if best.status in (InstanceStatus.DRAFT.value, InstanceStatus.SELECTED.value):
-                    # archive previously published of the same generation
-                    for old in db.scalars(select(TimetableInstance).where(
-                            TimetableInstance.generation_id == generation.id,
-                            TimetableInstance.status == InstanceStatus.PUBLISHED)).all():
-                        old.status = InstanceStatus.ARCHIVED
+                    # Retire any published timetable for the SAME class(es) from
+                    # earlier generations too — otherwise the class's own old
+                    # published slots reserve it (cross-timetable safety) and the
+                    # fresh run is pushed into the evening.
+                    group_ids = {
+                        s.student_group_id for s in db.scalars(
+                            select(TimetableSlot).where(
+                                TimetableSlot.instance_id == best.id,
+                                TimetableSlot.student_group_id.isnot(None),
+                            )
+                        ).all()
+                    }
+                    if group_ids:
+                        for old in db.scalars(select(TimetableInstance).where(
+                                TimetableInstance.status == InstanceStatus.PUBLISHED,
+                                TimetableInstance.id != best.id,
+                        )).all():
+                            share = db.scalar(
+                                select(TimetableSlot.id).where(
+                                    TimetableSlot.instance_id == old.id,
+                                    TimetableSlot.student_group_id.in_(group_ids),
+                                ).limit(1)
+                            )
+                            if share is not None:
+                                old.status = InstanceStatus.ARCHIVED
                     best.status = InstanceStatus.PUBLISHED
                     best.published_at = datetime.utcnow()
                     db.commit()

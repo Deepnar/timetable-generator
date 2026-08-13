@@ -136,20 +136,36 @@ def publish_instance(
             detail="Only DRAFT or SELECTED instances can be published"
         )
 
-    # archive any previously published instance for same generation
-    generation = db.scalars(
-        select(TimetableGeneration).where(
-            TimetableGeneration.id == instance.generation_id)
-    ).first()
-    if generation:
-        previously_published = db.scalars(
-            select(TimetableInstance).where(
-                TimetableInstance.generation_id == generation.id,
-                TimetableInstance.status == InstanceStatus.PUBLISHED
+    # Retire any previously published timetable for the SAME class(es) —
+    # across generations, not just this generation. A class has one published
+    # timetable; leaving an older generation's published instance live lets it
+    # reserve the class's own slots (cross-timetable safety), so regenerating
+    # the class would be blocked by its own old timetable and pushed into odd
+    # corners of the week.
+    instance_group_ids = {
+        s.student_group_id for s in db.scalars(
+            select(TimetableSlot).where(
+                TimetableSlot.instance_id == instance.id,
+                TimetableSlot.student_group_id.isnot(None),
             )
         ).all()
-        for old in previously_published:
-            old.status = InstanceStatus.ARCHIVED
+    }
+    if instance_group_ids:
+        published = db.scalars(
+            select(TimetableInstance).where(
+                TimetableInstance.status == InstanceStatus.PUBLISHED,
+                TimetableInstance.id != instance.id,
+            )
+        ).all()
+        for candidate in published:
+            share = db.scalar(
+                select(TimetableSlot.id).where(
+                    TimetableSlot.instance_id == candidate.id,
+                    TimetableSlot.student_group_id.in_(instance_group_ids),
+                ).limit(1)
+            )
+            if share is not None:
+                candidate.status = InstanceStatus.ARCHIVED
 
     instance.status = InstanceStatus.PUBLISHED
     instance.published_at = datetime.utcnow()
