@@ -69,27 +69,65 @@ print("departments.json:", len(departments), "depts")
 def read(p):
     return open(p, encoding="utf-8").read()
 
-def legend_pairs(legend):
-    """Extract (code, name) and (code -> set of initials) from a legend line."""
-    pairs, initials = {}, {}
-    legend = re.sub(r"\s+", " ", legend)  # legends wrap across lines in the docs
-    segs = re.split(r"[·;]", legend)
-    for s in segs:
-        s = re.sub(r"^\s*Legend:?\s*", "", s).strip()
-        m = re.match(r"\s*([A-Za-z][A-Za-z0-9&/.\- ]{0,14}?)(?:\s*=\s*(.+?))?$", s)
-        if not m:
+_ROMAN = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+          "XI", "XII"}
+
+
+def _initials_tokens(paren: str) -> set:
+    """Faculty-initial tokens inside a legend paren, e.g. "(SuS / NW)".
+
+    A paren may hold initial/name pairs ("TN = Tanmayi Nagale"), bare initials
+    ("LJS, PM"), or a plain word ("online", "multi-faculty"). Return the
+    initials only.
+    """
+    out = set()
+    for tok in re.split(r"[/,]", paren):
+        tok = tok.strip()
+        if not tok:
             continue
-        code = m.group(1).strip()
+        m = re.match(r"^([A-Z][A-Za-z0-9]{0,3})\s*=\s*(.+)$", tok)
+        if m:
+            ini = m.group(1).strip()
+            if len(ini) <= 4 and ini not in _ROMAN and not ini.isdigit():
+                out.add(ini)
+            continue
+        if (re.match(r"^[A-Z][A-Za-z0-9]{0,3}$", tok) and len(tok) <= 4
+                and tok not in _ROMAN and not tok.isdigit()):
+            out.add(tok)
+    return out
+
+
+def legend_pairs(legend):
+    """Extract (code, name) and (code -> set of initials) from a legend line.
+
+    Real legends are ``CODE (INIT = Name / INIT2 = Name2)``, ``CODE (INIT /
+    INIT2)``, or ``CODE = Name``. Code stays the name when no name is given.
+    """
+    pairs, initials = {}, {}
+    legend = re.sub(r"\s+", " ", legend).rstrip(" .")
+    for s in re.split(r"[·;]", legend):
+        s = re.sub(r"^\s*Legend:?\s*", "", s).strip()
+        if not s:
+            continue
+        pm = re.match(r"^([A-Za-z][A-Za-z0-9&/\-\. ]{0,14}?)\s*(?:\((.*)\))?\s*$", s)
+        if pm:
+            code = pm.group(1).strip()
+            paren = pm.group(2)
+        else:
+            em = re.match(r"^([A-Za-z][A-Za-z0-9&/\-\. ]{0,14}?)\s*=\s*(.+)$", s)
+            if not em:
+                continue
+            code = em.group(1).strip()
+            paren = None
+            name = re.sub(r"\s*\(.*\)\s*$", "", em.group(2)).strip()
+            pairs[code] = name or code
         if not re.match(r"^[A-Z0-9]", code):
             continue
-        rest = m.group(2).strip() if m.group(2) else ""
-        nm = re.sub(r"\s*\(.*$", "", rest).strip() if rest else code
-        paren = re.search(r"\(([^)]*)\)", s)
         if paren:
-            inn = set(re.findall(r"\b[A-Z][a-z]?[A-Z]?[a-z]?\b", paren.group(1)))
-            inn = {t for t in inn if len(t) <= 3 and t not in {"I", "II", "III", "IV", "V", "VI", "VII"}}
-            initials[code] = inn
-        pairs[code] = nm
+            inn = _initials_tokens(paren)
+            if inn:
+                initials[code] = inn
+        pairs.setdefault(code, code)
     return pairs, initials
 
 def split_entries(cell):
@@ -319,6 +357,7 @@ json.dump({"timetables": timetables}, open(os.path.join(OUT, "timetables.json"),
 # 6. assignments.json — whole-division from legends + per-batch from lab cells
 assign_rows = []
 seen_asg = set()
+period_counter: dict = {}
 for tt in timetables:
     code = tt["group_name"].split("-")[0]
     sem = tt["semester"]
@@ -329,6 +368,9 @@ for tt in timetables:
             continue
         fac = c.get("faculty") or []
         if c["kind"] == "LAB" and c.get("batch"):
+            # Each LAB cell is ONE weekly period (a set of parallel batches).
+            pc = period_counter.get((gname, subj), 0) + 1
+            period_counter[(gname, subj)] = pc
             # one row per batch, faculty mapped by position (fallback: all faculty for batch 1)
             for b in c["batch"]:
                 f = fac[min(b - 1, len(fac) - 1)] if fac else None
@@ -337,7 +379,7 @@ for tt in timetables:
                     continue
                 seen_asg.add(key)
                 row = {"subject_code": subj, "group_name": gname, "faculty_initials": f,
-                       "weekly_hours": None, "batch_number": b,
+                       "weekly_hours": None, "batch_number": b, "period_id": pc,
                        "_note": "hours_per_week null — derive from grid slot count"}
                 if f and f in GLOSS and GLOSS[f] != "?" and ";" not in GLOSS[f]:
                     row["faculty_name"] = GLOSS[f]
@@ -421,16 +463,28 @@ def grid(code, year, slots, days, sat):
     grids.append({"department_code": code, "year": year, "working_days": days,
                   "slots": slots, "saturday": sat})
 
-se_slots = [{"slot": i, "start": f"{8+i//2:02d}:{(30 if i%2==0 else 0):02d}", "end": f"{8+(i+1)//2:02d}:{(30 if (i+1)%2==0 else 0):02d}"} for i in range(1, 10)]
-# simpler: 8:30-9:30 ... 17:30 in 9 one-hour slots
-se_slots = [{"slot": i, "start": f"{8 + (i-1)//2:02d}:{30 if (i-1)%2==0 else 0:02d}", "end": f"{8 + i//2:02d}:{30 if i%2==0 else 0:02d}"} for i in range(1, 10)]
-be_slots = se_slots[:8]
+def slot_times(start_hour: int, start_min: int, count: int, duration: int = 60) -> list:
+    """A run of `count` contiguous `duration`-minute slots from (start_hour:start_min)."""
+    out = []
+    for i in range(1, count + 1):
+        s = start_hour * 60 + start_min + (i - 1) * duration
+        e = s + duration
+        out.append({"slot": i, "start": f"{s // 60:02d}:{s % 60:02d}",
+                    "end": f"{e // 60:02d}:{e % 60:02d}"})
+    return out
+
+# Real SE/TE grid: 9 x 1h, 08:30-17:30 (break at T4 = 11:30-12:30).
+se_slots = slot_times(8, 30, 9)
+# BE: 8 x 1h, 08:30-16:30, no Saturday.
+be_slots = slot_times(8, 30, 8)
+# EXTC (even sem 2025-26) starts 09:30.
+extc_slots = slot_times(9, 30, 9)
 for code in ("COMP", "IT", "EXTC", "E&CS", "MECH", "CIVIL", "AI&ML", "BCA", "MCA", "ES&H"):
-    grid(code, 2, se_slots, [0,1,2,3,4,5], "IP / co-curricular / notional learning")
-    grid(code, 3, se_slots, [0,1,2,3,4,5], "IP / PBL / co-curricular / notional learning")
-grid("COMP", 4, be_slots, [0,1,2,3,4], "none (BE has no Saturday block; 5th theory lecture online)")
-grid("IT", 4, be_slots, [0,1,2,3,4], "none (BE has no Saturday block; 5th theory lecture online)")
-grid("EXTC", 4, [{"slot": i, "start": f"{9 + (i-1)//2:02d}:{30 if (i-1)%2==0 else 0:02d}", "end": f"{9 + i//2:02d}:{30 if i%2==0 else 0:02d}"} for i in range(1, 10)], [0,1,2,3,4,5], "IP / RBL / co-curricular / notional")
+    grid(code, 2, se_slots, [0, 1, 2, 3, 4, 5], "IP / co-curricular / notional learning")
+    grid(code, 3, se_slots, [0, 1, 2, 3, 4, 5], "IP / PBL / co-curricular / notional learning")
+grid("COMP", 4, be_slots, [0, 1, 2, 3, 4], "none (BE has no Saturday block; 5th theory lecture online)")
+grid("IT", 4, be_slots, [0, 1, 2, 3, 4], "none (BE has no Saturday block; 5th theory lecture online)")
+grid("EXTC", 4, extc_slots, [0, 1, 2, 3, 4, 5], "IP / RBL / co-curricular / notional")
 json.dump({"grids": grids}, open(os.path.join(OUT, "grids.json"), "w"), indent=1, ensure_ascii=False)
 print("grids:", len(grids))
 

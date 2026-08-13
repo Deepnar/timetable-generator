@@ -33,12 +33,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       1,
       2
      ],
      "faculty": [
+      "HR",
       "PD"
      ],
      "room": "326",
@@ -89,8 +90,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "RB"
@@ -125,7 +126,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DLDCA",
      "batch": [
       1,
       2
@@ -141,7 +142,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-II",
      "batch": [
       3,
       4
@@ -157,8 +158,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "RB"
@@ -194,10 +195,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HP"
+     ],
      "room": "606",
      "online": false,
      "label": "DBMS HP 606",
@@ -268,7 +271,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-II",
      "batch": [
       1,
       2
@@ -285,7 +288,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DLDCA",
      "batch": [
       3,
       4
@@ -311,8 +314,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AAD",
      "batch": null,
      "faculty": [
       "PD"
@@ -324,8 +327,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AD"
@@ -390,8 +393,7 @@
       2
      ],
      "faculty": [
-      "PP",
-      "RS"
+      "PP"
      ],
      "room": "304",
      "online": false,
@@ -401,12 +403,15 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "HR",
+      "HP"
+     ],
      "room": "326",
      "online": false,
      "label": "Lab DBMS A3A4 HR HP 326",
@@ -414,10 +419,12 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HP"
+     ],
      "room": "606",
      "online": false,
      "label": "DBMS HP 606",
@@ -437,7 +444,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AR"
@@ -482,8 +489,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "RB"
@@ -495,10 +502,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HP"
+     ],
      "room": "606",
      "online": false,
      "label": "DBMS HP 606",
@@ -661,7 +670,7 @@
    "cells": [
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DLDCA",
      "batch": [
       1,
       2
@@ -677,7 +686,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-II",
      "batch": [
       3,
       4
@@ -693,8 +702,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "LS"
@@ -717,8 +726,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [],
      "room": "608",
@@ -763,8 +772,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "DJ"
@@ -800,8 +809,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "GS"
@@ -814,7 +823,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       1,
       2
@@ -857,10 +866,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HR"
+     ],
      "room": "609",
      "online": false,
      "label": "DBMS HR 609",
@@ -890,8 +901,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "DJ"
@@ -925,8 +936,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "LS"
@@ -938,8 +949,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "GS"
@@ -975,8 +986,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AAD",
      "batch": null,
      "faculty": [
       "PD"
@@ -989,7 +1000,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "DJ"
@@ -1049,7 +1060,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DLDCA",
      "batch": [
       3,
       4
@@ -1066,7 +1077,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-II",
      "batch": [
       1,
       2
@@ -1117,8 +1128,8 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "AP"
@@ -1176,8 +1187,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "GS"
@@ -1189,8 +1200,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "AP"
@@ -1214,7 +1225,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       3,
       4
@@ -1408,8 +1419,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "AB"
@@ -1422,12 +1433,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       1,
       2
      ],
      "faculty": [
+      "VK",
       "RB"
      ],
      "room": "305",
@@ -1451,8 +1463,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AD"
@@ -1476,7 +1488,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AD"
@@ -1510,10 +1522,12 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HR"
+     ],
      "room": "608",
      "online": false,
      "label": "DBMS HR 608",
@@ -1521,10 +1535,12 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HR"
+     ],
      "room": "608",
      "online": false,
      "label": "DBMS HR 608",
@@ -1533,7 +1549,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DLDCA",
      "batch": [
       1,
       2
@@ -1550,7 +1566,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-II",
      "batch": [
       3,
       4
@@ -1590,8 +1606,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [],
      "room": "718",
@@ -1624,12 +1640,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-II",
      "batch": [
       1,
       2
      ],
      "faculty": [
+      "SaS",
       "PM"
      ],
      "room": "325",
@@ -1640,7 +1657,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DLDCA",
      "batch": [
       3,
       4
@@ -1687,6 +1704,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
+      "SaS",
       "FS"
      ],
      "room": "305/306",
@@ -1696,10 +1714,12 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VK"
+     ],
      "room": "607",
      "online": false,
      "label": "DBMS VK 607",
@@ -1707,8 +1727,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AAD",
      "batch": null,
      "faculty": [
       "PD"
@@ -1720,8 +1740,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AR"
@@ -1755,8 +1775,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "AB"
@@ -1768,8 +1788,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [],
      "room": "607",
@@ -1794,12 +1814,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       3,
       4
      ],
      "faculty": [
+      "VK",
       "DJ"
      ],
      "room": "306",
@@ -1809,8 +1830,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AAD",
      "batch": null,
      "faculty": [
       "PD"
@@ -1833,8 +1854,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AR"
@@ -1879,8 +1900,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [],
      "room": "607",
@@ -1890,8 +1911,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "AB"
@@ -1903,10 +1924,12 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VK"
+     ],
      "room": "607",
      "online": false,
      "label": "DBMS VK 607",
@@ -1917,7 +1940,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SaS"
+     ],
      "room": "607",
      "online": false,
      "label": "DS SaS 607",
@@ -2066,8 +2091,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "LS"
@@ -2080,7 +2105,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DLDCA",
      "batch": [
       1,
       2
@@ -2097,12 +2122,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-II",
      "batch": [
       3,
       4
      ],
      "faculty": [
+      "SaS",
       "PM"
      ],
      "room": "325",
@@ -2112,8 +2138,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "VJ"
@@ -2171,8 +2197,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "VJ"
@@ -2184,8 +2210,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "VJ"
@@ -2229,8 +2255,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "AB"
@@ -2286,8 +2312,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "AB"
@@ -2311,7 +2337,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       1,
       2
@@ -2327,7 +2353,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       3,
       4
@@ -2343,8 +2369,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AR"
@@ -2356,8 +2382,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AR"
@@ -2369,8 +2395,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "AR"
@@ -2405,7 +2431,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-II",
      "batch": [
       1,
       2
@@ -2421,7 +2447,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DLDCA",
      "batch": [
       3,
       4
@@ -2448,10 +2474,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "RT"
+     ],
      "room": "608",
      "online": false,
      "label": "DBMS RT 608",
@@ -2459,8 +2487,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AAD",
      "batch": null,
      "faculty": [
       "PD"
@@ -2472,8 +2500,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AAD",
      "batch": null,
      "faculty": [
       "PD"
@@ -2486,7 +2514,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV",
      "batch": null,
      "faculty": [
       "DJ"
@@ -2531,8 +2559,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M III",
      "batch": null,
      "faculty": [
       "AB"
@@ -2544,10 +2572,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "RT"
+     ],
      "room": "608",
      "online": false,
      "label": "DBMS RT 608",
@@ -2569,8 +2599,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DLDCA",
      "batch": null,
      "faculty": [
       "VJ"
@@ -2762,9 +2792,7 @@
      "kind": "LECTURE",
      "subject": "TOC",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "606",
      "online": false,
      "label": "TOC RS 606",
@@ -3004,8 +3032,7 @@
       4
      ],
      "faculty": [
-      "MS",
-      "RS"
+      "MS"
      ],
      "room": "326",
      "online": false,
@@ -3030,9 +3057,7 @@
      "kind": "LECTURE",
      "subject": "TOC",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "606",
      "online": false,
      "label": "TOC RS 606",
@@ -3159,9 +3184,7 @@
      "kind": "LECTURE",
      "subject": "TOC",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "606",
      "online": false,
      "label": "TOC RS 606",
@@ -3172,9 +3195,7 @@
      "kind": "TUTORIAL",
      "subject": "TOC",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "305",
      "online": false,
      "label": "TOC RS TuT 305",
@@ -3308,9 +3329,7 @@
      "kind": "TUTORIAL",
      "subject": "TOC",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "305",
      "online": false,
      "label": "TOC RS TuT 305",
@@ -3510,12 +3529,12 @@
    "semester": 6,
    "cells": [
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG",
-      "FS"
+      "FS",
+      "VG"
      ],
      "room": "607",
      "online": false,
@@ -3524,8 +3543,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "BM"
@@ -3548,8 +3567,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [],
      "room": "608",
@@ -3560,7 +3579,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MP",
      "batch": [
       1,
       2
@@ -3574,14 +3593,14 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CG",
      "batch": [
       3,
       4
      ],
      "faculty": [
-      "CG",
-      "NW"
+      "NW",
+      "VG"
      ],
      "room": "306",
      "online": false,
@@ -3590,8 +3609,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "GJ"
@@ -3637,7 +3656,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MP",
      "batch": [
       3,
       4
@@ -3654,13 +3673,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CG",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "CG",
+      "VG",
       "SP"
      ],
      "room": "305",
@@ -3681,8 +3700,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "BM"
@@ -3694,8 +3713,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [],
      "room": "607",
@@ -3705,8 +3724,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "GJ"
@@ -3718,8 +3737,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [
       "SG"
@@ -3764,8 +3783,8 @@
      "slot": 9
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [
       "SG"
@@ -3777,8 +3796,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "BM"
@@ -3802,13 +3821,14 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MP",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "RB"
+      "RB",
+      "VG"
      ],
      "room": "304",
      "online": false,
@@ -3818,7 +3838,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MP",
      "batch": [
       3,
       4
@@ -3900,7 +3920,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "GJ"
@@ -3912,8 +3932,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [
       "SG"
@@ -3925,8 +3945,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "GJ"
@@ -3949,8 +3969,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [],
      "room": "607",
@@ -3960,11 +3980,11 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG"
+      "VG"
      ],
      "room": "608",
      "online": false,
@@ -4083,8 +4103,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "GJ"
@@ -4096,11 +4116,11 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG"
+      "VG"
      ],
      "room": "609",
      "online": false,
@@ -4312,8 +4332,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [],
      "room": "609",
@@ -4323,11 +4343,10 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG",
       "FS"
      ],
      "room": "607",
@@ -4337,8 +4356,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "SS"
@@ -4361,11 +4380,10 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG",
       "MS"
      ],
      "room": "607",
@@ -4375,10 +4393,12 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "IIS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VG"
+     ],
      "room": "607",
      "online": false,
      "label": "IIS VG 607",
@@ -4430,10 +4450,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SuS"
+     ],
      "room": "607",
      "online": false,
      "label": "MP SuS 607",
@@ -4453,12 +4475,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MP",
      "batch": [
       1,
       2
      ],
      "faculty": [
+      "SuS",
       "PM"
      ],
      "room": "326",
@@ -4469,7 +4492,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "IIS",
      "batch": [
       3,
       4
@@ -4484,10 +4507,12 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SuS"
+     ],
      "room": "609",
      "online": false,
      "label": "MP SuS 609",
@@ -4495,8 +4520,8 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [],
      "room": "609",
@@ -4529,13 +4554,12 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CG",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "CG",
       "FS"
      ],
      "room": "305",
@@ -4546,12 +4570,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MP",
      "batch": [
       3,
       4
      ],
      "faculty": [
+      "SuS",
       "AD"
      ],
      "room": "306",
@@ -4561,8 +4586,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "SS"
@@ -4585,8 +4610,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "IIS",
      "batch": null,
      "faculty": [],
      "room": "607",
@@ -4596,8 +4621,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [],
      "room": "607",
@@ -4662,11 +4687,10 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG",
       "MS"
      ],
      "room": "607",
@@ -4676,10 +4700,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SuS"
+     ],
      "room": "609",
      "online": false,
      "label": "MP SuS 609",
@@ -4699,7 +4725,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "IIS",
      "batch": [
       1,
       2
@@ -4713,13 +4739,12 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CG",
      "batch": [
       3,
       4
      ],
      "faculty": [
-      "CG",
       "MS"
      ],
      "room": "305",
@@ -4740,8 +4765,8 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "IIS",
      "batch": null,
      "faculty": [],
      "room": "607",
@@ -4812,7 +4837,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SuS"
+     ],
      "room": "326",
      "online": false,
      "label": "B3 VNS/SuS 326",
@@ -4861,8 +4888,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "SS"
@@ -4875,7 +4902,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "SS"
@@ -5090,11 +5117,11 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG"
+      "SuS"
      ],
      "room": "718",
      "online": false,
@@ -5103,8 +5130,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "IIS",
      "batch": null,
      "faculty": [],
      "room": "718",
@@ -5126,13 +5153,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CG",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "CG",
+      "SuS",
       "PD"
      ],
      "room": "324",
@@ -5143,7 +5170,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "IIS",
      "batch": [
       3,
       4
@@ -5169,8 +5196,8 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "VS"
@@ -5215,11 +5242,11 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG"
+      "SuS"
      ],
      "room": "718",
      "online": false,
@@ -5228,8 +5255,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [
       "TN"
@@ -5253,7 +5280,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MP",
      "batch": [
       1,
       2
@@ -5270,7 +5297,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MP",
      "batch": [
       3,
       4
@@ -5297,10 +5324,12 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "IIS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VG"
+     ],
      "room": "610",
      "online": false,
      "label": "IIS VG 610",
@@ -5330,8 +5359,8 @@
      "slot": 9
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [],
      "room": "608",
@@ -5341,8 +5370,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [
       "TN"
@@ -5354,11 +5383,10 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CG",
      "batch": null,
      "faculty": [
-      "CG",
       "NW"
      ],
      "room": "610",
@@ -5380,13 +5408,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CG",
      "batch": [
       3,
       4
      ],
      "faculty": [
-      "CG"
+      "SuS"
      ],
      "room": "324",
      "online": false,
@@ -5396,7 +5424,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "IIS",
      "batch": [
       1,
       2
@@ -5466,8 +5494,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MP",
      "batch": null,
      "faculty": [
       "TN"
@@ -5479,8 +5507,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "IIS",
      "batch": null,
      "faculty": [],
      "room": "610",
@@ -5501,8 +5529,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [],
      "room": "608",
@@ -5512,8 +5540,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "VS"
@@ -5526,7 +5554,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "VS"
@@ -5599,7 +5627,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SuS"
+     ],
      "room": "326",
      "online": false,
      "label": "B3 VNS/SuS 326",
@@ -5659,8 +5689,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "TOC",
      "batch": null,
      "faculty": [
       "VS"
@@ -5994,9 +6024,7 @@
      "kind": "LECTURE",
      "subject": "CSS",
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": "532",
      "online": false,
      "label": "CSS DS 532",
@@ -6007,9 +6035,7 @@
      "kind": "LECTURE",
      "subject": "CSS",
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": "532",
      "online": false,
      "label": "CSS DS 532",
@@ -6056,9 +6082,7 @@
       1,
       2
      ],
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": "324",
      "online": false,
      "label": "Lab CSS A1A2 DS 324",
@@ -6110,9 +6134,7 @@
      "kind": "LECTURE",
      "subject": "CSS",
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": "532",
      "online": false,
      "label": "CSS DS 532",
@@ -6237,7 +6259,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SB"
+      "SB",
+      "HR"
      ],
      "room": "308",
      "online": false,
@@ -6307,9 +6330,7 @@
      "kind": "LECTURE",
      "subject": "CSS",
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": "532",
      "online": false,
      "label": "CSS DS 532",
@@ -6386,9 +6407,7 @@
      "kind": "LECTURE",
      "subject": "CSS",
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": "532",
      "online": false,
      "label": "CSS DS 532",
@@ -7231,8 +7250,8 @@
    "semester": 7,
    "cells": [
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DWM",
      "batch": null,
      "faculty": [
       "AR"
@@ -7244,8 +7263,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DWM",
      "batch": null,
      "faculty": [
       "AR"
@@ -7257,8 +7276,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CSS",
      "batch": null,
      "faculty": [
       "NW"
@@ -7307,7 +7326,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CSS",
      "batch": [
       1,
       2
@@ -7323,7 +7342,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DWM",
      "batch": [
       3,
       4
@@ -7339,7 +7358,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CSS",
      "batch": [
       1,
       2
@@ -7355,7 +7374,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DWM",
      "batch": [
       3,
       4
@@ -7392,8 +7411,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DWM",
      "batch": null,
      "faculty": [
       "AR"
@@ -7405,8 +7424,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DWM",
      "batch": null,
      "faculty": [
       "AR"
@@ -7452,7 +7471,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DWM",
      "batch": [
       1,
       2
@@ -7468,12 +7487,14 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CSS",
      "batch": [
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "HR"
+     ],
      "room": "306",
      "online": false,
      "label": "Lab CSS C3C4 HR 306",
@@ -7517,8 +7538,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CSS",
      "batch": null,
      "faculty": [
       "NW"
@@ -7530,8 +7551,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DWM",
      "batch": null,
      "faculty": [
       "AR"
@@ -7647,7 +7668,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SB"
+      "SB",
+      "HR"
      ],
      "room": "336",
      "online": false,
@@ -7714,8 +7736,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CSS",
      "batch": null,
      "faculty": [
       "NW"
@@ -7804,8 +7826,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CSS",
      "batch": null,
      "faculty": [
       "NW"
@@ -7817,8 +7839,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CSS",
      "batch": null,
      "faculty": [
       "NW"
@@ -8004,8 +8026,8 @@
    "semester": 3,
    "cells": [
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "JT"
@@ -8046,13 +8068,14 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       3,
       4
      ],
      "faculty": [
-      "JT"
+      "JT",
+      "PS"
      ],
      "room": "601",
      "online": false,
@@ -8084,7 +8107,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -8096,10 +8119,12 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": null,
      "online": false,
      "label": "UHV-II PS",
@@ -8129,10 +8154,12 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": null,
      "online": false,
      "label": "UHV-II PS",
@@ -8154,13 +8181,14 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "JT"
+      "JT",
+      "PS"
      ],
      "room": "601",
      "online": false,
@@ -8196,8 +8224,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -8242,8 +8270,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -8267,12 +8295,14 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-III",
      "batch": [
       3,
       4
      ],
      "faculty": [
+      "PS",
+      "MP",
       "TS"
      ],
      "room": "203",
@@ -8309,8 +8339,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "JT"
@@ -8373,12 +8403,15 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-III",
      "batch": [
       1,
       2
      ],
-     "faculty": [],
+     "faculty": [
+      "PS",
+      "MP"
+     ],
      "room": "203",
      "online": false,
      "label": "Lab PS-III A1A2 MP/NeP 203",
@@ -8399,8 +8432,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "JT"
@@ -8424,9 +8457,11 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV-II",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": null,
      "online": false,
      "label": "UHV-II TuT A1 PS",
@@ -8478,8 +8513,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -8516,7 +8551,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -8529,9 +8564,11 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV-II",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": "220",
      "online": false,
      "label": "UHV-II TuT A2 PS 220",
@@ -8691,10 +8728,12 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "ML"
+     ],
      "room": null,
      "online": false,
      "label": "DBMS ML",
@@ -8702,8 +8741,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "PP"
@@ -8715,8 +8754,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -8729,7 +8768,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DSA",
      "batch": [
       1,
       2
@@ -8746,7 +8785,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-III",
      "batch": [
       3,
       4
@@ -8784,8 +8823,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -8797,8 +8836,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
      "faculty": [
       "SC"
@@ -8811,12 +8850,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       1,
       2
      ],
      "faculty": [
+      "ML",
       "NB"
      ],
      "room": "221",
@@ -8827,7 +8867,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DSA",
      "batch": [
       3,
       4
@@ -8854,8 +8894,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "PP"
@@ -8889,8 +8929,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SB"
@@ -8902,8 +8942,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "PP"
@@ -8916,7 +8956,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-III",
      "batch": [
       1,
       2
@@ -8933,7 +8973,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DCD",
      "batch": [
       3,
       4
@@ -8960,7 +9000,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SB"
@@ -8973,7 +9013,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "PP"
@@ -9007,10 +9047,12 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "ML"
+     ],
      "room": null,
      "online": false,
      "label": "DBMS ML",
@@ -9018,8 +9060,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -9032,7 +9074,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DCD",
      "batch": [
       1,
       2
@@ -9049,12 +9091,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       3,
       4
      ],
      "faculty": [
+      "ML",
       "RA"
      ],
      "room": "221",
@@ -9075,8 +9118,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
      "faculty": [
       "SC"
@@ -9089,7 +9132,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -9102,7 +9145,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SB"
@@ -9136,8 +9179,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
      "faculty": [
       "SC"
@@ -9150,7 +9193,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "PP"
@@ -9163,7 +9206,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SK"
@@ -9175,10 +9218,12 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "ML"
+     ],
      "room": null,
      "online": false,
      "label": "DBMS ML",
@@ -9186,8 +9231,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SB"
@@ -9307,8 +9352,8 @@
    "semester": 3,
    "cells": [
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -9320,8 +9365,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
      "faculty": [
       "VY"
@@ -9334,12 +9379,14 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DSA",
      "batch": [
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": "204",
      "online": false,
      "label": "Lab DSA C3C4 NiB 204",
@@ -9348,7 +9395,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS",
      "batch": [
       1,
       2
@@ -9363,10 +9410,12 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": null,
      "online": false,
      "label": "DSA NiB",
@@ -9386,7 +9435,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -9399,9 +9448,11 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "DSA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": "220",
      "online": false,
      "label": "DSA TuT C2 NiB 220",
@@ -9409,8 +9460,8 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -9434,7 +9485,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DCD",
      "batch": [
       1,
       2
@@ -9451,7 +9502,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS",
      "batch": [
       3,
       4
@@ -9467,8 +9518,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "AV"
@@ -9480,8 +9531,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
      "faculty": [
       "VY"
@@ -9505,7 +9556,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -9518,9 +9569,11 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "DSA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": "220",
      "online": false,
      "label": "DSA TuT C2 NiB 220",
@@ -9528,8 +9581,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -9564,12 +9617,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DSA",
      "batch": [
       1,
       2
      ],
      "faculty": [
+      "NiB",
       "NP"
      ],
      "room": "204",
@@ -9580,7 +9634,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       3,
       4
@@ -9596,8 +9650,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -9609,10 +9663,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": null,
      "online": false,
      "label": "DSA NiB",
@@ -9632,7 +9688,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -9645,7 +9701,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -9690,8 +9746,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -9703,10 +9759,12 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": null,
      "online": false,
      "label": "DSA NiB",
@@ -9714,8 +9772,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -9727,8 +9785,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "AV"
@@ -9741,9 +9799,11 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "DSA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": "220",
      "online": false,
      "label": "DSA TuT C1 NiB 220",
@@ -9752,7 +9812,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -9797,8 +9857,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "AV"
@@ -9810,8 +9870,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
      "faculty": [
       "VY"
@@ -9824,7 +9884,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DCD",
      "batch": [
       3,
       4
@@ -9841,7 +9901,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       1,
       2
@@ -9857,10 +9917,12 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": null,
      "online": false,
      "label": "DSA NiB",
@@ -9868,8 +9930,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -10022,10 +10084,12 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NeP"
+     ],
      "room": null,
      "online": false,
      "label": "DCD NeP",
@@ -10034,7 +10098,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -10047,7 +10111,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "AA"
@@ -10059,8 +10123,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -10072,8 +10136,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "AA"
@@ -10086,12 +10150,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DCD",
      "batch": [
       3,
       4
      ],
      "faculty": [
+      "NeP",
       "AV"
      ],
      "room": "323",
@@ -10102,7 +10167,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-III",
      "batch": [
       1,
       2
@@ -10140,10 +10205,12 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NeP"
+     ],
      "room": null,
      "online": false,
      "label": "DCD NeP",
@@ -10152,12 +10219,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DCD",
      "batch": [
       1,
       2
      ],
      "faculty": [
+      "NeP",
       "SP"
      ],
      "room": "323",
@@ -10168,7 +10236,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DSA",
      "batch": [
       3,
       4
@@ -10195,8 +10263,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "AA"
@@ -10208,8 +10276,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -10233,7 +10301,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       1,
       2
@@ -10249,7 +10317,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "PS-III",
      "batch": [
       3,
       4
@@ -10276,8 +10344,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "AA"
@@ -10289,8 +10357,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "RN"
@@ -10335,8 +10403,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -10348,8 +10416,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "RN"
@@ -10362,7 +10430,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DSA",
      "batch": [
       1,
       2
@@ -10379,7 +10447,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "DBMS",
      "batch": [
       3,
       4
@@ -10405,10 +10473,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DCD",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NeP"
+     ],
      "room": null,
      "online": false,
      "label": "DCD NeP",
@@ -10417,7 +10487,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -10430,7 +10500,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -10453,8 +10523,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -10466,8 +10536,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "RN"
@@ -10479,8 +10549,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "OK"
@@ -10493,7 +10563,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "DSA",
      "batch": null,
      "faculty": [
       "AA"
@@ -10506,7 +10576,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SM"
@@ -10719,8 +10789,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TU"
@@ -10817,8 +10887,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TU"
@@ -11147,8 +11217,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TU"
@@ -11304,7 +11374,7 @@
    "cells": [
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "OS",
      "batch": [
       1,
       2
@@ -11321,13 +11391,12 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "WP",
      "batch": [
       3,
       4
      ],
      "faculty": [
-      "WP",
       "SP",
       "SM"
      ],
@@ -11360,8 +11429,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TU"
@@ -11373,11 +11442,11 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WP",
      "batch": null,
      "faculty": [
-      "WP"
+      "MP"
      ],
      "room": null,
      "online": false,
@@ -11386,8 +11455,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CNS",
      "batch": null,
      "faculty": [
       "KD"
@@ -11422,7 +11491,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CNS",
      "batch": [
       3,
       4
@@ -11438,13 +11507,13 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "WP",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "WP"
+      "MP"
      ],
      "room": "601",
      "online": false,
@@ -11475,8 +11544,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TU"
@@ -11488,8 +11557,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OS",
      "batch": null,
      "faculty": [
       "SV"
@@ -11502,10 +11571,9 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT",
       "NB"
      ],
      "room": "711",
@@ -11516,10 +11584,9 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT",
       "TS"
      ],
      "room": "204",
@@ -11529,8 +11596,8 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CNS",
      "batch": null,
      "faculty": [
       "KD"
@@ -11553,11 +11620,11 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WP",
      "batch": null,
      "faculty": [
-      "WP"
+      "MP"
      ],
      "room": null,
      "online": false,
@@ -11566,8 +11633,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OS",
      "batch": null,
      "faculty": [
       "SV"
@@ -11590,8 +11657,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TU"
@@ -11603,11 +11670,10 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT",
       "NB"
      ],
      "room": null,
@@ -11617,8 +11683,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CNS",
      "batch": null,
      "faculty": [
       "KD"
@@ -11653,7 +11719,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CNS",
      "batch": [
       1,
       2
@@ -11670,7 +11736,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "OS",
      "batch": [
       3,
       4
@@ -11708,11 +11774,11 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WP",
      "batch": null,
      "faculty": [
-      "WP"
+      "MP"
      ],
      "room": null,
      "online": false,
@@ -11721,11 +11787,10 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT",
       "NB"
      ],
      "room": null,
@@ -11820,8 +11885,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OS",
      "batch": null,
      "faculty": [
       "SV"
@@ -11833,11 +11898,10 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT",
       "NB"
      ],
      "room": null,
@@ -11977,11 +12041,11 @@
    "semester": 5,
    "cells": [
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT"
+      "KrD"
      ],
      "room": "612",
      "online": false,
@@ -11990,8 +12054,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OS",
      "batch": null,
      "faculty": [
       "NP"
@@ -12003,8 +12067,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CNS",
      "batch": null,
      "faculty": [
       "RA"
@@ -12027,8 +12091,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "BM"
@@ -12040,11 +12104,10 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WP",
      "batch": null,
      "faculty": [
-      "WP",
       "SP"
      ],
      "room": "617",
@@ -12088,13 +12151,12 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "WP",
      "batch": [
       3,
       4
      ],
      "faculty": [
-      "WP",
       "SP",
       "PK"
      ],
@@ -12106,7 +12168,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CNS",
      "batch": [
       1,
       2
@@ -12144,8 +12206,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OS",
      "batch": null,
      "faculty": [
       "NP"
@@ -12157,8 +12219,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "BM"
@@ -12170,11 +12232,10 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WP",
      "batch": null,
      "faculty": [
-      "WP",
       "SP"
      ],
      "room": "617",
@@ -12195,8 +12256,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CNS",
      "batch": null,
      "faculty": [
       "RA"
@@ -12208,11 +12269,10 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WP",
      "batch": null,
      "faculty": [
-      "WP",
       "SP"
      ],
      "room": "620",
@@ -12222,11 +12282,11 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT"
+      "KrD"
      ],
      "room": "620",
      "online": false,
@@ -12247,7 +12307,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "OS",
      "batch": [
       1,
       2
@@ -12264,7 +12324,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "CNS",
      "batch": [
       3,
       4
@@ -12313,8 +12373,8 @@
      "slot": 8
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "BM"
@@ -12327,10 +12387,10 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT"
+      "KrD"
      ],
      "room": "617",
      "online": false,
@@ -12340,10 +12400,9 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT",
       "NB"
      ],
      "room": "612",
@@ -12353,8 +12412,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OS",
      "batch": null,
      "faculty": [
       "NP"
@@ -12378,7 +12437,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "OS",
      "batch": [
       3,
       4
@@ -12394,13 +12453,12 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "WP",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "WP",
       "SP",
       "SD"
      ],
@@ -12507,11 +12565,11 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AT",
      "batch": null,
      "faculty": [
-      "AT"
+      "KrD"
      ],
      "room": "619",
      "online": false,
@@ -12520,8 +12578,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CNS",
      "batch": null,
      "faculty": [
       "RA"
@@ -12820,8 +12878,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SD",
-      "PS"
+      "SD"
      ],
      "room": null,
      "online": false,
@@ -13000,9 +13057,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": "323",
      "online": false,
      "label": "UID B1 PS 323",
@@ -13185,8 +13240,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SD",
-      "PS"
+      "SD"
      ],
      "room": null,
      "online": false,
@@ -13347,10 +13401,12 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "BDA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "ML"
+     ],
      "room": null,
      "online": false,
      "label": "BDA ML",
@@ -13391,8 +13447,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MLITD",
      "batch": null,
      "faculty": [
       "KP"
@@ -13404,10 +13460,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "BDA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": null,
      "online": false,
      "label": "BDA NiB",
@@ -13441,7 +13499,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SD"
+      "SD",
+      "PS"
      ],
      "room": null,
      "online": false,
@@ -13451,7 +13510,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MLITD",
      "batch": [
       1,
       2
@@ -13467,7 +13526,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "BDA",
      "batch": [
       3,
       4
@@ -13516,10 +13575,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "BDA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "ML"
+     ],
      "room": null,
      "online": false,
      "label": "BDA ML",
@@ -13552,8 +13613,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MLITD",
      "batch": null,
      "faculty": [
       "KP"
@@ -13594,7 +13655,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "ML"
+     ],
      "room": "220",
      "online": false,
      "label": "B3 ML 220",
@@ -13618,7 +13681,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": "323",
      "online": false,
      "label": "UID B1 PS 323",
@@ -13672,10 +13737,12 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "BDA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "NiB"
+     ],
      "room": null,
      "online": false,
      "label": "BDA NiB",
@@ -13683,8 +13750,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MLITD",
      "batch": null,
      "faculty": [
       "KP"
@@ -13744,7 +13811,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MLITD",
      "batch": [
       3,
       4
@@ -13760,7 +13827,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "BDA",
      "batch": [
       1,
       2
@@ -13812,7 +13879,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SD"
+      "SD",
+      "PS"
      ],
      "room": null,
      "online": false,
@@ -13843,8 +13911,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MLITD",
      "batch": null,
      "faculty": [
       "KP"
@@ -13927,7 +13995,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "MG"
+      "MG",
+      "KrD"
      ],
      "room": "516/518",
      "online": false,
@@ -13972,8 +14041,8 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "BDA",
      "batch": null,
      "faculty": [
       "AP"
@@ -14018,8 +14087,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MLITD",
      "batch": null,
      "faculty": [
       "JT"
@@ -14031,8 +14100,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "BDA",
      "batch": null,
      "faculty": [
       "AP"
@@ -14070,7 +14139,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SC"
+      "SC",
+      "PS"
      ],
      "room": null,
      "online": false,
@@ -14080,7 +14150,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MLITD",
      "batch": [
       1,
       2
@@ -14096,7 +14166,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "BDA",
      "batch": [
       3,
       4
@@ -14137,7 +14207,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "MG"
+      "MG",
+      "KrD"
      ],
      "room": null,
      "online": false,
@@ -14146,8 +14217,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "BDA",
      "batch": null,
      "faculty": [
       "AP"
@@ -14184,8 +14255,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MLITD",
      "batch": null,
      "faculty": [
       "SP"
@@ -14250,7 +14321,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": "323",
      "online": false,
      "label": "UID B1 PS 323",
@@ -14304,8 +14377,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "BDA",
      "batch": null,
      "faculty": [
       "AP"
@@ -14317,8 +14390,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MLITD",
      "batch": null,
      "faculty": [
       "SP"
@@ -14356,7 +14429,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "MG"
+      "MG",
+      "KrD"
      ],
      "room": null,
      "online": false,
@@ -14366,12 +14440,14 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "MLITD",
      "batch": [
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "KrD"
+     ],
      "room": "601",
      "online": false,
      "label": "Lab MLITD C3C4 KrD 601",
@@ -14380,7 +14456,7 @@
     },
     {
      "kind": "LAB",
-     "subject": null,
+     "subject": "BDA",
      "batch": [
       1,
       2
@@ -14432,7 +14508,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "PP"
+      "PP",
+      "PS"
      ],
      "room": null,
      "online": false,
@@ -14463,8 +14540,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MLITD",
      "batch": null,
      "faculty": [
       "JT"
@@ -14537,9 +14614,7 @@
      "kind": "LECTURE",
      "subject": "MPI",
      "batch": null,
-     "faculty": [
-      "RM"
-     ],
+     "faculty": [],
      "room": "621",
      "online": false,
      "label": "MPI RM 621",
@@ -14594,7 +14669,6 @@
       4
      ],
      "faculty": [
-      "RM",
       "AD"
      ],
      "room": "120",
@@ -14637,8 +14711,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": "621",
@@ -14679,8 +14753,7 @@
       2
      ],
      "faculty": [
-      "AR",
-      "DS"
+      "AR"
      ],
      "room": "104",
      "online": false,
@@ -14707,7 +14780,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": "104",
@@ -14728,8 +14801,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": "621",
@@ -14755,9 +14828,7 @@
      "kind": "LECTURE",
      "subject": "MPI",
      "batch": null,
-     "faculty": [
-      "RM"
-     ],
+     "faculty": [],
      "room": "621",
      "online": false,
      "label": "MPI RM 621",
@@ -14800,7 +14871,6 @@
       2
      ],
      "faculty": [
-      "RM",
       "AD"
      ],
      "room": "120",
@@ -14848,9 +14918,7 @@
      "kind": "LECTURE",
      "subject": "MPI",
      "batch": null,
-     "faculty": [
-      "RM"
-     ],
+     "faculty": [],
      "room": "621",
      "online": false,
      "label": "MPI RM 621",
@@ -14858,8 +14926,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": "621",
@@ -14887,8 +14955,7 @@
       4
      ],
      "faculty": [
-      "AR",
-      "DS"
+      "AR"
      ],
      "room": "104",
      "online": false,
@@ -14904,7 +14971,8 @@
       2
      ],
      "faculty": [
-      "AB"
+      "AB",
+      "NT"
      ],
      "room": "214",
      "online": false,
@@ -14914,7 +14982,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": "104",
@@ -14935,8 +15003,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": "621",
@@ -14949,9 +15017,7 @@
      "kind": "LECTURE",
      "subject": "MPI",
      "batch": null,
-     "faculty": [
-      "RM"
-     ],
+     "faculty": [],
      "room": "621",
      "online": false,
      "label": "MPI RM 621 (FA)",
@@ -14994,10 +15060,12 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "EVS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "AY"
+     ],
      "room": "621",
      "online": false,
      "label": "EVS AY 621",
@@ -15102,11 +15170,11 @@
    "semester": 4,
    "cells": [
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SS",
      "batch": null,
      "faculty": [
-      "SS"
+      "DS"
      ],
      "room": null,
      "online": false,
@@ -15115,13 +15183,10 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AC",
      "batch": null,
-     "faculty": [
-      "AC",
-      "SS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "AC SS",
@@ -15129,8 +15194,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MPI",
      "batch": null,
      "faculty": [
       "KP"
@@ -15153,14 +15218,15 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SS",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "SS"
+      "DS",
+      "NT"
      ],
      "room": "104",
      "online": false,
@@ -15176,6 +15242,7 @@
       4
      ],
      "faculty": [
+      "NA",
       "PC"
      ],
      "room": "214",
@@ -15186,7 +15253,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-IV",
      "batch": [
       1,
       2
@@ -15210,8 +15277,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MPI",
      "batch": null,
      "faculty": [
       "KP"
@@ -15223,11 +15290,11 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SS",
      "batch": null,
      "faculty": [
-      "SS"
+      "DS"
      ],
      "room": null,
      "online": false,
@@ -15236,11 +15303,10 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AC",
      "batch": null,
      "faculty": [
-      "AC",
       "SB"
      ],
      "room": null,
@@ -15261,8 +15327,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": null,
@@ -15294,8 +15360,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MPI",
      "batch": null,
      "faculty": [
       "AD"
@@ -15307,8 +15373,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": null,
@@ -15318,11 +15384,11 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SS",
      "batch": null,
      "faculty": [
-      "SS"
+      "DS"
      ],
      "room": null,
      "online": false,
@@ -15342,14 +15408,15 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SS",
      "batch": [
       3,
       4
      ],
      "faculty": [
-      "SS"
+      "DS",
+      "NT"
      ],
      "room": "104",
      "online": false,
@@ -15364,7 +15431,9 @@
       1,
       2
      ],
-     "faculty": [],
+     "faculty": [
+      "NA"
+     ],
      "room": "214",
      "online": false,
      "label": "B1B2 NA-RKM 214",
@@ -15373,7 +15442,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-IV",
      "batch": [
       3,
       4
@@ -15397,11 +15466,11 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SS",
      "batch": null,
      "faculty": [
-      "SS"
+      "DS"
      ],
      "room": null,
      "online": false,
@@ -15410,8 +15479,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": null,
@@ -15421,11 +15490,10 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AC",
      "batch": null,
      "faculty": [
-      "AC",
       "SB"
      ],
      "room": null,
@@ -15446,15 +15514,13 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AC",
      "batch": [
       1,
       2
      ],
      "faculty": [
-      "AC",
-      "SS",
       "SB"
      ],
      "room": "105",
@@ -15471,6 +15537,7 @@
       4
      ],
      "faculty": [
+      "RM",
       "AD"
      ],
      "room": "120",
@@ -15480,10 +15547,12 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "EVS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "AY"
+     ],
      "room": null,
      "online": false,
      "label": "EVS AY",
@@ -15502,13 +15571,10 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AC",
      "batch": null,
-     "faculty": [
-      "AC",
-      "SS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "AC SS (FA)",
@@ -15516,8 +15582,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [],
      "room": null,
@@ -15527,8 +15593,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "MPI",
      "batch": null,
      "faculty": [
       "AD"
@@ -15551,14 +15617,13 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AC",
      "batch": [
       3,
       4
      ],
      "faculty": [
-      "AC",
       "SB",
       "AB"
      ],
@@ -15576,6 +15641,7 @@
       2
      ],
      "faculty": [
+      "RM",
       "AD"
      ],
      "room": "120",
@@ -15699,7 +15765,10 @@
       1,
       2
      ],
-     "faculty": [],
+     "faculty": [
+      "PS",
+      "PS"
+     ],
      "room": "214",
      "online": false,
      "label": "DBMS/PS-V A1A2 PS-RKM 214",
@@ -15735,8 +15804,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-I",
      "batch": null,
      "faculty": [
       "MG"
@@ -15761,10 +15830,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": "712",
      "online": false,
      "label": "DBMS PS 712",
@@ -15801,7 +15872,9 @@
       2
      ],
      "faculty": [
-      "SM"
+      "PS",
+      "SM",
+      "AY"
      ],
      "room": "120",
      "online": false,
@@ -15838,8 +15911,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-I",
      "batch": null,
      "faculty": [
       "MG"
@@ -15923,6 +15996,7 @@
       4
      ],
      "faculty": [
+      "AY",
       "PC"
      ],
      "room": "214",
@@ -15943,8 +16017,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-I",
      "batch": null,
      "faculty": [
       "MG"
@@ -15969,10 +16043,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": "712",
      "online": false,
      "label": "DBMS PS 712",
@@ -15984,7 +16060,6 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "DS",
       "LJ"
      ],
      "room": "712/719",
@@ -16018,10 +16093,12 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": "712",
      "online": false,
      "label": "DBMS PS 712",
@@ -16040,8 +16117,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-I",
      "batch": null,
      "faculty": [
       "MG"
@@ -16105,7 +16182,6 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "DS",
       "AR"
      ],
      "room": "712/719",
@@ -16139,10 +16215,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "PS"
+     ],
      "room": "712",
      "online": false,
      "label": "DBMS PS 712 (FA)",
@@ -16267,6 +16345,7 @@
       2
      ],
      "faculty": [
+      "PS",
       "AM",
       "MG"
      ],
@@ -16284,7 +16363,8 @@
       4
      ],
      "faculty": [
-      "SB"
+      "SB",
+      "AY"
      ],
      "room": "104",
      "online": false,
@@ -16304,8 +16384,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-I",
      "batch": null,
      "faculty": [
       "PC"
@@ -16317,8 +16397,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CCN",
      "batch": null,
      "faculty": [
       "AM"
@@ -16330,10 +16410,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "AY"
+     ],
      "room": null,
      "online": false,
      "label": "DBMS AY",
@@ -16369,7 +16451,10 @@
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "PS",
+      "PS"
+     ],
      "room": "214",
      "online": false,
      "label": "DBMS/PS-V B3B4 PS-RKM 214",
@@ -16405,8 +16490,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-I",
      "batch": null,
      "faculty": [
       "PC"
@@ -16464,8 +16549,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WMH",
      "batch": null,
      "faculty": [
       "BM"
@@ -16477,10 +16562,12 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "MC"
+     ],
      "room": "622",
      "online": false,
      "label": "DBMS MC 622",
@@ -16499,8 +16586,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-I",
      "batch": null,
      "faculty": [
       "PC"
@@ -16512,8 +16599,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CCN",
      "batch": null,
      "faculty": [
       "AM"
@@ -16525,10 +16612,12 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "AY"
+     ],
      "room": null,
      "online": false,
      "label": "DBMS AY",
@@ -16591,8 +16680,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-I",
      "batch": null,
      "faculty": [
       "PC"
@@ -16604,8 +16693,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CCN",
      "batch": null,
      "faculty": [
       "AM"
@@ -16617,8 +16706,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WMH",
      "batch": null,
      "faculty": [
       "BM"
@@ -16669,6 +16758,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
+      "DS",
       "AR"
      ],
      "room": "712/719",
@@ -16689,8 +16779,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "CCN",
      "batch": null,
      "faculty": [
       "AM"
@@ -16702,8 +16792,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "WMH",
      "batch": null,
      "faculty": [
       "BM"
@@ -16715,10 +16805,12 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "MC"
+     ],
      "room": null,
      "online": false,
      "label": "DBMS MC (FA)",
@@ -16826,9 +16918,7 @@
      "kind": "LECTURE",
      "subject": "ERP",
      "batch": null,
-     "faculty": [
-      "NA"
-     ],
+     "faculty": [],
      "room": "712",
      "online": false,
      "label": "ERP NA 712",
@@ -16893,7 +16983,6 @@
       2
      ],
      "faculty": [
-      "NA",
       "PC"
      ],
      "room": "120",
@@ -16953,9 +17042,7 @@
      "kind": "LECTURE",
      "subject": "ERP",
      "batch": null,
-     "faculty": [
-      "NA"
-     ],
+     "faculty": [],
      "room": "712",
      "online": false,
      "label": "ERP NA 712",
@@ -16969,9 +17056,7 @@
       3,
       4
      ],
-     "faculty": [
-      "NA"
-     ],
+     "faculty": [],
      "room": "120",
      "online": false,
      "label": "ERP/Proj A3A4 NA-NT 120",
@@ -17079,9 +17164,7 @@
      "kind": "LECTURE",
      "subject": "ERP",
      "batch": null,
-     "faculty": [
-      "NA"
-     ],
+     "faculty": [],
      "room": "712",
      "online": false,
      "label": "ERP NA 712 (FA)",
@@ -17417,8 +17500,8 @@
    "semester": 8,
    "cells": [
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "ERP",
      "batch": null,
      "faculty": [
       "KP"
@@ -17430,8 +17513,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "ERP",
      "batch": null,
      "faculty": [
       "KP"
@@ -17610,8 +17693,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "ERP",
      "batch": null,
      "faculty": [
       "KP"
@@ -17671,8 +17754,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "ERP",
      "batch": null,
      "faculty": [
       "KP"
@@ -19281,9 +19364,7 @@
       3,
       4
      ],
-     "faculty": [
-      "MN"
-     ],
+     "faculty": [],
      "room": "215",
      "online": false,
      "label": "CED/PS-II A3A4 MN 215",
@@ -19308,8 +19389,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SB"
@@ -19321,10 +19402,12 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "DM"
+     ],
      "room": null,
      "online": false,
      "label": "UHV-II DM",
@@ -19343,8 +19426,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SB"
@@ -19427,8 +19510,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "AC"
@@ -19451,8 +19534,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "SB"
@@ -19465,7 +19548,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": [
       1,
       2
@@ -19486,9 +19569,7 @@
       3,
       4
      ],
-     "faculty": [
-      "MN"
-     ],
+     "faculty": [],
      "room": "013",
      "online": false,
      "label": "SOM A3A4 MN 013",
@@ -19514,7 +19595,6 @@
       2
      ],
      "faculty": [
-      "UG",
       "PN"
      ],
      "room": null,
@@ -19590,7 +19670,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": [
       3,
       4
@@ -19655,9 +19735,7 @@
       1,
       2
      ],
-     "faculty": [
-      "MN"
-     ],
+     "faculty": [],
      "room": "013",
      "online": false,
      "label": "A1A2 SVC/MN 013",
@@ -19678,8 +19756,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV-II",
      "batch": null,
      "faculty": [
       "SN"
@@ -19739,8 +19817,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "AAD-III",
      "batch": null,
      "faculty": [
       "RS"
@@ -19935,9 +20013,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "UG"
-     ],
+     "faculty": [],
      "room": "010",
      "online": false,
      "label": "A2 UG 010",
@@ -20019,9 +20095,7 @@
       2,
       4
      ],
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "A2A4 RS 010C",
@@ -20032,9 +20106,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "UG"
-     ],
+     "faculty": [],
      "room": "010",
      "online": false,
      "label": "A1 UG 010",
@@ -20072,10 +20144,12 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SA"
+     ],
      "room": "705",
      "online": false,
      "label": "SSIC SA 705",
@@ -20179,10 +20253,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SA"
+     ],
      "room": "705",
      "online": false,
      "label": "SSIC SA 705",
@@ -20251,10 +20327,12 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SA"
+     ],
      "room": "705",
      "online": false,
      "label": "SSIC SA 705",
@@ -20300,9 +20378,7 @@
      "kind": "LECTURE",
      "subject": "BSR",
      "batch": null,
-     "faculty": [
-      "MN"
-     ],
+     "faculty": [],
      "room": "704",
      "online": false,
      "label": "BSR MN 704",
@@ -20350,9 +20426,7 @@
      "kind": "LECTURE",
      "subject": "AH",
      "batch": null,
-     "faculty": [
-      "UG"
-     ],
+     "faculty": [],
      "room": "705",
      "online": false,
      "label": "AH UG 705",
@@ -20436,7 +20510,9 @@
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "NK"
+     ],
      "room": "215",
      "online": false,
      "label": "A3A4 NK 215",
@@ -20455,13 +20531,15 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "PBL",
      "batch": [
       1,
       2
      ],
-     "faculty": [],
+     "faculty": [
+      "PN"
+     ],
      "room": "705",
      "online": false,
      "label": "PBL A1A2 PN 705",
@@ -20475,7 +20553,9 @@
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "GP"
+     ],
      "room": "215",
      "online": false,
      "label": "A3A4 GP 215",
@@ -20528,9 +20608,7 @@
      "kind": "LECTURE",
      "subject": "WRE",
      "batch": null,
-     "faculty": [
-      "DM"
-     ],
+     "faculty": [],
      "room": "704",
      "online": false,
      "label": "WRE DM 704",
@@ -20554,9 +20632,7 @@
      "kind": "LECTURE",
      "subject": "WRE",
      "batch": null,
-     "faculty": [
-      "DM"
-     ],
+     "faculty": [],
      "room": "704",
      "online": false,
      "label": "WRE DM 704",
@@ -20568,8 +20644,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AS",
-      "UG"
+      "AS"
      ],
      "room": "704/705",
      "online": false,
@@ -20606,8 +20681,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "VB",
-      "GP"
+      "VB"
      ],
      "room": "117/118/704",
      "online": false,
@@ -20654,9 +20728,7 @@
      "kind": "LECTURE",
      "subject": "WRE",
      "batch": null,
-     "faculty": [
-      "DM"
-     ],
+     "faculty": [],
      "room": "704",
      "online": false,
      "label": "WRE DM 704",
@@ -20682,7 +20754,6 @@
      "batch": null,
      "faculty": [
       "AS",
-      "UG",
       "UN"
      ],
      "room": "704/705",
@@ -20706,9 +20777,7 @@
      "kind": "LECTURE",
      "subject": "WRE",
      "batch": null,
-     "faculty": [
-      "DM"
-     ],
+     "faculty": [],
      "room": "704",
      "online": false,
      "label": "WRE DM 704",
@@ -20720,8 +20789,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "VB",
-      "GP"
+      "VB"
      ],
      "room": "117/118/704",
      "online": false,
@@ -20816,8 +20884,7 @@
       2
      ],
      "faculty": [
-      "SR",
-      "DM"
+      "SR"
      ],
      "room": "117",
      "online": false,
@@ -20855,8 +20922,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "VB",
-      "GP"
+      "VB"
      ],
      "room": null,
      "online": false,
@@ -20880,8 +20946,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "VB",
-      "GP"
+      "VB"
      ],
      "room": "117/118/704",
      "online": false,
@@ -20896,10 +20961,7 @@
       3,
       4
      ],
-     "faculty": [
-      "GP",
-      "UG"
-     ],
+     "faculty": [],
      "room": "118",
      "online": false,
      "label": "QSEC/WRE PR A3A4 GP/UG 118",
@@ -20937,7 +20999,6 @@
      "batch": null,
      "faculty": [
       "AS",
-      "UG",
       "UN"
      ],
      "room": "704/705",
@@ -20975,8 +21036,7 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "VB",
-      "GP"
+      "VB"
      ],
      "room": null,
      "online": false,
@@ -21032,9 +21092,7 @@
      "kind": "LECTURE",
      "subject": "WRE",
      "batch": null,
-     "faculty": [
-      "DM"
-     ],
+     "faculty": [],
      "room": "704",
      "online": false,
      "label": "WRE DM 704",
@@ -21047,7 +21105,6 @@
      "batch": null,
      "faculty": [
       "AS",
-      "UG",
       "UN"
      ],
      "room": "704/705",
@@ -21136,8 +21193,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "VH"
@@ -21199,7 +21256,7 @@
     },
     {
      "kind": "LECTURE",
-     "subject": null,
+     "subject": "AAD",
      "batch": null,
      "faculty": [
       "RE"
@@ -21239,7 +21296,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SK"
+      "SK",
+      "LC"
      ],
      "room": "114",
      "online": false,
@@ -21262,8 +21320,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "AN"
@@ -21275,8 +21333,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [],
      "room": null,
@@ -21319,8 +21377,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "AN"
@@ -21349,7 +21407,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SK"
+      "SK",
+      "LC"
      ],
      "room": "114",
      "online": false,
@@ -21358,8 +21417,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "VH"
@@ -21371,8 +21430,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "UHV",
      "batch": null,
      "faculty": [],
      "room": null,
@@ -21415,8 +21474,8 @@
      "slot": 7
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "VH"
@@ -21442,8 +21501,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "VH",
@@ -21469,8 +21528,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-III",
      "batch": null,
      "faculty": [
       "AN"
@@ -21529,7 +21588,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV",
      "batch": null,
      "faculty": [],
      "room": "109",
@@ -21540,7 +21599,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [],
      "room": "605",
@@ -21575,7 +21634,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-III",
      "batch": null,
      "faculty": [],
      "room": "605",
@@ -21586,7 +21645,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "UHV",
      "batch": null,
      "faculty": [],
      "room": "108",
@@ -21596,8 +21655,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "DBMS",
      "batch": null,
      "faculty": [
       "VH"
@@ -21744,9 +21803,7 @@
      "kind": "LECTURE",
      "subject": "MCA",
      "batch": null,
-     "faculty": [
-      "LC"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "MCA LC",
@@ -21781,9 +21838,7 @@
      "kind": "LECTURE",
      "subject": "MCA",
      "batch": null,
-     "faculty": [
-      "LC"
-     ],
+     "faculty": [],
      "room": "109",
      "online": false,
      "label": "MCA E1E2 LC/VM 109",
@@ -21867,8 +21922,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TS"
@@ -21908,7 +21963,6 @@
      "subject": "MCA",
      "batch": null,
      "faculty": [
-      "LC",
       "RK"
      ],
      "room": "109",
@@ -22020,7 +22074,6 @@
      "subject": "MCA",
      "batch": null,
      "faculty": [
-      "LC",
       "RK"
      ],
      "room": "109",
@@ -22081,9 +22134,7 @@
      "kind": "LECTURE",
      "subject": "MCA",
      "batch": null,
-     "faculty": [
-      "LC"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "MCA LC",
@@ -22091,8 +22142,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TS"
@@ -22131,9 +22182,7 @@
      "kind": "TUTORIAL",
      "subject": "SS",
      "batch": null,
-     "faculty": [
-      "LC"
-     ],
+     "faculty": [],
      "room": "604",
      "online": false,
      "label": "SS TuT LC 604",
@@ -22166,9 +22215,7 @@
      "kind": "LECTURE",
      "subject": "MCA",
      "batch": null,
-     "faculty": [
-      "LC"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "MCA LC",
@@ -22189,8 +22236,8 @@
      "slot": 2
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "SSIC",
      "batch": null,
      "faculty": [
       "TS"
@@ -22229,9 +22276,7 @@
      "kind": "TUTORIAL",
      "subject": "SS",
      "batch": null,
-     "faculty": [
-      "LC"
-     ],
+     "faculty": [],
      "room": "604",
      "online": false,
      "label": "SS TuT LC 604",
@@ -22350,9 +22395,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "114",
      "online": false,
      "label": "CC VM 114",
@@ -22492,9 +22535,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "605",
      "online": false,
      "label": "CC VM 605",
@@ -22505,9 +22546,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "605",
      "online": false,
      "label": "CC VM 605",
@@ -22540,9 +22579,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "605",
      "online": false,
      "label": "PE III DWM VM 605",
@@ -22575,9 +22612,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "114",
      "online": false,
      "label": "CC Lab VM 114",
@@ -22728,9 +22763,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "114",
      "online": false,
      "label": "CC Lab VM 114",
@@ -22752,9 +22785,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "109",
      "online": false,
      "label": "PE III DWM VM 109",
@@ -22778,9 +22809,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "605",
      "online": false,
      "label": "CC VM 605",
@@ -22898,9 +22927,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": "114",
      "online": false,
      "label": "CC VM 114",
@@ -23132,8 +23159,8 @@
    "semester": 4,
    "cells": [
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [
       "PR"
@@ -23224,7 +23251,9 @@
      "kind": "LECTURE",
      "subject": "FM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VM"
+     ],
      "room": null,
      "online": false,
      "label": "FM A2 VM",
@@ -23298,7 +23327,9 @@
      "kind": "LECTURE",
      "subject": "FM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VM"
+     ],
      "room": null,
      "online": false,
      "label": "FM A4 VM",
@@ -23379,7 +23410,9 @@
      "kind": "LECTURE",
      "subject": "FM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VM"
+     ],
      "room": null,
      "online": false,
      "label": "FM A2 VM",
@@ -23429,7 +23462,9 @@
      "kind": "LECTURE",
      "subject": "FM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VM"
+     ],
      "room": null,
      "online": false,
      "label": "FM A1 VM",
@@ -23551,8 +23586,8 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [
       "PR"
@@ -23667,8 +23702,8 @@
      "slot": 3
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [
       "PR"
@@ -23705,7 +23740,7 @@
     },
     {
      "kind": "TUTORIAL",
-     "subject": null,
+     "subject": "M-IV",
      "batch": null,
      "faculty": [
       "PR",
@@ -23762,8 +23797,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "M-IV",
      "batch": null,
      "faculty": [
       "PR"
@@ -23799,10 +23834,12 @@
      "slot": 4
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "EVS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VM"
+     ],
      "room": null,
      "online": false,
      "label": "EVS VM",
@@ -23987,9 +24024,7 @@
      "kind": "LECTURE",
      "subject": "WPMH",
      "batch": null,
-     "faculty": [
-      "SA"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "WPMH SA",
@@ -24011,9 +24046,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "VM"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "APM VM",
@@ -24024,9 +24057,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "PR"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "PED PR",
@@ -24069,8 +24100,8 @@
      "slot": 5
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "PS-V",
      "batch": [
       1,
       2
@@ -24210,8 +24241,8 @@
      "slot": 6
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "PS-V",
      "batch": [
       3,
       4
@@ -24254,9 +24285,7 @@
      "kind": "LECTURE",
      "subject": "WPMH",
      "batch": null,
-     "faculty": [
-      "SA"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "WPMH SA",
@@ -24512,9 +24541,7 @@
      "kind": "LECTURE",
      "subject": "WPMH",
      "batch": null,
-     "faculty": [
-      "SA"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "WPMH SA (FA)",
@@ -25111,8 +25138,8 @@
      "slot": 9
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-III",
      "batch": null,
      "faculty": [
       "PM",
@@ -25125,8 +25152,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-III",
      "batch": null,
      "faculty": [
       "PM",
@@ -25227,8 +25254,8 @@
      "slot": 9
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-III",
      "batch": null,
      "faculty": [
       "PM",
@@ -25241,8 +25268,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "OE-III",
      "batch": null,
      "faculty": [
       "PM",
@@ -25454,9 +25481,7 @@
      "kind": "LECTURE",
      "subject": "SET",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "714",
      "online": false,
      "label": "SET RS 714",
@@ -25560,8 +25585,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "PS3",
      "batch": null,
      "faculty": [
       "SV",
@@ -25711,9 +25736,7 @@
      "kind": "LECTURE",
      "subject": "SET",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "717",
      "online": false,
      "label": "SET RS 717",
@@ -25793,8 +25816,8 @@
      "slot": 1
     },
     {
-     "kind": "ACTIVITY",
-     "subject": null,
+     "kind": "LECTURE",
+     "subject": "PS3",
      "batch": null,
      "faculty": [
       "CP"
@@ -25810,7 +25833,6 @@
      "subject": "SET",
      "batch": null,
      "faculty": [
-      "RS",
       "SS"
      ],
      "room": "522",
@@ -25859,7 +25881,6 @@
      "subject": "SET",
      "batch": null,
      "faculty": [
-      "DS",
       "AS"
      ],
      "room": "522",
@@ -25908,9 +25929,7 @@
      "kind": "LECTURE",
      "subject": "SET",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "714",
      "online": false,
      "label": "SET RS 714",
@@ -26128,9 +26147,7 @@
      "kind": "LECTURE",
      "subject": "BDA",
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "BDA PS",
@@ -26142,7 +26159,6 @@
      "subject": "COGC",
      "batch": null,
      "faculty": [
-      "RS",
       "AS"
      ],
      "room": null,
@@ -26155,9 +26171,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "B2 RS/SH",
@@ -26168,9 +26182,7 @@
      "kind": "LECTURE",
      "subject": "ECOMM",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "ECOMM RS",
@@ -26260,9 +26272,7 @@
      "kind": "LECTURE",
      "subject": "ECOMM",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "ECOMM RS",
@@ -26297,9 +26307,7 @@
      "kind": "LECTURE",
      "subject": "BDA",
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": "717",
      "online": false,
      "label": "BDA PS 717",
@@ -26514,7 +26522,6 @@
      "subject": "BDA",
      "batch": null,
      "faculty": [
-      "PS",
       "SS"
      ],
      "room": "520",
@@ -26549,9 +26556,7 @@
      "kind": "LECTURE",
      "subject": "ECOMM",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "ECOMM RS",
@@ -26696,9 +26701,7 @@
      "kind": "LECTURE",
      "subject": "BDA",
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": "717",
      "online": false,
      "label": "BDA PS 717",
@@ -26801,7 +26804,6 @@
      "subject": "BDA",
      "batch": null,
      "faculty": [
-      "PS",
       "SS"
      ],
      "room": "522",
@@ -26853,9 +26855,7 @@
      "kind": "LECTURE",
      "subject": "ECOMM",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "ECOMM RS",
@@ -26934,9 +26934,7 @@
      "kind": "LECTURE",
      "subject": "IC",
      "batch": null,
-     "faculty": [
-      "IM"
-     ],
+     "faculty": [],
      "room": "521",
      "online": false,
      "label": "IC IM 521 (offline)",
@@ -27054,9 +27052,7 @@
      "kind": "LECTURE",
      "subject": "PA",
      "batch": null,
-     "faculty": [
-      "TA"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "PA TA",
@@ -27067,9 +27063,7 @@
      "kind": "LECTURE",
      "subject": "GP",
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "GP PS",
@@ -27106,9 +27100,7 @@
      "kind": "LECTURE",
      "subject": "DL",
      "batch": null,
-     "faculty": [
-      "TA"
-     ],
+     "faculty": [],
      "room": "709",
      "online": false,
      "label": "DL TA 709",
@@ -27154,9 +27146,7 @@
      "kind": "LECTURE",
      "subject": "ADLT",
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "ADLT DS",
@@ -27204,9 +27194,7 @@
      "kind": "LECTURE",
      "subject": "DL",
      "batch": null,
-     "faculty": [
-      "TA"
-     ],
+     "faculty": [],
      "room": "709",
      "online": false,
      "label": "DL TA 709",
@@ -27217,9 +27205,7 @@
      "kind": "LECTURE",
      "subject": "PA",
      "batch": null,
-     "faculty": [
-      "TA"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "PA TA",
@@ -27230,9 +27216,7 @@
      "kind": "LECTURE",
      "subject": "GP",
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "GP PS",
@@ -27256,9 +27240,7 @@
      "kind": "TUTORIAL",
      "subject": "SPM",
      "batch": null,
-     "faculty": [
-      "RS"
-     ],
+     "faculty": [],
      "room": "714",
      "online": false,
      "label": "SPM TuT RS 714",
@@ -27291,9 +27273,7 @@
      "kind": "LECTURE",
      "subject": "PA",
      "batch": null,
-     "faculty": [
-      "TA"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "PA TA",
@@ -27304,9 +27284,7 @@
      "kind": "LECTURE",
      "subject": "GP",
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "GP PS",
@@ -27418,9 +27396,7 @@
      "kind": "LECTURE",
      "subject": "PA",
      "batch": null,
-     "faculty": [
-      "TA"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "PA TA",
@@ -27431,9 +27407,7 @@
      "kind": "LECTURE",
      "subject": "GP",
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "GP PS",
@@ -27457,9 +27431,7 @@
      "kind": "LECTURE",
      "subject": "ADLT",
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "ADLT DS",
@@ -27544,9 +27516,7 @@
      "kind": "LECTURE",
      "subject": "DL",
      "batch": null,
-     "faculty": [
-      "TA"
-     ],
+     "faculty": [],
      "room": "709",
      "online": false,
      "label": "DL TA 709",
@@ -27579,9 +27549,7 @@
      "kind": "LECTURE",
      "subject": "TRPW",
      "batch": null,
-     "faculty": [
-      "PS"
-     ],
+     "faculty": [],
      "room": "520",
      "online": false,
      "label": "TRPW B2 PS 520",
@@ -27592,9 +27560,7 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": "521",
      "online": false,
      "label": "B1 DS 521",
@@ -27616,9 +27582,7 @@
      "kind": "LECTURE",
      "subject": "ADLT",
      "batch": null,
-     "faculty": [
-      "DS"
-     ],
+     "faculty": [],
      "room": null,
      "online": false,
      "label": "ADLT DS",
