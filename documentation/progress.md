@@ -1,5 +1,21 @@
 # Progress Tracker — Timetable Generator
 
+> ## 🔴 Read `documentation/system-audit-and-plan.md` before trusting anything below
+>
+> An independent audit (15 Aug 2026, **DD-031**) found the engine is solving the wrong problem.
+> Features marked ✅ Completed below are *implemented*, but several are **implemented against a
+> model that cannot express a real college timetable**. In particular "parallel per-batch
+> practicals (DD-030)" is shipped and does not match reality: TCET's real lab window runs
+> **different subjects** for different batches simultaneously (52 of 78 real windows), which the
+> current model cannot represent.
+>
+> Measured on the live DB: 26/36 divisions drop sessions · **245/245** lecture pairs split across
+> rooms · 175 sessions in the BREAK row · 163 Saturday sessions · 35/63 lab pairs leave a batch
+> with no practical · OR-Tools produces **zero practicals**. Meanwhile 216/216 tests pass —
+> the suite tests plumbing on toy data.
+>
+> The work queue is `documentation/HANDOFF.md`.
+
 This document provides a living status of every feature, table, and improvement discussed in the architecture blueprint (`documentation/timetable-generator-architecture.md`) and the session notes (`rough_plan.md`). 
 
 **Current State:** greedy and OR-Tools (CP-SAT) solvers working, data-driven constraint registry, soft-constraint scoring, objective-based instance variation (best / minimize gaps), opt-in async generation (Celery/Redis), a Next.js admin frontend (Auth + Dashboard + Resource CRUD), full-stack Dockerization, **parallel per-batch practicals (DD-030)** — a lab splits into B batches placed at the same time in distinct rooms (FE 3, SE+ 2), max-one-lab-per-day rule — and a **real-data import pipeline** (`scripts/import_tcet.py` reads `info/import/*.json`; 46 classes generated + published from real TCET data).

@@ -1,5 +1,16 @@
 # Real-data rollout plan — align the repo with the actual TCET ground truth
 
+> ## ⛔ SUPERSEDED by `documentation/system-audit-and-plan.md` (15 Aug 2026, DD-031)
+>
+> The "Status" note below describes the rollout as built and live. The independent re-audit
+> found it is not: 26 of 36 divisions drop sessions, 245 of 245 lecture pairs are split across
+> rooms, 175 sessions sit in the published BREAK row, and `_derive_hours()` — the function that
+> reads real hours from the grids — is computed and **never used**.
+>
+> The rollout *mechanics* documented here (the importer, the JSON contract, the scraper) are
+> still accurate and useful. Its *claims about correctness and its next steps* are not.
+> **Plan from `system-audit-and-plan.md` Part E.**
+
 > **Status (14 Aug 2026):** the machine-readable import is **built and live**, scoped to
 > the 6 branches with published grids (COMP/IT/EXTC/E&CS/MECH/CIVIL). `import_tcet.py`
 > seeds Postgres from `info/import/*.json` + `info/import/synthetic_branches.json`

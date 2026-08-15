@@ -1,5 +1,15 @@
 # Timetable audit — generated vs real TCET (2026-08-12)
 
+> ## ⛔ SUPERSEDED by `documentation/system-audit-and-plan.md` (15 Aug 2026, DD-031)
+>
+> This audit predates the independent re-audit and understates the problem. It treats the
+> output as broadly working with fixable gaps. Measured against the college's own published
+> timetables, the engine's always-on hard constraints **reject the correct answer** —
+> `SAME_SUBJECT_SAME_DAY` is violated 160 times by the real data, `MAX_ONE_LAB_PER_DAY` 54
+> times, and real labs are 1 slot where the importer forces 2.
+>
+> Kept for history. **Do not plan from this file.**
+
 A ground-truth audit of the timetables the generator produces, compared against the
 college's **actual** class timetables. Sources:
 
