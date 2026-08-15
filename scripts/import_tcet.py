@@ -33,7 +33,7 @@ from app.models.profiles import (
     TimetableProfile, ProfileResource, ProfileParameter, ResourceType,
     ScopeType, ParamType,
 )
-from app.models import HardConstraint
+from app.models import HardConstraint, SoftConstraint
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 IMPORT_DIR = os.path.join(os.path.dirname(HERE), "info", "import")
@@ -42,7 +42,10 @@ IMPORT_DIR = os.path.join(os.path.dirname(HERE), "info", "import")
 # AI&ML, AI&DS, IoT, CSE-IoT, CS&E, MME and the FE group either publish no
 # grids or their grids carry no resolvable subject/faculty data — leave them
 # out until the college supplies real data.
-REAL_DATA_CODES = {"COMP", "IT", "EXTC", "E&CS", "MECH", "CIVIL"}
+# Phase 0-5 scope (D5): COMP only — 11 divisions with a real roster exercise
+# every hard case; the other branches are shape-only synthetic and make bugs
+# unattributable. Re-admit IT at Phase 5, the rest after.
+REAL_DATA_CODES = {"COMP"}
 
 KIND_SESSION = {
     "LECTURE": "LECTURE",
@@ -343,21 +346,78 @@ def main() -> int:
         # ── groups + profiles ─────────────────────────────────
         grid_by_dept_year = {(g["department_code"], g["year"]): g for g in grids_rows}
 
-        # Preferred rooms per division = the real venue + cell rooms from the
-        # published grid, so generation reuses the college's actual rooms.
+        # Per-division data from the published timetable (the ground truth):
+        #  - preferred_rooms: the real venue + cell rooms, so generation reuses
+        #    the college's actual rooms;
+        #  - home_rooms: the venue rooms (primary + secondary) for the home-room
+        #    hard restriction (A5);
+        #  - break_slots: the numbered BREAK row of that division's grid (A2);
+        #  - working_days: the days that actually carry teaching cells (A2);
+        #  - saturday_policy: NONE unless the grid teaches on Saturday.
+        _TEACHING_KINDS = ("LECTURE", "TUTORIAL", "LAB", "ACTIVITY")
         preferred_by_group: dict[str, list[int]] = {}
+        home_rooms_by_group: dict[str, list[int]] = {}
+        break_slots_by_group: dict[str, list[int]] = {}
+        working_days_by_group: dict[str, list[int]] = {}
+        saturday_policy_by_group: dict[str, str] = {}
         for tt in timetables:
+            gname = tt["group_name"]
             names = set()
             venue = tt.get("venue")
+            venue_ids: list[int] = []
             if venue:
                 names.update(v.strip() for v in venue.split("/") if v.strip())
+                for v in (v.strip() for v in venue.split("/") if v.strip()):
+                    if v in rooms_by_code and v not in venue_ids:
+                        venue_ids.append(rooms_by_code[v].id)
             for c in tt.get("cells", []):
                 r = c.get("room")
                 if r:
                     names.update(p.strip() for p in str(r).split("/") if p.strip())
-            preferred_by_group[tt["group_name"]] = [
+            preferred_by_group[gname] = [
                 rooms_by_code[n].id for n in names if n in rooms_by_code
             ]
+            home_rooms_by_group[gname] = venue_ids
+
+            breaks = sorted({c["slot"] for c in tt.get("cells", [])
+                             if c.get("kind") == "BREAK" and c.get("slot")})
+            # The break position varies per day in the real grids (a college
+            # that cannot seat everyone at once staggers lunch), and the raw
+            # scrape carries noise. A division declares ONE dominant break row
+            # (the modal slot across teaching days) — the audit measured the
+            # real BREAK row at slot 4×45, 5×51, 3×41, 6×28. Ties pick the
+            # earliest slot.
+            from collections import Counter
+            break_counts = Counter(
+                c["slot"] for c in tt.get("cells", [])
+                if c.get("kind") == "BREAK" and c.get("slot") is not None)
+            if break_counts:
+                dominant = min(
+                    (s for s, _ in break_counts.most_common()),
+                    key=lambda s: (-break_counts[s], s))
+                break_slots_by_group[gname] = [dominant]
+            else:
+                break_slots_by_group[gname] = []
+
+            teaching_days = sorted({c["day"] for c in tt.get("cells", [])
+                                    if c.get("kind") in _TEACHING_KINDS
+                                    and c.get("day") is not None})
+            working_days_by_group[gname] = teaching_days
+            # Saturday policy from what Saturday actually carries: real
+            # teaching -> FULL, activity/IP only -> ACTIVITY_ONLY, nothing ->
+            # NONE (COMP/IT/EXTC teach no Saturday classes).
+            saturday_teaching = {c["day"] for c in tt.get("cells", [])
+                                 if c.get("kind") in ("LECTURE", "TUTORIAL", "LAB")
+                                 and c.get("day") == 5}
+            saturday_activity = {c["day"] for c in tt.get("cells", [])
+                                 if c.get("kind") == "ACTIVITY"
+                                 and c.get("day") == 5}
+            if saturday_teaching:
+                saturday_policy_by_group[gname] = "FULL"
+            elif saturday_activity:
+                saturday_policy_by_group[gname] = "ACTIVITY_ONLY"
+            else:
+                saturday_policy_by_group[gname] = "NONE"
 
         group_rows = []
         for row in groups_rows:
@@ -369,9 +429,12 @@ def main() -> int:
                 # Not published; synthesize the realistic shape (lateral-entry
                 # SE matches FE, TE is the largest cohort).
                 strength = {1: 63, 2: 63, 3: 70, 4: 60}.get(row["year"], 60)
+            home_ids = home_rooms_by_group.get(name, [])
             g = StudentGroup(name=name, group_type=GroupType.DIVISION,
                              department=dept_name, year=row["year"],
-                             semester=row["semester"], strength=strength)
+                             semester=row["semester"], strength=strength,
+                             home_room_id=home_ids[0] if home_ids else None,
+                             home_room_secondary_id=home_ids[1] if len(home_ids) > 1 else None)
             db.add(g)
             db.flush()
             group_rows.append((name, g, dept_code))
@@ -382,6 +445,9 @@ def main() -> int:
                 list(rooms_by_code.values()), list(faculty_by_name.values()),
                 [g], grid, term_start, row["year"],
                 preferred_rooms=preferred_by_group.get(name, []),
+                break_slots=break_slots_by_group.get(name, []),
+                working_days=working_days_by_group.get(name),
+                saturday_policy=saturday_policy_by_group.get(name, "NONE"),
             )
         db.flush()
         group_by_name = {n: (g, d) for n, g, d in group_rows}
@@ -423,6 +489,7 @@ def main() -> int:
 
         # ── assignments (resolve faculty + hours) ─────────────
         created = skipped = 0
+        seen_assignments: set[tuple] = set()
         for row in assignments_rows:
             ginfo = group_by_name.get(row["group_name"])
             if not ginfo:
@@ -484,6 +551,16 @@ def main() -> int:
                 hours = 2  # each batch does the 2h practical once a week
             else:
                 hours = subject.hours_per_week or 1
+            # One row per (subject, group, batch, period) — the grid sometimes
+            # carries the same subject twice (a LECTURE cell and a TUTORIAL cell
+            # under the same code). Skip the duplicate rather than violate the
+            # unique index.
+            dedup_key = (subject.id, g.id,
+                         row.get("batch_number"), row.get("period_id"))
+            if dedup_key in seen_assignments:
+                skipped += 1
+                continue
+            seen_assignments.add(dedup_key)
             db.add(SubjectAssignment(
                 subject_id=subject.id, faculty_id=faculty.id, group_id=g.id,
                 weekly_hours=hours, load_share=1.0,
@@ -491,6 +568,10 @@ def main() -> int:
                 period_number=row.get("period_id"),
             ))
             created += 1
+        # The unique index (one row per subject/group/batch/period) means
+        # auto-fill must not re-invent a row the grid already produced. Flush
+        # the grid-derived assignments so the `has` check below sees them.
+        db.flush()
         print(f"  assignments: {created} created, {skipped} skipped (unresolved)")
 
         # ── auto-fill: every subject in a class's profile must be taught ──
@@ -576,7 +657,8 @@ def main() -> int:
 
 
 def _make_profile(db, admin, name, sem, dept, rooms, faculty, groups,
-                  grid, term_start, year, preferred_rooms=None):
+                  grid, term_start, year, preferred_rooms=None,
+                  break_slots=None, working_days=None, saturday_policy="NONE"):
     prof = TimetableProfile(name=name, scope_type=ScopeType.DIVISION,
                             academic_year="2026-27", semester=sem,
                             department=dept, created_by=admin.id)
@@ -587,21 +669,37 @@ def _make_profile(db, admin, name, sem, dept, rooms, faculty, groups,
         if slots:
             db.add(ProfileParameter(profile_id=prof.id, param_key="slots_per_day",
                                     param_value=str(len(slots)), param_type=ParamType.INT))
-            db.add(ProfileParameter(profile_id=prof.id, param_key="day_start_time",
-                                    param_value=slots[0]["start"], param_type=ParamType.STRING))
-            db.add(ProfileParameter(profile_id=prof.id, param_key="slot_duration_minutes",
-                                    param_value="60", param_type=ParamType.INT))
-        # Real grids: break at T4 (11:30-12:30) for the 9-slot SE/TE/BE grids.
-        if len(slots) >= 9:
-            db.add(ProfileParameter(profile_id=prof.id, param_key="lunch_break_after_slot",
-                                    param_value="4", param_type=ParamType.INT))
-            db.add(ProfileParameter(profile_id=prof.id, param_key="lunch_break_duration_minutes",
-                                    param_value="60", param_type=ParamType.INT))
-        days = grid.get("working_days") or [0, 1, 2, 3, 4]
+            # Slot times are read verbatim from the published grid's rows (A2):
+            # ``slot_times`` = [[start, end], ...] per teachable slot. The
+            # synthetic day_start/slot_duration arithmetic is deleted for
+            # imported grids — it drifted by an hour and a column.
+            db.add(ProfileParameter(profile_id=prof.id, param_key="slot_times",
+                                    param_value=json.dumps(
+                                        [[s["start"], s["end"]] for s in slots]),
+                                    param_type=ParamType.JSON))
+        # The break is a numbered slot whose position varies per division; the
+        # importer reads it from that division's BREAK cells (A2).
+        if break_slots:
+            db.add(ProfileParameter(profile_id=prof.id, param_key="break_slots",
+                                    param_value=json.dumps(break_slots),
+                                    param_type=ParamType.JSON))
+    # Working days per division, derived from the days that actually carry
+    # teaching cells in the published grid (not the grid header, which lists
+    # Saturday even though COMP/IT/EXTC teach none).
+    if working_days is not None:
+        day_names = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+        db.add(ProfileParameter(profile_id=prof.id, param_key="working_days",
+                                param_value=json.dumps(
+                                    [day_names[d] for d in working_days if 0 <= d <= 6]),
+                                param_type=ParamType.JSON))
+    else:
+        days = (grid or {}).get("working_days") or [0, 1, 2, 3, 4]
         day_names = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
         db.add(ProfileParameter(profile_id=prof.id, param_key="working_days",
                                 param_value=json.dumps([day_names[d] for d in days]),
                                 param_type=ParamType.JSON))
+    db.add(ProfileParameter(profile_id=prof.id, param_key="saturday_policy",
+                            param_value=saturday_policy, param_type=ParamType.STRING))
     db.add(ProfileParameter(profile_id=prof.id, param_key="term_start",
                             param_value=term_start, param_type=ParamType.STRING))
     if preferred_rooms:
@@ -614,6 +712,10 @@ def _make_profile(db, admin, name, sem, dept, rooms, faculty, groups,
                           description="2h lab blocks (real TCET practicals)"))
     db.add(HardConstraint(profile_id=prof.id, constraint_type="MAX_ONE_LAB_PER_DAY",
                           config_json={}, description="max one practical subject per day"))
+    # Soft scorer: how much of the division's load stays in its venue (A5).
+    db.add(SoftConstraint(profile_id=prof.id, constraint_type="ROOM_STABILITY",
+                          config_json={}, weight=1.0,
+                          description="lectures stay in the division's home room(s)"))
     return prof
 
 
