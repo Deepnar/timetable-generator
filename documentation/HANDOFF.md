@@ -63,13 +63,22 @@ Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are 
 > `info/import/grids.json`.** Everything else is a real *name* with an invented *quantity*.
 >
 > Two consequences, both load-bearing:
-> 1. **No constraint may depend on an INVENTED quantity.** `ROOM_CAPACITY_SUFFICIENT` compares an
->    invented 80 against an invented 70; the faculty caps enforce an invented 30h/8h. They are
->    shaping every placement using noise. Phase 3 item 7 turns them off until real data arrives.
+> 1. **No constraint may depend on an INVENTED quantity.** Phase 3 item 7 turns three of them off.
+>    **Measured: this changes nothing today** — `ROOM_CAPACITY_SUFFICIENT` and both faculty caps
+>    reject **0 of 31,370** candidate evaluations. They are inert *because* the numbers are
+>    invented, and become load-bearing the moment real data arrives (capacity) or cohort solving
+>    lands (caps). Zero-risk to remove now; must be switched on deliberately later.
 > 2. **Score fidelity only against `timetables.json`.** Every A8 metric (room stability, batch
 >    coverage, break-slot usage, Saturday, hours per subject) is derivable from it and depends on
 >    **zero** invented quantities — which is exactly why nothing breaks when reality differs from
 >    the placeholders.
+>
+> **Full ledger, the counterfactual measurements, the data we must eventually collect (ranked), and
+> the per-branch coverage table: `documentation/data-requirements.md`.**
+>
+> Headline from that doc: **`MAX_ONE_LAB_PER_DAY` alone causes 64% of unplaced sessions** (22 → 8
+> across 5 divisions when removed) — one line at `import_tcet.py:615`, enforcing a rule the real
+> timetable violates 54 times. Phase 2 is the correct fix; this is the size of the prize.
 
 ### Phase 0 — Stop the bleeding (½ day) ← **start here**
 
