@@ -758,24 +758,45 @@ def _cross_dept_daily_cap(candidate, committed, config, ctx) -> Optional[str]:
 
     If the college has ``max_cross_dept_per_day`` configured in its
     ``config_json`` blob, refuse the placement when the same faculty would
-    teach more than N sessions on this day.
+    teach more than N **cross-department** sessions on this day. Only
+    cross-department sessions count — a teacher's normal departmental load
+    must not starve cross-dept coverage.
     """
     if not ctx.settings or not candidate.is_cross_department:
         return None
     cap = (ctx.settings.config_json or {}).get("max_cross_dept_per_day")
     if cap is None:
         return None
-    count = sum(
-        1 for s in committed
-        if s.faculty_id == candidate.faculty_id
-        and s.day_of_week == candidate.day_of_week
-    )
+    count = 0
+    for s in committed:
+        if (
+            s.faculty_id == candidate.faculty_id
+            and s.day_of_week == candidate.day_of_week
+            and _slot_is_cross_department(ctx, s)
+        ):
+            count += 1
     if count >= int(cap):
         return (
             f"faculty {candidate.faculty_id} already teaches {count} "
             f"cross-dept sessions on day {candidate.day_of_week} (cap {cap})"
         )
     return None
+
+
+def _slot_is_cross_department(ctx, slot) -> bool:
+    """Whether a committed slot teaches another department's subject.
+
+    ``TimetableSlot`` rows do not persist the solver's ``is_cross_department``
+    flag, so the rule recomputes it from the subject/group departments the
+    same way the session expansion does.
+    """
+    if slot.subject_id is None or slot.student_group_id is None:
+        return False
+    subject = ctx.subject(slot.subject_id)
+    group = ctx.group(slot.student_group_id)
+    if subject is None or group is None:
+        return False
+    return group.department != subject.department
 
 
 # Register the data-driven rules after definition so the functions read top-down.

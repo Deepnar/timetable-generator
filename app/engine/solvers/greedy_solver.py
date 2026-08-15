@@ -11,6 +11,7 @@ which sessions are generated.
 import random
 from collections import defaultdict
 from datetime import time, date, timedelta
+from typing import Callable
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
