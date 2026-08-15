@@ -15,6 +15,7 @@ from app.tests import test_my_schedule  # noqa: F401  registers suites
 from app.tests import test_notifications  # noqa: F401  registers suites
 from app.tests import test_security  # noqa: F401  registers suites
 from app.tests import test_parallel_labs  # noqa: F401  registers suites
+from app.tests import test_grid_real  # noqa: F401  registers suites
 
 if __name__ == "__main__":
     import sys
