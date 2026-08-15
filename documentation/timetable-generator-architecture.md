@@ -61,7 +61,7 @@ Every generation run produces **multiple candidate timetables** (instances). The
 
 The backend uses SQLAlchemy 2.0 mapped-column models on PostgreSQL. This section lists every table the application defines, in the order they were added by Alembic. **The Alembic migrations are the source of truth** for column types — the snippets below are a human-readable guide, not a literal `CREATE TABLE` to copy.
 
-**Migration chain (single linear, head = `c4d2e8f1a5b7`):**
+**Migration chain (single linear, head = `f7b2c8d4e1a3`):**
 
 ```
 aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty_availability, room_blackouts)
@@ -85,6 +85,7 @@ aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty
    → b3a1c7e2d9f4   batch_number (parallel practicals)
    → c4d2e8f1a5b7   period_number (weekly lab periods)
    → e6a1b7c3d9f2   deduplicate subject_assignments + unique (subject, group, batch, period)
+   → f7b2c8d4e1a3   student_groups.home_room_id / home_room_secondary_id (venue, A5)
 ```
 
 There are **24 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, `timetable_overrides`, `app_notifications`, plus `audit_logs`.
@@ -180,15 +181,21 @@ CREATE TABLE faculty_availability (
 
 -- STUDENT GROUPS (divisions, batches, years)
 CREATE TABLE student_groups (
-    id          SERIAL PRIMARY KEY,
-    name        VARCHAR(100) NOT NULL,                   -- "CS-A", "FE-2025", "TE-Batch-2"
-    group_type  grouptype NOT NULL,                     -- DIVISION | BATCH | YEAR | DEPARTMENT | CUSTOM
-    department  VARCHAR(100) NOT NULL,                  -- free-text (no FK)
-    year        INTEGER,
-    semester    INTEGER,
-    strength    INTEGER NOT NULL,                       -- student count
-    is_active   BOOLEAN NOT NULL DEFAULT TRUE
+    id                     SERIAL PRIMARY KEY,
+    name                   VARCHAR(100) NOT NULL,          -- "CS-A", "FE-2025", "TE-Batch-2"
+    group_type             grouptype NOT NULL,             -- DIVISION | BATCH | YEAR | DEPARTMENT | CUSTOM
+    department             VARCHAR(100) NOT NULL,          -- free-text (no FK)
+    year                   INTEGER,
+    semester               INTEGER,
+    strength               INTEGER NOT NULL,               -- student count
+    is_active              BOOLEAN NOT NULL DEFAULT TRUE,
+    home_room_id           INTEGER REFERENCES rooms(id) ON DELETE SET NULL,  -- venue (A5)
+    home_room_secondary_id INTEGER REFERENCES rooms(id) ON DELETE SET NULL   -- second venue room
 );
+-- `home_room_id` / `home_room_secondary_id` (migration `f7b2c8d4e1a3`) name the
+-- venue(s) a division normally holds lectures in. Phase 1 hard-restricts
+-- non-lab sessions to these rooms so lectures stay in the college's venue
+-- instead of scattering across the pool (245/245 pairs were split before).
 -- NOTE: the doc previously listed `department_id INT NOT NULL` and
 -- `parent_group_id INT` (hierarchical grouping); the actual model has neither.
 -- Hierarchical grouping is tracked in plan.md as a future lever.
@@ -307,21 +314,24 @@ CREATE TABLE profile_parameters (
 
 | param_key                  | type    | example value           |
 |----------------------------|---------|-------------------------|
-| `slot_duration_minutes`    | INT     | 60                      |
+| `slot_duration_minutes`    | INT     | 60 (legacy synthetic grid; see `slot_times`) |
 | `slots_per_day`            | INT     | 7                       |
-| `day_start_time`           | STRING  | `"09:00"` (first slot start, "HH:MM") |
+| `day_start_time`           | STRING  | `"09:00"` (first slot start, "HH:MM"; legacy synthetic grid) |
+| `slot_times`               | JSON    | `[["08:30","09:30"], ...]` — the grid's slot times **verbatim** (A2). When present the solver reads them directly; the `day_start_time`/`slot_duration_minutes`/`lunch_*` arithmetic is only the fallback for colleges that never supply a grid. |
+| `break_slots`              | JSON    | `[4]` — the numbered slot(s) reserved as a break for this division (A2). Scans never propose them and `NO_TEACHING_IN_BREAK_SLOT` rejects any that sneak through (e.g. a block spanning a break). |
 | `working_days`             | JSON    | `["MON","TUE","WED","THU","FRI"]` |
+| `saturday_policy`          | STRING  | `"NONE"` \| `"ACTIVITY_ONLY"` \| `"FULL"` — gates Saturday (A2). `NONE` strips it from working days; `ACTIVITY_ONLY` admits Saturday only for activity sessions; `FULL` treats it as a normal day. |
 | `term_start`               | STRING  | `"2025-01-06"` (anchor for calendar-date rules, see §8.8) |
 | `session_type`             | STRING  | `"EXAM"` (exam mode: each assignment becomes one `SessionType.EXAM` session, see §5.4) |
-| `lunch_break_after_slot`   | INT     | 3                       |
-| `lunch_break_duration_minutes` | INT | 60                      |
+| `lunch_break_after_slot`   | INT     | 3 (legacy; superseded by `break_slots`) |
+| `lunch_break_duration_minutes` | INT | 60 (legacy; superseded by `break_slots`) |
 | `max_consecutive_lectures` | INT     | 3                       |
 | `max_daily_load_teacher`   | INT     | 5                       |
 | `min_gap_between_exams`    | INT     | 1 (days) — legacy; superseded by the `EXAM_DATE_SEPARATION` rule's `config_json.min_days` (§5.4) |
 | `lab_slot_duration_minutes`| INT     | 120                     |
 | `lab_batches`             | INT     | 3 — lab batch count override (default auto: FE → 3, SE+ → 2, DD-030) |
 | `preferred_rooms`         | JSON    | `[4, 7]` — order the room pool so the class's real venue/lab rooms are tried first |
-| `allow_saturday`           | BOOLEAN | false                   |
+| `allow_saturday`           | BOOLEAN | false (legacy; superseded by `saturday_policy`) |
 | `buffer_slots_per_day`     | INT     | 1                       |
 | `max_room_utilization_pct` | FLOAT   | 0.85                    |
 
@@ -374,6 +384,7 @@ rule can be added without a schema migration.
 | `NO_CROSS_TIMETABLE_ROOM_CONFLICT`    | `_check_published_conflicts`                     |
 | `NO_CROSS_TIMETABLE_GROUP_CONFLICT`   | `_check_published_conflicts`                     |
 | `SAME_SUBJECT_SAME_DAY`           | `_check_same_subject_same_day`                       |
+| `NO_TEACHING_IN_BREAK_SLOT`       | `_no_teaching_in_break_slot` (reads `ctx.break_slots` from the profile's `break_slots` param; a block spanning a break is rejected too) |
 | `CROSS_DEPT_DAILY_CAP`            | `_check_cross_dept_cap` (driven by `config_json.max_cross_dept_per_day`; counts only the faculty's **cross-department** sessions that day, not their whole load) |
 
 **Hard — data-driven (registry in `app/engine/constraint_registry.py`):**
@@ -400,6 +411,7 @@ rule can be added without a schema migration.
 | `AVOID_CONSECUTIVE_SAME_SUBJECT`  | ❌ no               | ❌ no             | —                                             |
 | `DISTRIBUTE_SUBJECTS_EVENLY`      | ❌ no               | ❌ no             | —                                             |
 | `BALANCE_TEACHER_LOAD`            | ❌ no               | ❌ no             | —                                             |
+| `ROOM_STABILITY`                  | ✅ yes              | ❌ no             | `group_id?` — fraction of a division's non-lab sessions in its home room(s) (A5) |
 
 **Not implemented (catalogued but with no validator / scorer):**
 
@@ -1140,11 +1152,25 @@ lab period as an atomic group of parallel sessions:
    via `_is_parallel_sibling` (same group/day/slots/subject, both batched).
 5. **OR-Tools** — not modelled yet (keeps the whole-division CP-SAT model; DD-030).
 
-#### Preferred rooms (`preferred_rooms` profile param)
+#### Home rooms (`student_groups.home_room_id` / `home_room_secondary_id`)
 
-`_get_rooms` orders the pool so the profile's `preferred_rooms` (JSON list of room ids —
-a class's real venue/lab rooms from its published grid) come first, so sessions land in
-the same rooms the college uses.
+A real division owns a venue and leaves it only for practicals. When the group
+declares home rooms, `_get_rooms` **hard-restricts** the domain of a non-lab
+session to those rooms (A5): lectures stay in the venue instead of scattering
+across the pool. This is a restriction, not a sort order — if both venue rooms
+are taken at a slot the session simply does not fit there and the scan moves
+on. Lab sessions and groups without a venue keep the general pool.
+`preferred_rooms` still sorts within whatever domain survives.
+
+#### Time grid (`slot_times` + `break_slots`)
+
+The profile's `slot_times` param (JSON list of `[start, end]` per slot, read
+verbatim from the published grid) defines the grid; `_build_slot_times` returns
+them as-is and only falls back to synthetic `day_start_time` +
+`slot_duration_minutes` arithmetic for colleges that never supply a grid (A2).
+`break_slots` names the numbered non-teaching slots: the scans never propose
+them and the structural `NO_TEACHING_IN_BREAK_SLOT` rule rejects anything that
+spans one.
 
 ### 5.3 Multiple Instances Strategy
 
@@ -1427,16 +1453,23 @@ Most engine behaviour is configured **outside** of `profile_parameters` — the 
 
 The `profile_parameters` table (key/value store with `param_type` tag) is currently a **typed scratch area** — what the engine reads from it is narrow. The key/value data is presented in the UI but is **not wired into the solver** for most of the keys listed below.
 
-### 8.1 Time Structure (global, on `CollegeSettings`)
+### 8.1 Time Structure (per-profile, on `profile_parameters`)
+
+The time grid is a **profile parameter** in the current model (moved out of
+the old `CollegeSettings` framing): an imported grid writes `slot_times` +
+`break_slots` verbatim, and `working_days`/`saturday_policy` are per-division.
 
 | Key                          | Where it lives        | Wired? |
 |------------------------------|------------------------|--------|
-| `working_days`               | `CollegeSettings.working_days` (`JSON` of `["MONDAY", ...]`) | ✅ read by solver |
-| `slot_duration_minutes`      | `CollegeSettings.slot_duration_minutes` (INTEGER) | ✅ read by solver |
-| `slots_per_day`              | `CollegeSettings.slots_per_day` (INTEGER) | ✅ read by solver |
-| `lab_slot_duration_minutes`  | not stored             | ❌ labs are detected via `subject.category == LAB` and consume 2 consecutive slots, not a configurable duration |
-| `lunch_break_after_slot`     | not stored             | ❌ the engine treats all `slots_per_day` slots as schedulable |
-| `lunch_break_duration_minutes`| not stored             | ❌ no model field |
+| `slot_times`                 | `profile_parameters` (JSON `[["08:30","09:30"], ...]`) | ✅ the grid's times verbatim (A2) |
+| `break_slots`                | `profile_parameters` (JSON `[4]`) | ✅ non-teaching numbered slots; enforced by `NO_TEACHING_IN_BREAK_SLOT` (A2) |
+| `working_days`               | `profile_parameters` (JSON day names) | ✅ read by solver |
+| `saturday_policy`            | `profile_parameters` (`"NONE"|"ACTIVITY_ONLY"|"FULL"`) | ✅ gates Saturday per session (A2) |
+| `slots_per_day`              | `profile_parameters` (INTEGER) | ✅ (legacy synthetic grid) |
+| `day_start_time`             | `profile_parameters` (`"09:00"`) | ✅ (legacy synthetic grid) |
+| `slot_duration_minutes`      | `profile_parameters` (INTEGER) | ✅ (legacy synthetic grid) |
+| `lunch_break_after_slot`     | not stored for real grids | ⚠️ legacy; superseded by `break_slots` |
+| `lunch_break_duration_minutes`| not stored for real grids | ⚠️ legacy; superseded by `break_slots` |
 
 ### 8.2 Hard-Constraint Limits (per-profile, via `constraint_rules`)
 
@@ -1475,7 +1508,7 @@ These are not profile parameters in the key/value sense — they are constraints
 | Key                          | Wired? |
 |------------------------------|--------|
 | `max_room_utilization_pct`   | ❌ not enforced — no utilisation cap in the engine |
-| `prefer_fixed_home_room`     | ❌ no "home room" concept; each assignment picks a fresh room |
+| `prefer_fixed_home_room`     | ✅ replaced by the `student_groups.home_room_id` hard restriction (A5) |
 | `equipment_json` (on a room) | ✅ matched against a subject's `requirements_json.features` (§5.5) |
 | `requirements_json` (on a subject) | ✅ the solver's room-selection + session-type source (§5.5); overrides `requires_lab` |
 

@@ -132,6 +132,7 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 > **Note (15 Aug 2026, DD-031):** the working roadmap is now `documentation/system-audit-and-plan.md`
 > (Part E). **Phase 0 — Stop the bleeding is DONE** (security role guards on `overrides.py` /
 > `notifications.py`, a mutation-sweep regression test, `Callable` import, `CROSS_DEPT_DAILY_CAP`
-> counting fix, `subject_assignments` dedup + unique index). Next: **Phase 1 — Make the grid real**
-> (per-profile `break_slots`, `saturday_policy`, `NO_TEACHING_IN_BREAK_SLOT`, home rooms,
-> `ROOM_STABILITY`).
+> counting fix, `subject_assignments` dedup + unique index). **Phase 1 — Make the grid real is DONE**
+> (`break_slots` + verbatim `slot_times`, `saturday_policy`, `NO_TEACHING_IN_BREAK_SLOT`,
+> home-room hard restriction, `ROOM_STABILITY` scorer; measured 0 break-slot / 0 Saturday / 100%
+> room stability / exact grid times). Next: **Phase 2 — Model the lab window** (the big one).

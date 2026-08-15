@@ -92,6 +92,38 @@ First tranche of the DD-031 rebuild plan. Security + correctness only; no model 
   rows). `POST/PUT /assignments` return 409 on a duplicate instead of 500. Model + migration in
   sync (no `alembic check` drift on this table).
 
+## 🗓️ Phase 1 — Make the grid real (15 Aug 2026, A2 + A5)
+
+Second tranche of the DD-031 rebuild plan: the time grid and the room domain.
+
+- [x] **Break is a numbered slot (`break_slots`)** — per-profile JSON param sourced from the
+  division's published BREAK cells (modal slot across teaching days, matching the audit's
+  measured 4×45/5×51/3×41/6×28). `_build_slot_times` reads `slot_times` verbatim from
+  `grids.json`; the synthetic `day_start_time`/`slot_duration_minutes`/`lunch_*` arithmetic is
+  now only the fallback for colleges without a grid. New structural validator
+  `NO_TEACHING_IN_BREAK_SLOT` (also rejects a block spanning a break). Migration `f7b2c8d4e1a3`.
+- [x] **`saturday_policy`** (`NONE|ACTIVITY_ONLY|FULL`) — `NONE` strips Saturday from working
+  days; `ACTIVITY_ONLY` admits it only for activity sessions; `FULL` is a normal day. Working
+  days are now derived per division from the days that actually carry teaching cells.
+- [x] **Home rooms (`student_groups.home_room_id` / `home_room_secondary_id`)** — imported from
+  the published venue. `_get_rooms` **hard-restricts** non-lab sessions to these rooms (a
+  restriction, not a sort order); labs and venue-less groups keep the general pool.
+- [x] **`ROOM_STABILITY` soft scorer** — fraction of a division's non-lab sessions in its venue;
+  stamped on every imported profile.
+- [x] **Importer fixes surfaced by the unique index** — grid-duplicate assignment rows are
+  skipped (UHV appearing as both LECTURE and TUTORIAL), and auto-fill sees grid rows before
+  inventing load (flush before its `has` check).
+
+**Measured exit metrics (11 COMP divisions, published):**
+
+| Metric | Before (audit) | After |
+|---|---|---|
+| sessions in a break slot | 175 | **0** |
+| Saturday sessions | 163 | **0** |
+| lecture room stability | 0% | **100%** |
+| slot times vs `grids.json` | 18:30 end | **exact (0 mismatches)** |
+| unplaced sessions | 26/36 divisions | still present (honest — removed the fake Saturday/break capacity; zero-unplaced is Phase 4) |
+
 ---
 
 ## 🔎 Newly Identified (cross-check pass — not yet on the roadmap)

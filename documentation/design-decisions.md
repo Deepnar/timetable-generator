@@ -696,3 +696,52 @@ schema and asserts a STUDENT token is 403 on all but the deliberately-public
 (`/auth/register`, `/auth/login`) and recipient-scoped (`/notifications/*`) paths. A new router
 added without a guard fails the suite the same day — this class of bug (per-file hand-added guards)
 has failed once already.
+
+## Phase 1 remediation (2026-08-15)
+
+### DD-034 — The grid is data, not arithmetic: verbatim `slot_times` + `break_slots`
+
+**Status: Decided / Tested.**
+
+**Problem.** `greedy_solver._build_slot_times` synthesised the day from `day_start_time` +
+`slot_duration_minutes` and injected a lunch interval after `lunch_break_after_slot=4`, turning a
+9-row published grid into 9 teachable slots plus an injected hour ending 18:30 (real: 17:30). 175
+sessions sat in the published BREAK row.
+
+**Decision.** A break is a **numbered slot** whose position varies per division. Imported profiles
+now carry `slot_times` (verbatim `[start, end]` rows from `grids.json`) and `break_slots` (the
+modal BREAK slot across the division's teaching days). `_build_slot_times` reads `slot_times`
+verbatim; the synthetic arithmetic remains only as the fallback for colleges that never supply a
+grid. `NO_TEACHING_IN_BREAK_SLOT` is a structural validator (context carries `break_slots`); the
+scans also skip break slots. Working days are derived per division from the days that actually
+carry teaching cells, and `saturday_policy` (`NONE|ACTIVITY_ONLY|FULL`) gates Saturday per
+session.
+
+**Per-day break variance is a simplification.** The real grids sometimes move the break by day
+(e.g. COMP-SE-A: slot 4 Mon-Wed, slot 5 Thu-Fri). The single `break_slots: [int]` list picks the
+modal slot; a per-day break model would need per-(day, slot) break data and is a follow-up.
+
+**Measured.** 0 sessions in break slots, 0 Saturday sessions, 0 slot-time mismatches vs
+`grids.json` across 11 published COMP divisions.
+
+### DD-035 — A division owns a venue: home-room hard restriction + `ROOM_STABILITY`
+
+**Status: Decided / Tested.**
+
+**Problem.** `preferred_rooms` only *sorted* the pool; with 36 divisions publishing sequentially
+into a shared room pool, every division scattered — **245 of 245 lecture pairs split across
+rooms**, and `COMP-TE-D` used six rooms for Computer Graphics.
+
+**Decision.** `StudentGroup` gains `home_room_id` + `home_room_secondary_id`, imported from the
+published venue. `_get_rooms` **hard-restricts** the non-lab room domain to these rooms — a
+restriction, not a sort order (A5). If both venue rooms are taken at a slot the session does not
+fit there and the scan moves on. Labs (which live in lab rooms) and venue-less groups keep the
+general pool. `ROOM_STABILITY` soft scorer measures the fraction of a division's non-lab sessions
+in its venue and is stamped on every imported profile.
+
+**Trade-off recorded.** Hard restriction trades scheduling freedom for structural fidelity: a
+venue room double-booked by another published division at a slot now blocks that slot for the
+home division (it moves to its other venue room or stays unplaced). The real college allocates
+venues per division, so this is faithful; the cross-division contention it exposes is a Phase 4
+(cohort) problem. Measured: **100% room stability** across all 11 COMP divisions, with honest
+unplaced sessions replacing the previously fake Saturday/break capacity.
