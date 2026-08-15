@@ -128,3 +128,10 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 ---
 
 > **Note:** This application is now a standalone full-stack project. All frontend work will be integrated into the deployment pipeline, making this a single deployable artifact.
+
+> **Note (15 Aug 2026, DD-031):** the working roadmap is now `documentation/system-audit-and-plan.md`
+> (Part E). **Phase 0 — Stop the bleeding is DONE** (security role guards on `overrides.py` /
+> `notifications.py`, a mutation-sweep regression test, `Callable` import, `CROSS_DEPT_DAILY_CAP`
+> counting fix, `subject_assignments` dedup + unique index). Next: **Phase 1 — Make the grid real**
+> (per-profile `break_slots`, `saturday_policy`, `NO_TEACHING_IN_BREAK_SLOT`, home rooms,
+> `ROOM_STABILITY`).

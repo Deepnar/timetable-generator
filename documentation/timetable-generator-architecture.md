@@ -61,7 +61,7 @@ Every generation run produces **multiple candidate timetables** (instances). The
 
 The backend uses SQLAlchemy 2.0 mapped-column models on PostgreSQL. This section lists every table the application defines, in the order they were added by Alembic. **The Alembic migrations are the source of truth** for column types — the snippets below are a human-readable guide, not a literal `CREATE TABLE` to copy.
 
-**Migration chain (single linear, head = `d7a3c5e9f1b2`):**
+**Migration chain (single linear, head = `c4d2e8f1a5b7`):**
 
 ```
 aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty_availability, room_blackouts)
@@ -76,6 +76,15 @@ aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty
    → b4f1c9d3e7a2   generation variation strategy column (variationmode)
    → c2e8a4d6f0b1   subjects.requirements_json + rooms.equipment_json (generic room requirements)
    → d7a3c5e9f1b2   CUSTOM added to roomtype + sessiontype enums
+   → f5a1b3c8e6d2   student_groups.incharge_email
+   → 1d8688977519   generation_runs.placement_warning
+   → 48c4fc85dd73   admins.role (RBAC)
+   → d319882e1438   timetable_overrides (mid-year changes)
+   → 9fe4f7187298   student_groups.student_email (student portal)
+   → 92a486f10bf9   app_notifications (dashboard bell)
+   → b3a1c7e2d9f4   batch_number (parallel practicals)
+   → c4d2e8f1a5b7   period_number (weekly lab periods)
+   → e6a1b7c3d9f2   deduplicate subject_assignments + unique (subject, group, batch, period)
 ```
 
 There are **24 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, `timetable_overrides`, `app_notifications`, plus `audit_logs`.
@@ -187,6 +196,11 @@ CREATE TABLE student_groups (
 -- SUBJECT ↔ FACULTY ↔ GROUP MAPPING (Phase 1 — implemented)
 -- The single source of truth for "who teaches what to which division";
 -- the greedy solver expands each row into `weekly_hours` sessions.
+-- A unique expression index enforces one row per (subject, group, batch, period):
+-- NULL batch/period coalesce to 0 so a whole-division assignment is unique on
+-- (subject, group) alone (one class, one subject, one teacher, one row). The
+-- 37 duplicate (subject, group) pairs the importer's auto-fill had created were
+-- de-duplicated in migration e6a1b7c3d9f2 before the index was added.
 CREATE TABLE subject_assignments (
     id           SERIAL PRIMARY KEY,
     subject_id   INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
@@ -194,7 +208,14 @@ CREATE TABLE subject_assignments (
     group_id     INTEGER NOT NULL REFERENCES student_groups(id) ON DELETE CASCADE,
     weekly_hours INTEGER NOT NULL DEFAULT 1,
     load_share   FLOAT NOT NULL DEFAULT 1.0              -- e.g. 0.8/0.2 shared teaching
+    batch_number INTEGER,                                -- per-batch lab faculty (D1..DN)
+    period_number INTEGER                                -- weekly period of a batched lab
 );
+
+CREATE UNIQUE INDEX uq_subject_assignments_subject_group_batch_period
+    ON subject_assignments
+       (subject_id, group_id,
+        COALESCE(batch_number, 0), COALESCE(period_number, 0));
 
 -- COLLEGE SETTINGS SINGLETON (Phase 1 — implemented)
 -- One row (id=1), auto-created on startup and lazily by `get_settings()`.
@@ -353,7 +374,7 @@ rule can be added without a schema migration.
 | `NO_CROSS_TIMETABLE_ROOM_CONFLICT`    | `_check_published_conflicts`                     |
 | `NO_CROSS_TIMETABLE_GROUP_CONFLICT`   | `_check_published_conflicts`                     |
 | `SAME_SUBJECT_SAME_DAY`           | `_check_same_subject_same_day`                       |
-| `CROSS_DEPT_DAILY_CAP`            | `_check_cross_dept_cap` (driven by `config_json.max_cross_dept_per_day`) |
+| `CROSS_DEPT_DAILY_CAP`            | `_check_cross_dept_cap` (driven by `config_json.max_cross_dept_per_day`; counts only the faculty's **cross-department** sessions that day, not their whole load) |
 
 **Hard — data-driven (registry in `app/engine/constraint_registry.py`):**
 
@@ -688,7 +709,7 @@ DELETE /faculty_availability/{id}      Hard delete
 ```
 GET    /assignments                    List subject↔faculty↔group rows (filter: subject_id, faculty_id, group_id; paginated)
 GET    /assignments/{id}               Get one row
-POST   /assignments                    Create mapping (validates subject/faculty/group exist)
+POST   /assignments                    Create mapping (validates subject/faculty/group exist; 409 if the (subject, group, batch, period) row already exists)
 PUT    /assignments/{id}               Update faculty / weekly_hours / load_share
 DELETE /assignments/{id}               Hard delete
 
@@ -893,7 +914,9 @@ POST   /instances/{instance_id}/slots/{slot_id}/revalidate
 
 Published timetables stay immutable; in-term corrections (teacher cover, room
 change, swap, temporary window) are recorded as `timetable_overrides` rows and
-validated before saving.
+validated before saving. The whole router is **admin/hod-gated** (a
+router-level `require_roles("admin", "hod")` — the audit found these routes
+unsecured, letting a self-registered STUDENT rewrite a published timetable).
 
 ```
 GET    /instances/{id}/overrides        List changes (?resolved=true|false); resolves old/new
@@ -911,6 +934,12 @@ GET    /instances/{id}/overrides/available-faculty
                                         # overrides, and published cross-timetable reservations.
                                         # Feeds the cover picker in the change-mode UI (§4.1).
 ```
+
+**Notifications (DD-027)** live under `/notifications` and are **recipient-
+scoped** — every route filters by the caller's admin id, so the router's
+`require_roles` guard admits all four roles (admin/hod/teacher/student) rather
+than restricting the bell to admins. The mid-year change and publish flows
+create rows for the affected teacher/student/admin.
 
 **Date resolution (DD-022 #2).** A published timetable is a weekly template and
 `timetable_overrides` make exceptions to it. `app/services/override_resolver.py`

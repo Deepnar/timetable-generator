@@ -69,6 +69,29 @@ New engine capabilities added in the same pass (with tests):
   online badges, wider/taller grid so stacked labs scroll instead of overlapping; the
   generate page has a first-run guide.
 
+## 🔧 Phase 0 — Stop the bleeding (15 Aug 2026, DD-032/DD-033)
+
+First tranche of the DD-031 rebuild plan. Security + correctness only; no model changes yet.
+
+- [x] **Privilege escalation closed (B-CRIT-1/B-HIGH-2)** — `overrides.py` and `notifications.py`
+  mounted with no role guard; any self-registered STUDENT could rewrite a published timetable via
+  `POST /instances/{id}/overrides` or `.../slots/{id}/swap`. `overrides.py` is now
+  admin/hod-gated; `notifications.py` is gated to all four roles (it is recipient-scoped
+  self-service, so restricting it would have broken the portal bell — see DD-033).
+- [x] **Mutation-sweep regression test** — `test_security.py` enumerates every mutating route in
+  the OpenAPI schema and asserts a STUDENT token is 403 on all but the public auth and
+  recipient-scoped notification paths. A new unguarded router fails the suite the same day.
+- [x] **B1** — `Callable` is now imported in `greedy_solver.py` (was referenced in a local
+  annotation without the import; a refactor would have NameError'd).
+- [x] **B2** — `CROSS_DEPT_DAILY_CAP` counted *all* of a faculty's sessions that day; it now
+  counts only cross-department ones (recomputed from subject/group departments, since committed
+  slots don't persist the flag).
+- [x] **A3 dedup** — unique expression index
+  `(subject_id, group_id, COALESCE(batch_number,0), COALESCE(period_number,0))` on
+  `subject_assignments`; migration `e6a1b7c3d9f2` de-duplicated the 37 offending pairs (540 → 495
+  rows). `POST/PUT /assignments` return 409 on a duplicate instead of 500. Model + migration in
+  sync (no `alembic check` drift on this table).
+
 ---
 
 ## 🔎 Newly Identified (cross-check pass — not yet on the roadmap)

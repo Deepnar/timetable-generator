@@ -648,3 +648,51 @@ overfitting is caught the same day.
 - **Security, unrelated but shipped in the same audit:** `app/router/overrides.py` mounts at
   `/instances` with no role guard, so any self-registered STUDENT can rewrite a published timetable.
   Fixed in Phase 0.
+
+## Phase 0 remediation (2026-08-15)
+
+### DD-032 — Assignment uniqueness is structural: one (subject, group, batch, period) row per class
+
+**Status: Decided / Tested.**
+
+**Problem.** The importer's auto-fill invented a second/third `subject_assignments` row for a
+(subject, group) pair under a different subject-kind key; 37 pairs had 2–4 rows, each a different
+teacher, so one class was taught the same subject by several people and the solver expanded the
+duplicates into overlapping sessions.
+
+**Decision.** Add a unique expression index on
+`(subject_id, group_id, COALESCE(batch_number,0), COALESCE(period_number,0))`. Coalescing NULLs to
+0 is required — a plain unique index would let duplicate NULL batch rows coexist (Postgres treats
+NULLs as distinct). Whole-division rows are therefore unique on (subject, group) alone; batched lab
+rows stay unique per (batch, weekly period). Migration `e6a1b7c3d9f2` de-duplicates the 37 pairs to
+the earliest (grid-derived) row before indexing. `POST/PUT /assignments` now return **409** on a
+duplicate instead of a 500.
+
+**Trade-off recorded.** The shared-loading story (two teachers on one subject, `load_share` 0.8/0.2)
+is incompatible with this constraint: it would require two rows for the same (subject, group). The
+solver ignores `load_share` today (it expands each row into `weekly_hours` independent sessions), so
+the constraint only forbids a feature nothing currently consumes. If shared teaching is ever wanted,
+it needs its own mechanism (e.g. a per-session teacher share), not duplicate rows — an OPEN
+follow-up.
+
+### DD-033 — Notifications stay recipient-scoped for all four roles; only admin-resource routes are admin/hod
+
+**Status: Decided / Tested.**
+
+**Problem (B-HIGH-2).** `app/router/notifications.py` mounted with no role guard. The audit's
+concern was a cross-tenant read, but the routes were already scoped — every one filters by
+`recipient_admin_id == current.id` (the caller's own admin id).
+
+**Decision.** Guard the notifications router with
+`require_roles("admin", "hod", "teacher", "student")` — all four roles — because teachers and
+students legitimately receive and read their own notifications (a teacher's cover, a student's class
+change). Restricting it to admin/hod would have broken the portal bell, which the existing tests
+caught. The privilege-escalation fix (DD-032's sibling, B-CRIT-1) is `overrides.py`, which is
+admin/hod-gated: a STUDENT can no longer rewrite a published timetable via
+`POST /instances/{id}/overrides` or `.../slots/{id}/swap`.
+
+**Regression guard.** `test_security.py` now enumerates **every mutating route** in the OpenAPI
+schema and asserts a STUDENT token is 403 on all but the deliberately-public
+(`/auth/register`, `/auth/login`) and recipient-scoped (`/notifications/*`) paths. A new router
+added without a guard fails the suite the same day — this class of bug (per-file hand-added guards)
+has failed once already.
