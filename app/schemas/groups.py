@@ -11,6 +11,8 @@ class StudentGroupCreate(BaseModel):
     semester: Optional[int] = None
     strength: int
     incharge_email: Optional[str] = None
+    home_room_id: Optional[int] = None
+    home_room_secondary_id: Optional[int] = None
 
 class StudentGroupResponse(BaseModel):
     id: int
@@ -22,6 +24,8 @@ class StudentGroupResponse(BaseModel):
     strength: int
     is_active: bool
     incharge_email: Optional[str] = None
+    home_room_id: Optional[int] = None
+    home_room_secondary_id: Optional[int] = None
 
     class Config:
         from_attributes = True
