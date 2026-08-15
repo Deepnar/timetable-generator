@@ -9,22 +9,26 @@ Read `AGENTS.md` (repo root) first — commands, test entry points, commit rules
 > The decision record is **DD-031** in `documentation/design-decisions.md`.
 >
 > **Do not start from `real-data-rollout-plan.md` or `timetable-audit.md`** — both are superseded
-> for anything they claim about lab handling, hours derivation, or rollout health. The prior
-> handoff described the real-data rollout as healthy; measured against the college's own published
-> timetables, it is not.
+> for anything they claim about lab handling, hours derivation, or rollout health.
 
 ---
 
 ## The one-paragraph situation
 
-216/216 tests pass, all 36 divisions publish, and the output is structurally unlike a real
-timetable. The engine's always-on hard constraints **reject the correct answer**: TCET's own
-published timetables violate `SAME_SUBJECT_SAME_DAY` 160 times and `MAX_ONE_LAB_PER_DAY` 54 times,
-and real labs are 1 slot where the engine forces 2. The real scheduling unit — a *lab window* where
-one division splits into batches doing **different subjects** simultaneously — cannot be expressed
-by the current model. This is a modelling error, not a solver weakness. Fix the model first.
+216 → **218 tests pass** (mutation-sweep + dedup tests added), all 36 divisions publish, and the
+output is structurally unlike a real timetable. The engine's always-on hard constraints **reject
+the correct answer**: TCET's own published timetables violate `SAME_SUBJECT_SAME_DAY` 160 times and
+`MAX_ONE_LAB_PER_DAY` 54 times, and real labs are 1 slot where the engine forces 2. The real
+scheduling unit — a *lab window* where one division splits into batches doing **different subjects**
+simultaneously — cannot be expressed by the current model. This is a modelling error, not a solver
+weakness. Fix the model first.
 
-**Current measured state** (36 published instances in the live DB):
+**Phase 0 (stop the bleeding) is DONE**: role guards on every mutating route (B-CRIT-1/B-HIGH-2),
+`subject_assignments` dedup + unique index (A3), `Callable` import (B1), `CROSS_DEPT_DAILY_CAP`
+counting fix (B2). Recorded as **DD-032/DD-033**. Committed + pushed.
+
+**Current measured state** (36 published instances in the live DB — unchanged by Phase 0, which
+touched no scheduling logic):
 
 | Metric | Now | Target |
 |---|---|---|
@@ -33,7 +37,7 @@ by the current model. This is a modelling error, not a solver weakness. Fix the 
 | sessions placed in the published BREAK row | **175** | 0 |
 | Saturday sessions (COMP/IT/EXTC teach none) | **163** | 0 |
 | lab pairs where some batch gets no practical | **35 of 63** | 0 |
-| (subject, division) pairs with 2+ teachers | **37 of 245** | 0 |
+| (subject, division) pairs with 2+ teachers | **37 of 245** → **0** (deduped) | 0 |
 | faculty utilisation | **5–32%**, 279 of 407 idle, 2 over cap | even |
 | OR-Tools on real data | **half a timetable, zero practicals** | works or is not offered |
 
@@ -57,7 +61,7 @@ Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are 
 > | faculty | 407 | 38 names (9%) | **369 (91%)** + **100% of workload caps** (30h/8h for all) |
 > | student_groups | 36 | names | **100% of strengths** |
 > | subjects | 149 | names + codes | **100% of hours_per_week** |
-> | subject_assignments | 540 | subject↔group pairing | **100% of weekly_hours** |
+> | subject_assignments | 540 → **495** (deduped) | subject↔group pairing | **100% of weekly_hours** |
 >
 > **The only fully real artefacts are `info/import/timetables.json` (46 grids, 2,451 cells) and
 > `info/import/grids.json`.** Everything else is a real *name* with an invented *quantity*.
@@ -80,26 +84,29 @@ Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are 
 > across 5 divisions when removed) — one line at `import_tcet.py:615`, enforcing a rule the real
 > timetable violates 54 times. Phase 2 is the correct fix; this is the size of the prize.
 
-### Phase 0 — Stop the bleeding (½ day) ← **start here**
+### Phase 0 — Stop the bleeding ✅ DONE (15 Aug 2026)
 
-1. **Security, critical.** `app/router/overrides.py:33` mounts at prefix `/instances` with **no role
-   guard**, unlike `app/router/instances.py:23`. Any self-registered STUDENT can rewrite a published
-   timetable via `POST /instances/{id}/overrides` or `.../slots/{id}/swap`. Add
-   `dependencies=[Depends(require_roles("admin", "hod"))]`. Same for
-   `app/router/notifications.py:44`. **[B-CRIT-1, B-HIGH-2]**
-2. Add a regression test asserting **every** mutating route rejects a STUDENT token. This class of
-   bug (per-file hand-added guards) has failed once already.
-3. `app/engine/solvers/greedy_solver.py:776` references `Callable` without importing it — harmless
-   today only because Python does not evaluate local annotations. Import it. **[B1]**
-4. `app/engine/constraint_registry.py:768` — `CROSS_DEPT_DAILY_CAP` counts *all* of a faculty's
-   sessions that day, not just cross-department ones. **[B2]**
-5. DB unique constraint on `subject_assignments (subject_id, group_id, coalesce(batch_number,0),
-   coalesce(period_number,0))` + a migration de-duplicating the existing 37 offending pairs. **[A3]**
+All five items shipped, tested (218/218), committed in four focused commits, pushed:
 
-**Done when:** a STUDENT token gets 403 on every mutating route; no class is taught the same subject
-by two teachers.
+1. `require_roles("admin","hod")` on `overrides.py` (B-CRIT-1); `notifications.py` gated to all
+   four roles — it is recipient-scoped self-service, so admin/hod-only would have broken the
+   portal bell (B-HIGH-2; **DD-033**).
+2. Mutation-sweep regression test in `test_security.py` — enumerates every mutating route in the
+   OpenAPI schema, asserts a STUDENT token is 403 except the public auth + recipient-scoped
+   notification paths. A new unguarded router fails the suite the same day.
+3. `Callable` imported in `greedy_solver.py` (B1).
+4. `CROSS_DEPT_DAILY_CAP` counts only cross-dept sessions (B2; recomputed from subject/group
+   departments since `TimetableSlot` doesn't persist the flag).
+5. Unique expression index `(subject_id, group_id, COALESCE(batch_number,0),
+   COALESCE(period_number,0))` + dedup migration `e6a1b7c3d9f2` (540 → 495 rows); `POST/PUT
+   /assignments` return 409 on duplicates (A3). **DD-032** records that `load_share` shared-teaching
+   is incompatible with the constraint and untouched.
 
-### Phase 1 — Make the grid real (2–3 days)
+**Open from DD-032:** shared teaching (two teachers, one subject, `load_share` 0.8/0.2) is
+currently impossible under the unique index. The solver ignores `load_share` today, so nothing
+breaks; if it is ever wanted it needs its own mechanism, not duplicate rows.
+
+### Phase 1 — Make the grid real (2–3 days) ← **start here**
 
 Break is a **numbered slot** whose position varies per division (measured: slot 4×45, 5×51, 3×41,
 6×28). `scripts/import_tcet.py:594` hardcodes `lunch_break_after_slot=4` and
@@ -238,6 +245,26 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 
 ---
 
+## Open design decisions (from `design-decisions.md` — carry forward)
+
+- **DD-032 follow-up** — shared teaching (two teachers, one subject) is blocked by the new unique
+  index; the solver ignores `load_share` so nothing breaks today. If wanted later, needs its own
+  mechanism (a per-session teacher share), not duplicate rows.
+- **DD-004 follow-up** — promote mail gating to a `CollegeSettings.mail_enabled` flag or keep
+  env-only.
+- **DD-003 follow-up** — email notifications need a retry queue / per-recipient opt-out.
+- **DD-001 follow-up** — point the publish mailer at real HOD-role accounts now RBAC exists.
+- **DD-018 follow-up** — full `docker compose up` on free port 3000; login→dashboard in a browser;
+  mark DD-018 Live-verified.
+- **DD-020 follow-up** — wire seed + battle test into CI or keep local; cadence after engine changes.
+- **DD-021 follow-up** — teacher/student read-scoping on list endpoints.
+- **DD-022 follow-up** — WebSocket push + student "today" parity are polish.
+- **DD-023 follow-up** — block-level overrides (moving one slot of a merged lab block leaves its
+  siblings behind).
+- **DD-024 (OPEN)** — the college's real rules; verify each against real data, then design. Superseded
+  in priority by DD-031's phases, which cover the same ground (lab windows, one-lab-per-day, per-day
+  grids).
+
 ## Working agreements for this plan
 
 - **Model before solver.** Do not optimise or replace a solver that is being asked the wrong
@@ -248,7 +275,7 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 - **No college constants in `app/engine/`.** They belong in institution-profile parameters. **[D2]**
 - **Commits**: many small focused ones, impersonal voice, staged in logical chunks (`AGENTS.md`).
 - **Docs in the same change**: `timetable-generator-architecture.md` §3 schema / §4 endpoints /
-  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-032 onward in
+  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-034 onward in
   `design-decisions.md`.
 
 ## Reproducing every number in this handoff
@@ -269,7 +296,7 @@ uv run python scripts/generate_tcet_import.py      # refresh info/import/*.json 
 uv run python scripts/build_synthetic_branches.py  # per-branch pools (being retired — see D4)
 uv run python -m scripts.import_tcet --wipe        # seed Postgres
 uv run python -m scripts.generate_college --instances 1 --clear-locks   # publish all (~2 min)
-uv run python -m app.tests                         # 216 tests (plumbing only — see A8)
+uv run python -m app.tests                         # 218 tests (plumbing only — see A8)
 cd frontend && npm run typecheck                   # NOT npm run build
 ```
 
@@ -285,4 +312,6 @@ Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host po
   `app/tests/__main__.py`. When a new router is touched by the SQLite tests, add it to the patch loop
   in `app/tests/conftest.py` or it will hit Postgres.
 - **New `Settings` fields must go in `.env.example`** in the same commit.
+- **Postgres NULLs are distinct** — a unique index on nullable columns does NOT dedupe NULL rows.
+  Use `COALESCE(col, 0)` in the index expression (see `e6a1b7c3d9f2`).
 - `scripts/seed_demo.py` is a fabricated demo; `scripts/seed_tcet.py` is superseded by the importer.
