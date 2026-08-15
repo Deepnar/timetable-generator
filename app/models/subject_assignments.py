@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, Float, String
+from sqlalchemy import (ForeignKey, Integer, Float, String, Index, text)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
@@ -8,6 +8,21 @@ class SubjectAssignment(Base):
     Handles cross-department subjects and shared teaching loads (e.g., 80/20 splits).
     """
     __tablename__ = "subject_assignments"
+
+    __table_args__ = (
+        # One class, one subject, one teacher, one row. A whole-division row
+        # (NULL batch/period) is unique on (subject, group) alone; batched lab
+        # rows are unique per (subject, group, batch, period). Coalescing NULLs
+        # to 0 is required because a plain unique index would let duplicate
+        # NULL batch rows coexist (Postgres treats NULLs as distinct).
+        Index(
+            "uq_subject_assignments_subject_group_batch_period",
+            "subject_id", "group_id",
+            text("coalesce(batch_number, 0)"),
+            text("coalesce(period_number, 0)"),
+            unique=True,
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     

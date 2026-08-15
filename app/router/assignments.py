@@ -7,6 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -92,7 +93,17 @@ def create_assignment(
     _validate_dependencies(payload, db)
     assignment = SubjectAssignment(**payload.model_dump())
     db.add(assignment)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "An assignment for this subject/group/batch/period already "
+                "exists (one class, one subject, one teacher, one row)"
+            ),
+        )
     db.refresh(assignment)
     return assignment
 
@@ -117,7 +128,17 @@ def update_assignment(
         )
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(assignment, key, value)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "An assignment for this subject/group/batch/period already "
+                "exists (one class, one subject, one teacher, one row)"
+            ),
+        )
     db.refresh(assignment)
     return assignment
 

@@ -62,10 +62,23 @@ def _phase1_assignments(s):
     @test("create assignment with valid ids")
     def t_create(client):
         from app.tests.test_runner import login_token, auth_headers
+        from app.tests.conftest import TestingSessionLocal
+        from app.models.subjects import Subject
         ids = seed_minimal()
+        # seed_minimal already owns (subject, group); a second assignment needs
+        # a fresh subject (the unique index forbids a duplicate row).
+        db = TestingSessionLocal()
+        try:
+            subj2 = Subject(name="Physics", subject_code="P201",
+                            department="CS", semester=3, hours_per_week=2)
+            db.add(subj2)
+            db.commit()
+            ids["subject2"] = subj2.id
+        finally:
+            db.close()
         token = login_token(client)
         r = client.post("/assignments/", headers=auth_headers(token), json={
-            "subject_id": ids["subject"],
+            "subject_id": ids["subject2"],
             "faculty_id": ids["faculty"],
             "group_id": ids["group"],
             "weekly_hours": 4,
@@ -75,6 +88,19 @@ def _phase1_assignments(s):
         body = r.json()
         assert body["weekly_hours"] == 4
         assert abs(body["load_share"] - 0.8) < 1e-9
+
+    @test("duplicate (subject, group) assignment is a 409, not a 500")
+    def t_duplicate(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        r = client.post("/assignments/", headers=auth_headers(token), json={
+            "subject_id": ids["subject"],
+            "faculty_id": ids["faculty"],
+            "group_id": ids["group"],
+            "weekly_hours": 2,
+        })
+        assert r.status_code == 409, r.text
 
     @test("create assignment with invalid subject 404s")
     def t_invalid(client):
@@ -129,7 +155,7 @@ def _phase1_assignments(s):
         r = client.get("/assignments/", headers=auth_headers(token))
         assert r.json() == []
 
-    return [t_create, t_invalid, t_list, t_update, t_delete]
+    return [t_create, t_duplicate, t_invalid, t_list, t_update, t_delete]
 
 
 @suite("Phase 1 — Engine honors feature flags")
