@@ -15,31 +15,39 @@ Read `AGENTS.md` (repo root) first — commands, test entry points, commit rules
 
 ## The one-paragraph situation
 
-216 → **218 tests pass** (mutation-sweep + dedup tests added), all 36 divisions publish, and the
-output is structurally unlike a real timetable. The engine's always-on hard constraints **reject
-the correct answer**: TCET's own published timetables violate `SAME_SUBJECT_SAME_DAY` 160 times and
-`MAX_ONE_LAB_PER_DAY` 54 times, and real labs are 1 slot where the engine forces 2. The real
-scheduling unit — a *lab window* where one division splits into batches doing **different subjects**
-simultaneously — cannot be expressed by the current model. This is a modelling error, not a solver
-weakness. Fix the model first.
+218 → **225 tests pass** (mutation-sweep, dedup, and grid-realism suites added), and the output is
+still structurally unlike a real timetable where it matters most. The engine's always-on hard
+constraints **reject the correct answer**: TCET's own published timetables violate
+`SAME_SUBJECT_SAME_DAY` 160 times and `MAX_ONE_LAB_PER_DAY` 54 times, and real labs are 1 slot
+where the engine forces 2. The real scheduling unit — a *lab window* where one division splits into
+batches doing **different subjects** simultaneously — cannot be expressed by the current model.
+This is a modelling error, not a solver weakness. Fix the model first.
 
 **Phase 0 (stop the bleeding) is DONE**: role guards on every mutating route (B-CRIT-1/B-HIGH-2),
 `subject_assignments` dedup + unique index (A3), `Callable` import (B1), `CROSS_DEPT_DAILY_CAP`
-counting fix (B2). Recorded as **DD-032/DD-033**. Committed + pushed.
+counting fix (B2). Recorded as **DD-032/DD-033**.
 
-**Current measured state** (36 published instances in the live DB — unchanged by Phase 0, which
-touched no scheduling logic):
+**Phase 1 (make the grid real) is DONE**: `break_slots` + verbatim `slot_times`, `saturday_policy`,
+`NO_TEACHING_IN_BREAK_SLOT`, home-room hard restriction, `ROOM_STABILITY` scorer. Recorded as
+**DD-034/DD-035**. Measured on the 11 COMP divisions: **0 break-slot sessions, 0 Saturday sessions,
+100% room stability, slot times exactly match `grids.json`**.
 
-| Metric | Now | Target |
-|---|---|---|
-| divisions with unplaced sessions | **26 of 36** | 0 |
-| (division, subject) lecture pairs split across rooms | **245 of 245 (100%)** | <5% |
-| sessions placed in the published BREAK row | **175** | 0 |
-| Saturday sessions (COMP/IT/EXTC teach none) | **163** | 0 |
-| lab pairs where some batch gets no practical | **35 of 63** | 0 |
-| (subject, division) pairs with 2+ teachers | **37 of 245** → **0** (deduped) | 0 |
-| faculty utilisation | **5–32%**, 279 of 407 idle, 2 over cap | even |
-| OR-Tools on real data | **half a timetable, zero practicals** | works or is not offered |
+**Current measured state** (live DB is now **COMP-only, 11 published instances** — re-seeded under
+the Phase 0–5 scope rule `REAL_DATA_CODES = {"COMP"}`):
+
+| Metric | Phase 0 (audit, 36 divs) | Phase 1 (11 COMP divs) | Target |
+|---|---|---|---|
+| sessions in a break slot | 175 | **0** | 0 |
+| Saturday sessions | 163 | **0** | 0 |
+| lecture pairs split across rooms | 245 of 245 | **0 of 100% in-venue** | <5% |
+| divisions with unplaced sessions | 26 of 36 | still present | 0 (Phase 4) |
+| lab pairs where some batch gets no practical | 35 of 63 | **0** (COMP had none) | 0 |
+| (subject, division) pairs with 2+ teachers | 37 → 0 (deduped) | **0** | 0 |
+| faculty utilisation | 5–32%, 279 idle, 2 over cap | COMP-only (~54 fac) | even (Phase 3) |
+| OR-Tools on real data | half a timetable, zero practicals | not re-tested | works or not offered |
+
+> **Note:** unplaced sessions persist but are now *honest* — Phase 1 removed the fake Saturday and
+> break-slot capacity that was hiding them. Zero-unplaced is Phase 4's job.
 
 ---
 
@@ -55,13 +63,18 @@ Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are 
 
 > ### 🧪 Know what is real before you tune anything — **[D6]**
 >
-> | Entity | in DB | real | invented |
+> Live DB is now **COMP-only** (Phase 0–5 scope rule). Counts for the 6-branch seed (for
+> reference) were: 205 rooms (61 real names), 407 faculty (38 real), 36 groups, 149 subjects,
+> 540→495 assignments. Current COMP seed: **41 rooms, 390 faculty (~59 synthetic for unresolved
+> initials), 11 groups, 30 subjects, 200 assignments**.
+>
+> | Entity | in DB (COMP) | real | invented |
 > |---|---|---|---|
-> | rooms | 205 | 61 names (30%) | **144 (70%)** + **100% of capacities** |
-> | faculty | 407 | 38 names (9%) | **369 (91%)** + **100% of workload caps** (30h/8h for all) |
-> | student_groups | 36 | names | **100% of strengths** |
-> | subjects | 149 | names + codes | **100% of hours_per_week** |
-> | subject_assignments | 540 → **495** (deduped) | subject↔group pairing | **100% of weekly_hours** |
+> | rooms | 41 | COMP venue + cell names | **100% of capacities** |
+> | faculty | 390 | real roster names | synthetic names + **100% of workload caps** (30h/8h) |
+> | student_groups | 11 | names + venue | **100% of strengths** |
+> | subjects | 30 | names + codes | **100% of hours_per_week** |
+> | subject_assignments | 200 | subject↔group pairing | **100% of weekly_hours** |
 >
 > **The only fully real artefacts are `info/import/timetables.json` (46 grids, 2,451 cells) and
 > `info/import/grids.json`.** Everything else is a real *name* with an invented *quantity*.
@@ -86,7 +99,7 @@ Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are 
 
 ### Phase 0 — Stop the bleeding ✅ DONE (15 Aug 2026)
 
-All five items shipped, tested (218/218), committed in four focused commits, pushed:
+All five items shipped, tested, committed in four focused commits, pushed:
 
 1. `require_roles("admin","hod")` on `overrides.py` (B-CRIT-1); `notifications.py` gated to all
    four roles — it is recipient-scoped self-service, so admin/hod-only would have broken the
@@ -106,27 +119,28 @@ All five items shipped, tested (218/218), committed in four focused commits, pus
 currently impossible under the unique index. The solver ignores `load_share` today, so nothing
 breaks; if it is ever wanted it needs its own mechanism, not duplicate rows.
 
-### Phase 1 — Make the grid real (2–3 days) ← **start here**
+### Phase 1 — Make the grid real ✅ DONE (15 Aug 2026)
 
-Break is a **numbered slot** whose position varies per division (measured: slot 4×45, 5×51, 3×41,
-6×28). `scripts/import_tcet.py:594` hardcodes `lunch_break_after_slot=4` and
-`greedy_solver._build_slot_times` treats it as an *interval inserted after slot N* — so a 9-row grid
-becomes 9 teachable slots plus an injected hour, ending 18:30 instead of 17:30.
+Five items shipped, tested, committed in six focused commits, pushed:
 
-1. Per-profile `break_slots: [int]` param, sourced per division from that division's BREAK cells in
-   `info/import/timetables.json`. Delete the synthetic lunch arithmetic; read slot times verbatim
-   from `grids.json`. **[A2]**
-2. Per-division `working_days` + a `saturday_policy` param (`NONE|ACTIVITY_ONLY|FULL`). **[A2]**
-3. New structural validator `NO_TEACHING_IN_BREAK_SLOT`.
-4. `StudentGroup.home_room_id` (+ secondary) from the published `venue`, already parsed at
-   `import_tcet.py:350`. **Hard-restrict** non-lab room domains to home rooms — a restriction, not a
-   sort order. `preferred_rooms` only sorts, which is why room stability is 0%. **[A5]**
-5. `ROOM_STABILITY` soft scorer.
+1. `break_slots: [int]` per profile (modal BREAK slot from the division's published grid) +
+   `slot_times` read verbatim from `grids.json`; the synthetic lunch arithmetic is now only the
+   fallback for grid-less colleges. **[A2]**
+2. Per-division `working_days` (from days that actually teach) + `saturday_policy`
+   (`NONE|ACTIVITY_ONLY|FULL`). **[A2]**
+3. `NO_TEACHING_IN_BREAK_SLOT` structural validator (breaks a block that spans a break too). **[A2]**
+4. `StudentGroup.home_room_id` + `home_room_secondary_id` (migration `f7b2c8d4e1a3`); `_get_rooms`
+   hard-restricts non-lab sessions to the venue. **[A5]**
+5. `ROOM_STABILITY` soft scorer, stamped on imported profiles.
 
-**Done when:** 0 sessions in break slots, 0 Saturday sessions for COMP, room stability >95%, and
-generated slot times match `grids.json` exactly.
+**Exit metrics measured (11 COMP divisions):** 0 break-slot sessions · 0 Saturday sessions ·
+100% room stability · slot times exactly match `grids.json` (0 mismatches) · day ends 17:30.
 
-### Phase 2 — Model the lab window (4–6 days) ← **the big one**
+**Open from DD-034:** the real grids sometimes move the break by day (COMP-SE-A: slot 4 Mon-Wed,
+slot 5 Thu-Fri). The single `break_slots: [int]` picks the modal slot; per-(day, slot) break data
+is a future refinement.
+
+### Phase 2 — Model the lab window (4–6 days) ← **start here, the big one**
 
 Ground truth, `COMP-TE-D` day 0 slot 5: `Lab CG D1D2 SuS/PD 324` **and** `Lab IIS D3D4 SPS/PM 325`
 — one window, two subjects, four teachers. `COMP-BE-A` shows the rotation explicitly:
@@ -247,6 +261,10 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 
 ## Open design decisions (from `design-decisions.md` — carry forward)
 
+- **DD-034 follow-up** — the real grids sometimes move the break by day (COMP-SE-A: slot 4
+  Mon-Wed, slot 5 Thu-Fri); the single `break_slots: [int]` picks the modal slot. A per-(day,
+  slot) break model would need per-day break data; worth revisiting in Phase 2 when lab windows
+  change how a day is structured anyway.
 - **DD-032 follow-up** — shared teaching (two teachers, one subject) is blocked by the new unique
   index; the solver ignores `load_share` so nothing breaks today. If wanted later, needs its own
   mechanism (a per-session teacher share), not duplicate rows.
@@ -275,7 +293,7 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 - **No college constants in `app/engine/`.** They belong in institution-profile parameters. **[D2]**
 - **Commits**: many small focused ones, impersonal voice, staged in logical chunks (`AGENTS.md`).
 - **Docs in the same change**: `timetable-generator-architecture.md` §3 schema / §4 endpoints /
-  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-034 onward in
+  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-036 onward in
   `design-decisions.md`.
 
 ## Reproducing every number in this handoff
@@ -296,7 +314,7 @@ uv run python scripts/generate_tcet_import.py      # refresh info/import/*.json 
 uv run python scripts/build_synthetic_branches.py  # per-branch pools (being retired — see D4)
 uv run python -m scripts.import_tcet --wipe        # seed Postgres
 uv run python -m scripts.generate_college --instances 1 --clear-locks   # publish all (~2 min)
-uv run python -m app.tests                         # 218 tests (plumbing only — see A8)
+uv run python -m app.tests                         # 225 tests (plumbing only — see A8)
 cd frontend && npm run typecheck                   # NOT npm run build
 ```
 
