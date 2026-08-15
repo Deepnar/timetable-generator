@@ -319,8 +319,9 @@ class Scheduler:
             # Honest hard-violation count: re-validate the committed slots with
             # the full checker (structural + registry + published conflicts).
             instance.hard_violations = self._count_instance_violations(
-                slots, reserved_conflicts, resolved.hard_constraints)
-
+                slots, reserved_conflicts, resolved.hard_constraints,
+                break_slots=resolved.params.get("break_slots"),
+            )
             if score is not None:
                 instance.soft_score = score
                 best_score = score if best_score is None else max(best_score, score)
@@ -375,7 +376,8 @@ class Scheduler:
         """Number of placements that differ between two instances."""
         return len(a ^ b)
 
-    def _count_instance_violations(self, slots, reserved_conflicts, hard_constraints):
+    def _count_instance_violations(self, slots, reserved_conflicts, hard_constraints,
+                                   break_slots=None):
         """Re-validate an instance's committed slots with the full checker.
 
         The solver rejects invalid placements during solving, so committed
@@ -434,6 +436,7 @@ class Scheduler:
             checker = ConstraintChecker(
                 self.db, others, settings=get_settings(self.db),
                 reserved=reserved_conflicts, hard_constraints=hard_constraints,
+                break_slots={int(b) for b in break_slots} if break_slots else None,
             )
             violations += len(checker.check_all(candidate))
         return violations

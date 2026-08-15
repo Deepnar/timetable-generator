@@ -145,6 +145,27 @@ class GreedySolver:
 
     # ── time structure ───────────────────────────────────────
     def _build_slot_times(self) -> list[tuple[int, time, time]]:
+        """The grid's slot times, verbatim when the profile declares them.
+
+        A profile that imports a real grid carries ``slot_times`` — the exact
+        ``[["08:30","09:30"], ...]`` rows from the published grid, one per
+        teachable slot. When present, they are read verbatim (A2); the
+        synthetic ``day_start_time``/``slot_duration_minutes``/lunch arithmetic
+        below is the fallback for colleges that never provide a grid.
+        """
+        verbatim = self._get_param("slot_times", None)
+        if verbatim:
+            slots: list[tuple[int, time, time]] = []
+            try:
+                for i, (start_s, end_s) in enumerate(verbatim, start=1):
+                    h1, m1 = (int(x) for x in str(start_s).split(":"))
+                    h2, m2 = (int(x) for x in str(end_s).split(":"))
+                    slots.append((i, time(h1, m1), time(h2, m2)))
+            except (TypeError, ValueError):
+                slots = []
+            if slots:
+                return slots
+
         slot_duration = self._get_param("slot_duration_minutes", 60)
         slots_per_day = self._get_param("slots_per_day", 7)
         lunch_after = self._get_param("lunch_break_after_slot", 3)
@@ -169,6 +190,20 @@ class GreedySolver:
                 current_minute = lunch_total % 60
         return slots
 
+    def _break_slots(self) -> set[int]:
+        """The slot numbers this profile's grid reserves as a break (A2).
+
+        A break is a numbered slot whose position varies per division (measured
+        across the 46 real grids: slot 4×45, 5×51, 3×41, 6×28). Sessions must
+        never be placed there; the scan skips them and the
+        ``NO_TEACHING_IN_BREAK_SLOT`` validator rejects any that sneak through.
+        """
+        raw = self._get_param("break_slots", [])
+        try:
+            return {int(s) for s in raw}
+        except (TypeError, ValueError):
+            return set()
+
     @staticmethod
     def _parse_start_time(value) -> tuple[int, int]:
         """Parse a ``"HH:MM"`` day-start string into (hour, minute)."""
@@ -183,7 +218,48 @@ class GreedySolver:
             "working_days", ["MON", "TUE", "WED", "THU", "FRI"]
         )
         day_map = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
-        return [day_map[d] for d in working_days_param if d in day_map]
+        days = [day_map[d] for d in working_days_param if d in day_map]
+        # saturday_policy: NONE (default) — Saturday is not a teaching day;
+        # FULL — it is a normal day. ACTIVITY_ONLY keeps Saturday in the grid
+        # but only for sessions that are not lectures/labs (see
+        # :meth:`_is_activity_session`), matching real colleges where Saturday
+        # hosts IP/co-curricular/notional activity.
+        policy = str(self._get_param("saturday_policy", "NONE")).upper()
+        if policy == "FULL":
+            return days
+        if policy == "ACTIVITY_ONLY":
+            # Saturday stays available; per-session filtering happens in the
+            # scan via :meth:`_day_allowed_for`.
+            return days
+        return [d for d in days if d != 5]
+
+    @staticmethod
+    def _is_activity_session(session) -> bool:
+        """Whether a session is non-teaching "activity" (IP/co-curricular).
+
+        Used by the ``saturday_policy=ACTIVITY_ONLY`` rule: only activity
+        sessions may land on Saturday.
+        """
+        stype = getattr(session, "session_type", None)
+        value = getattr(stype, "value", stype)
+        return value in ("IP", "ACTIVITY", "CUSTOM", "SEMINAR", "EVENT")
+
+    def _day_allowed_for(self, day: int, session) -> bool:
+        """Whether ``day`` is a legal placement day for this session.
+
+        The ``saturday_policy`` param gates Saturday specifically:
+        ``ACTIVITY_ONLY`` admits Saturday for activity sessions and nothing
+        else; ``FULL`` admits it for everything. Non-Saturday days are always
+        allowed (working_days already excludes days the college does not teach).
+        """
+        if day != 5:
+            return True
+        policy = str(self._get_param("saturday_policy", "NONE")).upper()
+        if policy == "FULL":
+            return True
+        if policy == "ACTIVITY_ONLY":
+            return self._is_activity_session(session)
+        return False
 
     def _get_profile_resources(self, resource_type: ResourceType) -> list[int]:
         return self.profile.resource_ids(resource_type)
@@ -605,13 +681,20 @@ class GreedySolver:
         """
         base = group[0]
         block_length = base.block_length
-        rooms = self._get_rooms(base.room_requirements)
+        rooms = self._get_rooms(base.room_requirements, session=base)
         if len(rooms) < len(group):
             return False
         if self.rng is not None:
             rooms = list(rooms)
             self.rng.shuffle(rooms)
-        for day, (slot_number, _st, _en) in self._scan(base, working_days, slot_times):
+        # The saturday_policy may forbid Saturday for this session type.
+        group_working_days = [
+            d for d in working_days if self._day_allowed_for(d, base)
+        ]
+        if not group_working_days:
+            return False
+        for day, (slot_number, _st, _en) in self._scan(
+                base, group_working_days, slot_times):
             end_slot = slot_number + block_length - 1
             if end_slot > max_slot_number:
                 continue
@@ -643,12 +726,37 @@ class GreedySolver:
             return True
         return False
 
-    def _get_rooms(self, requirements: dict) -> list[Room]:
+    def _get_rooms(self, requirements: dict, session=None) -> list[Room]:
+        """Candidate rooms for a session, in preference order.
+
+        For a **non-lab** session, the room domain is hard-restricted to the
+        division's home rooms (``StudentGroup.home_room_id`` +
+        ``home_room_secondary_id``) when the group has them (A5). This is a
+        restriction, not a sort order: lectures stay in the college's venue
+        instead of scattering across the whole pool. If the group has no home
+        room (or the session is a lab, which lives in lab rooms), the general
+        pool applies. ``preferred_rooms`` still sorts within whatever domain
+        survives so a custom venue preference is respected.
+        """
         room_ids = self._get_profile_resources(ResourceType.ROOM)
         rooms = self.db.scalars(
             select(Room).where(Room.id.in_(room_ids), Room.is_active == True)
         ).all()
         matching = [r for r in rooms if room_matches_requirements(r, requirements)[0]]
+
+        is_lab = (
+            getattr(session, "session_type", None) is not None
+            and getattr(session.session_type, "value", session.session_type) == "LAB"
+        )
+        home_ids = self._home_room_ids(session)
+        if home_ids and not is_lab:
+            home_matching = [r for r in matching if r.id in home_ids]
+            if home_matching:
+                # Hard restriction: only the venue. If the venue rooms are all
+                # taken at a slot the session simply does not fit there and the
+                # scan moves on — no silent drift to a random room.
+                matching = home_matching
+
         # Preferred_rooms (profile param): order the class's real venue rooms
         # first so sessions land in the same rooms the college uses, not the
         # first arbitrary room in the pool.
@@ -660,6 +768,21 @@ class GreedySolver:
                 pref_set = set()
             matching.sort(key=lambda r: (0 if r.id in pref_set else 1, r.id))
         return matching
+
+    def _home_room_ids(self, session) -> set[int]:
+        """The division's home-room ids (``home_room_id`` + secondary), if any.
+
+        Read from the ``StudentGroup`` row; a group without a declared venue
+        returns an empty set, keeping the legacy free-pool behaviour.
+        """
+        group_id = getattr(session, "student_group_id", None)
+        if group_id is None:
+            return set()
+        group = self.db.get(StudentGroup, group_id)
+        if group is None:
+            return set()
+        ids = {group.home_room_id, group.home_room_secondary_id}
+        return {i for i in ids if i is not None}
 
     # ── main loop ────────────────────────────────────────────
     def _criterion_peer_attr(self) -> str | None:
@@ -857,6 +980,7 @@ class GreedySolver:
             settings=self.settings,
             reserved=self.reserved_conflicts,
             hard_constraints=self._load_hard_constraints(),
+            break_slots=self._break_slots(),
         )
         sessions = self._build_sessions()
         # Lab practicals split into per-batch parallel sessions (DD-024). The
@@ -867,13 +991,19 @@ class GreedySolver:
         slot_times = self._build_slot_times()
         slot_lookup = {sn: (st, en) for sn, st, en in slot_times}
         max_slot_number = max(slot_lookup)
+        break_slots = self._break_slots()
+        # The scan never proposes a break slot; it is a numbered non-teaching
+        # row, not a candidate for placement.
+        teachable_slot_times = [
+            st for st in slot_times if st[0] not in break_slots
+        ]
         # When seeded, randomise the search order so different seeds yield
         # different (still valid) timetables for the diversity filter.
         if self.rng is not None:
             working_days = list(working_days)
-            slot_times = list(slot_times)
+            teachable_slot_times = list(teachable_slot_times)
             self.rng.shuffle(working_days)
-            self.rng.shuffle(slot_times)
+            self.rng.shuffle(teachable_slot_times)
         unscheduled: list[SessionToSchedule] = []
 
         # Parallel groups are the most constrained (they consume B rooms and
@@ -890,7 +1020,7 @@ class GreedySolver:
         failed_groups: list[list] = []
         for group in parallel_groups.values():
             if not self._place_parallel_group(
-                group, checker, working_days, slot_times,
+                group, checker, working_days, teachable_slot_times,
                 slot_lookup, max_slot_number,
             ):
                 failed_groups.append(group)
@@ -899,10 +1029,19 @@ class GreedySolver:
             member for group in failed_groups for member in group
         ]:
             placed = False
-            rooms = self._get_rooms(session.room_requirements)
+            rooms = self._get_rooms(session.room_requirements, session=session)
             if self.rng is not None:
                 rooms = list(rooms)
                 self.rng.shuffle(rooms)
+
+            # The saturday_policy may forbid Saturday for this session type
+            # even when Saturday is a declared working day.
+            session_working_days = [
+                d for d in working_days if self._day_allowed_for(d, session)
+            ]
+            if not session_working_days:
+                unscheduled.append(session)
+                continue
 
             # Order the (day, slot) scan. The gap criterion (variation) takes
             # precedence for seeded instances pursuing it; otherwise, when the
@@ -910,7 +1049,7 @@ class GreedySolver:
             # preferences so the default greedy solver pursues them too.
             # Everything else spreads each class across the week (least-loaded
             # day first) instead of packing all sessions into the earliest days.
-            scan = self._scan(session, working_days, slot_times)
+            scan = self._scan(session, session_working_days, teachable_slot_times)
             for day, (slot_number, _start_time, _end_time) in scan:
                 if placed:
                     break

@@ -53,6 +53,7 @@ STRUCTURAL_RULES: tuple[str, ...] = (
     "FACULTY_MAX_HOURS_PER_DAY",
     "FACULTY_MAX_HOURS_PER_WEEK",
     "RESPECT_ROOM_BLACKOUT",
+    "NO_TEACHING_IN_BREAK_SLOT",
     "SAME_SUBJECT_SAME_DAY",
     "CROSS_DEPT_DAILY_CAP",
 )
@@ -85,11 +86,13 @@ class ConstraintContext:
         committed_slots: list,
         settings=None,
         reserved: dict[str, set[tuple]] | None = None,
+        break_slots: set[int] | None = None,
     ):
         self.db = db
         self.committed_slots = committed_slots
         self.settings = settings
         self.reserved = reserved or {}
+        self.break_slots = set(break_slots or ())
         self._group_cache: dict[int, Optional[StudentGroup]] = {}
         self._subject_cache: dict[int, Optional[Subject]] = {}
         self._room_cache: dict[int, Optional[Room]] = {}
@@ -718,6 +721,34 @@ def _same_subject_same_day(candidate, committed, config, ctx) -> Optional[str]:
             return (
                 f"subject {candidate.subject_id} already scheduled for group "
                 f"{candidate.student_group_id} on day {candidate.day_of_week}"
+            )
+    return None
+
+
+@hard_rule("NO_TEACHING_IN_BREAK_SLOT")
+def _no_teaching_in_break_slot(candidate, committed, config, ctx) -> Optional[str]:
+    """A break is a numbered slot; nothing may be placed there (A2).
+
+    The profile's ``break_slots`` param (per division, read from the published
+    grid's BREAK cells) names the non-teaching slots. The solver's scans
+    already skip them; this validator is the safety net so a block-length
+    session that spans a break slot (e.g. a 2-slot lab at slots 3-4 when the
+    break is slot 4) is still rejected. With no ``break_slots`` configured the
+    rule is inert — a college that never declares breaks keeps the old
+    behaviour.
+    """
+    if not ctx.break_slots:
+        return None
+    if candidate.slot_number in ctx.break_slots:
+        return (
+            f"slot {candidate.slot_number} is a break slot for this "
+            f"profile; no teaching may be placed there"
+        )
+    for n in range(candidate.slot_number + 1,
+                   candidate.slot_number + candidate.block_length):
+        if n in ctx.break_slots:
+            return (
+                f"block spans break slot {n}; breaks are non-teaching"
             )
     return None
 

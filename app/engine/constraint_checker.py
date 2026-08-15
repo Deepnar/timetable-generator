@@ -91,6 +91,7 @@ class ConstraintChecker:
         settings: CollegeSettings | None = None,
         reserved: dict[str, set[tuple]] | None = None,
         hard_constraints: list | None = None,
+        break_slots: set[int] | None = None,
     ):
         self.db = db
         self.committed_slots = committed_slots
@@ -104,8 +105,10 @@ class ConstraintChecker:
         self.reserved = reserved or {}
         # Data-driven profile constraints dispatched through the registry.
         self.configured = hard_constraints or []
+        self.break_slots = set(break_slots or ())
         self.ctx = ConstraintContext(
             db, committed_slots, settings=settings, reserved=self.reserved,
+            break_slots=self.break_slots,
         )
 
     # ── public api ───────────────────────────────────────────

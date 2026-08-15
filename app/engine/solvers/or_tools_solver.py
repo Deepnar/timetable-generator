@@ -67,6 +67,10 @@ class ORToolsSolver(GreedySolver):
         slot_times = self._build_slot_times()
         slot_lookup = {sn: (st, en) for sn, st, en in slot_times}
         max_slot_number = max(slot_lookup)
+        break_slots = self._break_slots()
+        teachable_slot_times = [
+            st for st in slot_times if st[0] not in break_slots
+        ]
         hard_constraints = self._load_hard_constraints()
 
         # Domain pruning uses the same checker as greedy with an EMPTY committed
@@ -76,14 +80,17 @@ class ORToolsSolver(GreedySolver):
             self.db, [], settings=self.settings,
             reserved=self.reserved_conflicts,
             hard_constraints=hard_constraints,
+            break_slots=break_slots,
         )
 
         model = cp_model.CpModel()
         x: dict[tuple, object] = {}
         for si, session in enumerate(sessions):
-            rooms = self._get_rooms(session.room_requirements)
+            rooms = self._get_rooms(session.room_requirements, session=session)
             for day in working_days:
-                for sn, _st, _en in slot_times:
+                if not self._day_allowed_for(day, session):
+                    continue
+                for sn, _st, _en in teachable_slot_times:
                     end_slot = sn + session.block_length - 1
                     if end_slot > max_slot_number:
                         continue
@@ -209,6 +216,7 @@ class ORToolsSolver(GreedySolver):
         checker = ConstraintChecker(
             self.db, self.committed_slots, settings=self.settings,
             reserved=self.reserved_conflicts, hard_constraints=hard_constraints,
+            break_slots=break_slots,
         )
         for si, day, sn, room_id in chosen:
             s = sessions[si]
