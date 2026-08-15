@@ -17,6 +17,8 @@ from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
 
+from app.models.groups import StudentGroup
+
 # type string -> scorer
 SOFT_CONSTRAINT_REGISTRY: dict[str, Callable] = {}
 
@@ -243,9 +245,58 @@ def _balance_teacher_load(slots, config, ctx) -> float:
     return total / len(per_fac)
 
 
+def _room_stability(slots, config, ctx) -> float:
+    """Reward a division's lectures staying in its home room(s) (A5).
+
+    config: ``{"group_id"?: int}``. For each division measures the fraction of
+    non-lab sessions placed in ``StudentGroup.home_room_id`` /
+    ``home_room_secondary_id``. A division with no declared home room scores
+    1.0 (no standard to violate). This is the scoreboard metric for the home-
+    room restriction — before it, 245 of 245 lecture pairs were split across
+    rooms.
+    """
+    config = config or {}
+    group_id = config.get("group_id")
+
+    home_by_group: dict[int, set[int]] = {}
+    relevant: list = []
+    for s in slots:
+        gid = s.student_group_id
+        if gid is None or s.day_of_week is None:
+            continue
+        if (getattr(s.session_type, "value", s.session_type)) == "LAB":
+            continue
+        if group_id is not None and gid != group_id:
+            continue
+        if gid not in home_by_group:
+            group = ctx.db.get(StudentGroup, gid)
+            home_by_group[gid] = {
+                i for i in (getattr(group, "home_room_id", None),
+                            getattr(group, "home_room_secondary_id", None))
+                if i is not None
+            } if group is not None else set()
+        relevant.append((gid, s.room_id))
+    if not relevant:
+        return 1.0
+
+    good = 0
+    counted = 0
+    for gid, room_id in relevant:
+        home = home_by_group.get(gid)
+        if not home:
+            continue  # no home room declared — not counted against the division
+        counted += 1
+        if room_id in home:
+            good += 1
+    if counted == 0:
+        return 1.0
+    return good / counted
+
+
 soft_rule("TEACHER_PREFERS_MORNING")(_teacher_prefers_morning)
 soft_rule("MINIMIZE_STUDENT_FREE_SLOTS")(_minimize_student_free_slots)
 soft_rule("MINIMIZE_TEACHER_FREE_SLOTS")(_minimize_teacher_free_slots)
 soft_rule("AVOID_CONSECUTIVE_SAME_SUBJECT")(_avoid_consecutive_same_subject)
 soft_rule("DISTRIBUTE_SUBJECTS_EVENLY")(_distribute_subjects_evenly)
 soft_rule("BALANCE_TEACHER_LOAD")(_balance_teacher_load)
+soft_rule("ROOM_STABILITY")(_room_stability)

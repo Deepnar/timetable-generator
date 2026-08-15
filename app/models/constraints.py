@@ -36,6 +36,7 @@ class ConstraintType(str, enum.Enum):
     MINIMIZE_TEACHER_FREE_SLOTS = "MINIMIZE_TEACHER_FREE_SLOTS"
     DISTRIBUTE_SUBJECTS_EVENLY = "DISTRIBUTE_SUBJECTS_EVENLY"
     BALANCE_TEACHER_LOAD = "BALANCE_TEACHER_LOAD"
+    ROOM_STABILITY = "ROOM_STABILITY"
 
 # The hard/soft split is a catalog concern; keeping it here, next to the enum,
 # means ``GET /constraints/types`` and any tooling always reflect exactly what
@@ -66,6 +67,7 @@ SOFT_CONSTRAINT_TYPES = [
     ConstraintType.MINIMIZE_TEACHER_FREE_SLOTS,
     ConstraintType.DISTRIBUTE_SUBJECTS_EVENLY,
     ConstraintType.BALANCE_TEACHER_LOAD,
+    ConstraintType.ROOM_STABILITY,
 ]
 
 class HardConstraint(Base):
