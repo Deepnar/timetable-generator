@@ -582,3 +582,69 @@ Address these in the next session; resolved ones move up into the log with their
   added). Rule: **any new `Settings` field must be added to `.env.example` in the same commit.**
 - **Decisions lived only in overwritten handoffs** — this file is the fix; git history is the
   backup, not the living record.
+
+---
+
+### DD-031 — The engine models the wrong scheduling unit; rebuild the model before the solver
+
+**Status:** OPEN — supersedes the DD-030 follow-ups and the `real-data-rollout-plan.md` next steps.
+**Full analysis + phased plan:** `documentation/system-audit-and-plan.md`.
+
+**Context.** An independent audit (15 Aug 2026) read the executing code and validated every claim
+against the live DB (36 published runs) and the 46 scraped TCET timetables. DD-030 declared parallel
+practicals shipped and the real-data rollout healthy. Measured against the college's own published
+timetables, it is not.
+
+**The finding.** The engine's hard constraints reject the correct answer:
+
+| Rule | Times the **real TCET timetable** violates it |
+|---|---|
+| `SAME_SUBJECT_SAME_DAY` (always-on structural) | 160 of 611 (division, day, subject) groups |
+| `MAX_ONE_LAB_PER_DAY` (stamped on all 36 profiles by the importer) | 54 of 192 (division, day) pairs |
+| `CONTIGUOUS_LAB_SLOTS default_block_length=2` | real labs are 1 slot in 131 of 133 cases |
+
+The root cause is a modelling error, not a solver weakness. TCET's real scheduling unit is a **lab
+window**: one (day, slot) in which a division splits into batches doing **different subjects** in
+different labs with different teachers, rotating week to week (52 of 78 real windows carry 2+ distinct
+subjects). DD-030 modelled "one subject, N batches", which cannot express this —
+`greedy_solver.py:299` groups by `(subject_id, group_id)` before `period_number`, so two lab subjects
+can never share a window, and `_is_parallel_sibling` then treats them as a group double-book.
+
+**Decision.**
+1. **Model first, solver last.** Promote the lab window to a first-class scheduling unit; re-scope
+   `period_number` from (subject, group) to group; construct the batch↔subject rotation as a Latin
+   square rather than searching for it.
+2. **Break is a slot, not an interval** — per-division `break_slots`, slot times read verbatim from
+   the published grid. Per-division `working_days` + `saturday_policy`.
+3. **A division has a home room** (`StudentGroup.home_room_id`), hard-restricting non-lab room
+   domains. Today 245 of 245 (division, subject) lecture pairs are split across rooms.
+4. **Constraints get three tiers** — INVARIANT (never editable) / INSTITUTIONAL (must be editable)
+   / PREFERENCE. Eight registered validators are currently absent from the `ConstraintType` enum and
+   reachable only by direct DB write, including the two above. A startup assertion keeps the registry
+   and the enum in sync.
+5. **Demand is derived, never invented.** `_derive_hours()` is already written and never read
+   (`import_tcet.py:160`); use it. Demote auto-fill to a reported data-gap step.
+6. **Fix allocation, do not add data.** Faculty utilisation is 5–32% with 279 of 407 teachers idle
+   while two sit over cap; rooms are 4× oversupplied. Replace the modulo teacher rotation with
+   least-loaded assignment and add `faculty_subject_competency`.
+7. **CP-SAT stays, its integration goes.** OR-Tools on real profiles produces half a timetable with
+   **zero practicals**, more unplaced than greedy, 5× slower. Target: greedy constructs, CP-SAT
+   repairs small neighbourhoods under LNS; a CP-SAT answer is never post-filtered.
+8. **Scope to COMP** until the fidelity suite is green. The other five branches are shape-only and
+   make bugs unattributable.
+
+**Anti-overfitting posture (the DD-025 single-college rule, sharpened).** Encoding a college's
+*vocabulary* (lab windows, break slots, home rooms) is generalising; encoding its *answers*
+(`lunch_break_after_slot = 4`, `default_block_length = 2`, `REAL_DATA_CODES`) is overfitting. The
+engine must hold zero college-specific constants; they move into institution-profile parameters. A
+second fixture college in CI is the assertion — if adding it requires an `app/engine/` change, the
+overfitting is caught the same day.
+
+**Consequences.**
+- `documentation/timetable-audit.md` and `real-data-rollout-plan.md` are superseded for anything
+  they claim about lab handling, hours derivation or rollout health.
+- 216/216 tests pass while the output is structurally wrong (A8): the suite tests plumbing on toy
+  data. A fidelity suite scored against the 46 real timetables is now a deliverable, not a nicety.
+- **Security, unrelated but shipped in the same audit:** `app/router/overrides.py` mounts at
+  `/instances` with no role guard, so any self-registered STUDENT can rewrite a published timetable.
+  Fixed in Phase 0.
