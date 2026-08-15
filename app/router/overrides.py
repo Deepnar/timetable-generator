@@ -24,13 +24,15 @@ from app.models.rooms import Room
 from app.models.overrides import TimetableOverride, OverrideType
 from app.schemas.overrides import (OverrideCreate, OverrideResponse,
                                    OverrideDetail, SwapCreate, AvailableFaculty)
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, require_roles
 from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
 from app.engine.scheduler import Scheduler
 from app.services.settings_service import get_settings
 from app.services import notification_service
 
-router = APIRouter(prefix="/instances", tags=["Mid-year changes"])
+router = APIRouter(
+    prefix="/instances", tags=["Mid-year changes"],
+    dependencies=[Depends(require_roles("admin", "hod"))])
 
 
 def _get_instance(db: Session, instance_id: int) -> TimetableInstance:

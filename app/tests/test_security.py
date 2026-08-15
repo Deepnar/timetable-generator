@@ -85,5 +85,61 @@ def _phase5_security(s):
             assert "localhost" not in body["db_error"]
             assert "postgres" not in body["db_error"]
 
+    @test("a student cannot use any mutating route (no per-file guard gap)")
+    def t_all_mutating_routes_student_blocked(client):
+        """Regression for B-CRIT-1/B-HIGH-2: the overrides and notifications
+        routers were mounted without a role dependency, so a self-registered
+        STUDENT could rewrite published timetables and read/mark every admin's
+        notifications. Enumerate every mutating route in the app and assert the
+        role gate fires (403) before any endpoint logic. A new router added
+        without a guard fails this test the same day."""
+        from app.tests.test_runner import reset_db, create_admin
+        from app.main import app as fastapi_app
+        import re
+
+        reset_db(); create_admin()
+        student = _provision(client, "stu-all@x.com", "student")
+
+        schema = fastapi_app.openapi()
+        # {id} -> 1 etc. so path-parameter routes resolve far enough to hit the
+        # role dependency; the guard fires before body/path validation anyway.
+        def _fill(path):
+            import re
+            return re.sub(r"\{[^}]*\}", "1", path)
+
+        mutating = []
+        for path, ops in schema.get("paths", {}).items():
+            for method in ("post", "put", "patch", "delete"):
+                if method in ops:
+                    mutating.append((method.upper(), path))
+        assert mutating, "expected at least one mutating route"
+
+        # Deliberately-student-accessible mutations (matched against the path
+        # with the /api/v1 prefix stripped):
+        #  - /auth/login and /auth/register are public (self-registration is
+        #    the least-privilege path).
+        #  - /notifications/*/read and /notifications/read-all are
+        #    recipient-scoped self-service: the student marks their OWN rows
+        #    read, so it is not privilege escalation.
+        _STUDENT_ALLOWED = {
+            "/auth/login", "/auth/register",
+            "/notifications/read-all",
+            "/notifications/{notification_id}/read",
+        }
+        for method, path in mutating:
+            stripped = re.sub(r"^/api/v1", "", path)
+            if stripped in _STUDENT_ALLOWED:
+                r = client.request(method, _fill(path), headers=student, json={})
+                assert r.status_code != 403, (
+                    f"STUDENT {method} {path} should be recipient-scoped, "
+                    f"not role-blocked"
+                )
+                continue
+            r = client.request(method, _fill(path), headers=student, json={})
+            assert r.status_code == 403, (
+                f"STUDENT {method} {path} -> {r.status_code} (expected 403); "
+                f"route lacks a role guard"
+            )
+
     return [t_student_blocked, t_teacher_admin_blocked, t_register_role_locked,
-            t_health_sanitized]
+            t_health_sanitized, t_all_mutating_routes_student_blocked]

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.admin import Admin
 from app.models.notifications import AppNotification, NotificationKind
-from app.utils.auth import get_current_admin
+from app.utils.auth import get_current_admin, require_roles
 from app.utils.pagination import Pagination, pagination, paginate
 from pydantic import BaseModel
 from typing import Optional
@@ -41,7 +41,14 @@ class ReadAllResponse(BaseModel):
     marked: int
 
 
-router = APIRouter(prefix="/notifications", tags=["Notifications"])
+router = APIRouter(
+    prefix="/notifications", tags=["Notifications"],
+    # Notifications are recipient-scoped: every route filters by the caller's
+    # admin id (``recipient_admin_id == current.id``), and all four roles
+    # legitimately receive them (a teacher's cover, a student's class change).
+    # The guard makes the authentication requirement explicit rather than
+    # restricting the bell to admins, which would break the portal.
+    dependencies=[Depends(require_roles("admin", "hod", "teacher", "student"))])
 
 
 @router.get("/", response_model=list[NotificationResponse])
