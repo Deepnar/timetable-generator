@@ -189,6 +189,63 @@ def _phase2_windows(s):
         for inst in insts:
             assert inst["hard_violations"] == 0, inst
 
+    @test("a single-teacher batch pair merges into one co-located session")
+    def t_single_teacher_pair_merges(client):
+        from app.tests.test_runner import reset_db, create_admin, ensure_settings
+        from app.models.subject_assignments import SubjectAssignment
+        from app.models.profiles import ProfileResource, ResourceType
+        from app.models.faculty import Faculty
+        from app.models.rooms import Room, RoomType
+        global ids
+        reset_db(); create_admin()
+        ensure_settings({"enable_soft_constraint_scoring": False})
+        ids = seed_minimal(requires_lab=True, weekly_hours=1)
+        db = TestingSessionLocal()
+        try:
+            from sqlalchemy import delete as sa_delete
+            db.execute(sa_delete(SubjectAssignment).where(
+                SubjectAssignment.subject_id == ids["subject"],
+                SubjectAssignment.group_id == ids["group"],
+                SubjectAssignment.batch_number.is_(None)))
+            # One window in the "Lab DWM A1A2 SG" shape: batches 1,2 share one
+            # faculty (the pair is ONE session, DD-044), 3,4 have their own.
+            fac_c = Faculty(name="Carol", email="carol@x.com", department="CS")
+            fac_d = Faculty(name="Dave", email="dave@x.com", department="CS")
+            db.add_all([fac_c, fac_d]); db.flush()
+            room3 = Room(name="L3", room_code="L3", room_type=RoomType.LAB,
+                         capacity=40, building="A")
+            room4 = Room(name="L4", room_code="L4", room_type=RoomType.LAB,
+                         capacity=40, building="A")
+            db.add_all([room3, room4]); db.flush()
+            db.add_all([
+                ProfileResource(profile_id=ids["profile"], resource_type=ResourceType.FACULTY,
+                                resource_id=fac_c.id),
+                ProfileResource(profile_id=ids["profile"], resource_type=ResourceType.FACULTY,
+                                resource_id=fac_d.id),
+                ProfileResource(profile_id=ids["profile"], resource_type=ResourceType.ROOM,
+                                resource_id=room3.id),
+                ProfileResource(profile_id=ids["profile"], resource_type=ResourceType.ROOM,
+                                resource_id=room4.id),
+            ])
+            for b, f in ((1, ids["faculty"]), (2, ids["faculty"]),
+                         (3, fac_c.id), (4, fac_d.id)):
+                db.add(SubjectAssignment(subject_id=ids["subject"], faculty_id=f,
+                                         group_id=ids["group"], weekly_hours=1,
+                                         load_share=1.0, batch_number=b,
+                                         period_number=1, block_length=1))
+            db.commit()
+        finally:
+            db.close()
+        headers = auth_headers(login_token(client))
+        slots = _generate(client, headers, ids["profile"])
+        lab = [s for s in slots if s["batch_number"] is not None]
+        # Batches 1+2 merged into one session (representative batch 1); the
+        # window then has 3 members and co-locates on one day+slot.
+        assert len(lab) == 3, f"expected 3 merged sessions, got {len(lab)}"
+        assert {s["batch_number"] for s in lab} == {1, 3, 4}, lab
+        assert len({s["day_of_week"] for s in lab}) == 1, lab
+        assert len({s["slot_number"] for s in lab}) == 1, lab
+
     @test("MAX_ONE_LAB_PER_DAY counts windows, not subjects")
     def t_max_lab_counts_windows(client):
         from app.engine.constraint_registry import HARD_CONSTRAINT_REGISTRY
