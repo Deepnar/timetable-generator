@@ -62,6 +62,12 @@ class ORToolsSolver(GreedySolver):
         sessions = self._build_sessions()
         if not sessions:
             return self.committed_slots
+        # Lab windows and whole-division lab blocks split into per-batch
+        # sessions (A1, A6): without this, CP-SAT only sees one session per
+        # period and drops every other batch's teacher and room.
+        sessions = self._expand_lab_batches(sessions)
+        if not sessions:
+            return self.committed_slots
 
         working_days = self._get_working_days()
         slot_times = self._build_slot_times()
@@ -106,6 +112,8 @@ class ORToolsSolver(GreedySolver):
                             slot_date=self._materialize_slot_date(day),
                             is_cross_department=session.is_cross_department,
                             block_length=session.block_length,
+                            batch_number=session.batch_number,
+                            window_key=session.window_key,
                         )
                         if not static_checker.is_valid(candidate):
                             continue
@@ -139,12 +147,19 @@ class ORToolsSolver(GreedySolver):
         by_group_day = defaultdict(list)
         by_teacher_day = defaultdict(list)
         by_teacher = defaultdict(list)
+        by_window_slot = defaultdict(list)
         for (si, day, sn, room_id), var in x.items():
             s = sessions[si]
             for n in range(sn, sn + s.block_length):
                 by_teacher_slot[(s.faculty_id, day, n)].append(var)
                 by_room_slot[(room_id, day, n)].append(var)
-                by_group_slot[(s.student_group_id, day, n)].append(var)
+                if s.window_key:
+                    # Siblings of the same window share the group's time window;
+                    # they are excluded from the group double-book below and
+                    # co-located by the window constraint instead.
+                    by_window_slot[(s.window_key, day, sn)].append(var)
+                else:
+                    by_group_slot[(s.student_group_id, day, n)].append(var)
             by_group_subject_day[(s.student_group_id, s.subject_id, day)].append(var)
             by_group_day[(s.student_group_id, day)].append((s.subject_id, var))
             for _ in range(s.block_length):
@@ -159,6 +174,27 @@ class ORToolsSolver(GreedySolver):
             model.Add(sum(vs) <= 1)
         for vs in by_group_subject_day.values():
             model.Add(sum(vs) <= 1)
+
+        # A lab window's members (different batches, possibly different
+        # subjects) must be placed at the SAME (day, slot): the division is one
+        # session during a window. Each member is placed at most once, so for
+        # every pair of members and every (day, slot) their indicator sums must
+        # be equal — all on or all off together.
+        window_members: dict[str, list[int]] = defaultdict(list)
+        for si, s in enumerate(sessions):
+            if s.window_key:
+                window_members[s.window_key].append(si)
+        for (wk, day, sn), vs in by_window_slot.items():
+            if len(vs) < 2:
+                continue
+            for si in window_members.get(wk, []):
+                member_here = [
+                    v for (si2, d2, sn2, _r), v in x.items()
+                    if si2 == si and d2 == day and sn2 == sn
+                ]
+                for mv in member_here:
+                    for v in vs:
+                        model.Add(mv == v)
 
         for (fid, _day), vs in by_teacher_day.items():
             fac = self._faculty(fid)
@@ -231,6 +267,8 @@ class ORToolsSolver(GreedySolver):
                 slot_date=self._materialize_slot_date(day),
                 is_cross_department=s.is_cross_department,
                 block_length=s.block_length,
+                batch_number=s.batch_number,
+                window_key=s.window_key,
             )
             if checker.is_valid(candidate):
                 slot_date = self._materialize_slot_date(day)
@@ -243,6 +281,8 @@ class ORToolsSolver(GreedySolver):
                         student_group_id=s.student_group_id,
                         subject_id=s.subject_id, session_type=s.session_type,
                         slot_date=slot_date, is_manual_override=False,
+                        batch_number=s.batch_number,
+                        window_key=s.window_key,
                     ))
         placed_sessions = {k[0] for k in chosen}
         self.unplaced_count = len(sessions) - len(placed_sessions)

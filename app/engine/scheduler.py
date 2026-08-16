@@ -432,6 +432,7 @@ class Scheduler:
                 is_cross_department=False,
                 block_length=len(block),
                 batch_number=first.batch_number,
+                window_key=first.window_key,
             )
             checker = ConstraintChecker(
                 self.db, others, settings=get_settings(self.db),

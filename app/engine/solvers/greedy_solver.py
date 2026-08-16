@@ -67,10 +67,17 @@ class SessionToSchedule:
         # same time in distinct rooms. None = whole-division session.
         self.batch_number = batch_number
         self.parallel_key = parallel_key
-        # For a batched lab base session: batch -> faculty for ONE weekly
-        # period (e.g. CG lab: {1: SuS, 2: PD} for D1D2, {3: SuS, 4: HP} for
-        # D3D4). The expansion creates one parallel session per entry.
-        self.parallel_batch_map: dict[int, int] | None = None
+        # Window identity (A1): which lab window this session belongs to. A
+        # window is (group_id, period_number); its members — different batches,
+        # possibly different subjects — share this key so the checker can
+        # recognise siblings without requiring the same subject.
+        self.window_key: str | None = None
+        # For a windowed lab base session: batch -> (subject_id, faculty_id)
+        # for ONE window (e.g. CG lab: {1: (CG, SuS), 2: (CG, PD)} for D1D2,
+        # IIS: {3: (IIS, PM), 4: (IIS, PM)} for D3D4 in the same window). The
+        # expansion creates one parallel session per entry, each carrying its
+        # own subject. Replaces the old single-subject ``parallel_batch_map``.
+        self.window_members: dict[int, tuple] | None = None
 
 
 class GreedySolver:
@@ -366,42 +373,44 @@ class GreedySolver:
             ).all()
         } if group_ids else {}
 
-        # Group assignment rows by (subject, group). A lab subject split into
-        # parallel batches has one row per batch (each with ``batch_number`` and
-        # its own faculty). Rows form **weekly periods**: a class runs several
-        # lab periods per week, each a contiguous run of batch ids (TE CG: D1D2
-        # = batches 1,2 on one day, D3D4 = batches 3,4 on another). Each period
-        # is one atomic parallel placement. Non-batched rows expand
-        # independently (multiple teachers sharing a subject stay as today).
-        by_key: dict[tuple[int, int], list] = {}
+        # Group batched lab rows into WINDOWS (A1). A window is
+        # (group_id, period_number); its members are (batch_number, subject_id,
+        # faculty_id) rows sharing that period — two different subjects can be
+        # co-located in one window (COMP-TE-D day 0: CG->D1D2 + IIS->D3D4).
+        # Non-batched rows expand independently as before.
+        window_rows: dict[tuple[int, int], list] = {}
+        non_batched: list = []
         for a in assignments:
-            by_key.setdefault((a.subject_id, a.group_id), []).append(a)
+            if getattr(a, "batch_number", None) is not None:
+                period = getattr(a, "period_number", None) or 1
+                window_rows.setdefault((a.group_id, period), []).append(a)
+            else:
+                non_batched.append(a)
 
-        for (subject_id, group_id), rows in by_key.items():
-            batched = [r for r in rows if getattr(r, "batch_number", None) is not None]
-            if batched:
-                # Batched rows form **weekly periods** (D1D2 on Monday, D3D4 on
-                # Wednesday), grouped by ``period_number``. Each period is one
-                # atomic parallel placement with its own batch->faculty map.
-                by_period: dict = {}
-                for r in batched:
-                    by_period.setdefault(getattr(r, "period_number", 1), []).append(r)
-                for _period, period_rows in sorted(
-                    by_period.items(), key=lambda kv: kv[0] if kv[0] is not None else 1
-                ):
-                    base = period_rows[0]
-                    self._append_base_sessions(
-                        sessions, base, subjects, groups,
-                        parallel_batch_map={
-                            int(r.batch_number): r.faculty_id for r in period_rows
-                        },
-                    )
-                continue
-            for assignment in rows:
-                self._append_base_sessions(
-                    sessions, assignment, subjects, groups,
-                    parallel_batch_map=None,
-                )
+        for (group_id, period), rows in sorted(window_rows.items()):
+            # Dedupe by batch: the real grid can list the same batch twice for
+            # one subject across a 2-slot window; keep the first row's subject.
+            by_batch: dict[int, object] = {}
+            block_length = None
+            for r in rows:
+                b = int(r.batch_number)
+                if b not in by_batch:
+                    by_batch[b] = r
+                if getattr(r, "block_length", None):
+                    block_length = int(r.block_length)
+            members = {b: (r.subject_id, r.faculty_id)
+                       for b, r in by_batch.items()}
+            base = by_batch[min(by_batch)]
+            base_session = self._make_window_base(
+                base, members, group_id, period, subjects, groups, block_length)
+            if base_session is not None:
+                sessions.append(base_session)
+
+        for assignment in non_batched:
+            self._append_base_sessions(
+                sessions, assignment, subjects, groups,
+                parallel_batch_map=None,
+            )
 
         # most constrained first
         sessions.sort(key=lambda s: (
@@ -421,6 +430,54 @@ class GreedySolver:
                 getattr(s, peer_attr),
             ))
         return sessions
+
+    def _make_window_base(self, base, members, group_id, period, subjects,
+                          groups, block_length=None) -> SessionToSchedule | None:
+        """Build the base session for one lab window.
+
+        ``members`` maps batch_number -> (subject_id, faculty_id). The window
+        is expanded into one parallel session per member by
+        :meth:`_expand_lab_batches`; each member carries its own subject and
+        shares ``window_key`` so the checker treats them as siblings.
+        """
+        subject = subjects.get(base.subject_id)
+        if subject is None:
+            return None
+        group = groups.get(group_id)
+        is_cross_dept = bool(
+            group and group.department and subject.department
+            and group.department != subject.department
+        )
+        if is_cross_dept and not self.settings.allow_cross_dept_subjects:
+            return None
+        if self._is_exam_mode():
+            return SessionToSchedule(
+                subject_id=subject.id,
+                faculty_id=base.faculty_id,
+                student_group_id=group_id,
+                session_type=SessionType.EXAM,
+                requires_lab=False,
+                is_cross_department=is_cross_dept,
+                room_requirements=effective_requirements(subject),
+            )
+        reqs = effective_requirements(subject)
+        block_lengths = self._lab_block_lengths()
+        if block_length is None:
+            block_length = block_lengths.get(subject.id)
+        s = SessionToSchedule(
+            subject_id=subject.id,
+            faculty_id=base.faculty_id,
+            student_group_id=group_id,
+            session_type=SessionType.LAB,
+            requires_lab=subject.requires_lab,
+            is_cross_department=is_cross_dept,
+            block_length=block_length or 1,
+            room_requirements=reqs,
+        )
+        s.window_members = dict(members)
+        s.window_key = f"w{group_id}:{period}"
+        s.parallel_key = ("window", group_id, period)
+        return s
 
     # ── parallel practicals (batches) ─────────────────────────
     def _append_base_sessions(self, sessions, assignment, subjects, groups,
@@ -546,38 +603,42 @@ class GreedySolver:
         return [base_faculty_id] + others[: count - 1]
 
     def _expand_lab_batches(self, sessions: list[SessionToSchedule]) -> list[SessionToSchedule]:
-        """Turn whole-division lab blocks into per-batch parallel sessions.
+        """Turn lab windows and whole-division lab blocks into per-batch sessions.
 
-        Each lab block (a 2h contiguous session) becomes ``B`` sibling sessions
-        sharing a ``parallel_key`` — one per batch, each with its own faculty.
-        The greedy solver places siblings at the same time in distinct rooms
-        (see :meth:`_place_parallel_group`). Single-slot lab remainders and all
-        non-lab sessions pass through unchanged. OR-Tools does not call this
-        and keeps the whole-division model.
+        A **window** base session (``window_members`` set) expands into one
+        sibling session per batch, each carrying its own subject/faculty and
+        sharing ``window_key`` + ``parallel_key`` (A1). A legacy whole-division
+        lab block (no window members, ``block_length >= 2``) expands into
+        auto-derived batches from the pool as before. The greedy solver places
+        siblings at the same time in distinct rooms (see
+        :meth:`_place_parallel_group`). Single-slot lab remainders and all
+        non-lab sessions pass through unchanged.
         """
         if self._is_exam_mode():
             return sessions
         expanded: list[SessionToSchedule] = []
-        for idx, s in enumerate(sessions):
+        for s in sessions:
+            if s.session_type == SessionType.LAB and s.window_members:
+                # One parallel session per batch, each with its own subject.
+                for b, (subj_id, fid) in sorted(s.window_members.items()):
+                    member_subject = self.db.get(Subject, subj_id)
+                    reqs = effective_requirements(member_subject) if member_subject else s.room_requirements
+                    expanded.append(SessionToSchedule(
+                        subject_id=subj_id,
+                        faculty_id=fid,
+                        student_group_id=s.student_group_id,
+                        session_type=SessionType.LAB,
+                        requires_lab=bool(member_subject and member_subject.requires_lab),
+                        is_cross_department=s.is_cross_department,
+                        block_length=s.block_length,
+                        room_requirements=reqs,
+                        batch_number=b,
+                        parallel_key=s.parallel_key,
+                    ))
+                    expanded[-1].window_key = s.window_key
+                continue
             if s.session_type == SessionType.LAB and s.block_length >= 2:
-                # A real period declares its batch->faculty map: expand to one
-                # session per batch (a distinct parallel group per period).
-                if s.parallel_batch_map and len(s.parallel_batch_map) >= 2:
-                    for b, fid in sorted(s.parallel_batch_map.items()):
-                        expanded.append(SessionToSchedule(
-                            subject_id=s.subject_id,
-                            faculty_id=fid,
-                            student_group_id=s.student_group_id,
-                            session_type=s.session_type,
-                            requires_lab=s.requires_lab,
-                            is_cross_department=s.is_cross_department,
-                            block_length=s.block_length,
-                            room_requirements=s.room_requirements,
-                            batch_number=b,
-                            parallel_key=("lab", idx),
-                        ))
-                    continue
-                # No per-batch map: derive faculty from the pool (auto batches).
+                # No window members: derive faculty from the pool (auto batches).
                 facs = self._lab_batch_faculty(
                     s.subject_id, s.student_group_id, s.faculty_id)
                 if len(facs) >= 2:
@@ -592,8 +653,9 @@ class GreedySolver:
                             block_length=s.block_length,
                             room_requirements=s.room_requirements,
                             batch_number=b,
-                            parallel_key=("lab", idx),
+                            parallel_key=("lab", id(s)),
                         ))
+                        expanded[-1].window_key = f"auto-{s.subject_id}-{id(s)}"
                     continue
             expanded.append(s)
         return expanded
@@ -635,6 +697,7 @@ class GreedySolver:
                     is_cross_department=session.is_cross_department,
                     block_length=session.block_length,
                     batch_number=session.batch_number,
+                    window_key=session.window_key,
                 )
                 if checker.is_valid(candidate):
                     member_options.append((room, candidate))
@@ -722,6 +785,7 @@ class GreedySolver:
                         session_type=session.session_type,
                         is_manual_override=False,
                         batch_number=session.batch_number,
+                        window_key=session.window_key,
                     ))
             return True
         return False
@@ -1074,6 +1138,7 @@ class GreedySolver:
                         is_cross_department=session.is_cross_department,
                         block_length=session.block_length,
                         batch_number=session.batch_number,
+                        window_key=session.window_key,
                     )
                     if checker.is_valid(candidate):
                         slot_date = self._materialize_slot_date(day)
@@ -1093,6 +1158,7 @@ class GreedySolver:
                                 session_type=session.session_type,
                                 is_manual_override=False,
                                 batch_number=session.batch_number,
+                                window_key=session.window_key,
                             ))
                         placed = True
                         break

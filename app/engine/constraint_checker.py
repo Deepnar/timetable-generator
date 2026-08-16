@@ -42,6 +42,7 @@ class SlotCandidate:
         is_cross_department: bool = False,
         block_length: int = 1,
         batch_number: int | None = None,
+        window_key: str | None = None,
     ):
         self.instance_id = instance_id
         self.day_of_week = day_of_week
@@ -63,6 +64,10 @@ class SlotCandidate:
         # different rooms, so the group double-book rule ignores siblings of
         # the same lab period (they are the same division-wide session).
         self.batch_number = batch_number
+        # Window identity (A1): which lab window this candidate belongs to.
+        # Siblings of the same window share it, so they are not treated as a
+        # group double-book even when they carry different subjects.
+        self.window_key = window_key
 
     @property
     def slot_numbers(self) -> range:

@@ -54,6 +54,7 @@ STRUCTURAL_RULES: tuple[str, ...] = (
     "FACULTY_MAX_HOURS_PER_WEEK",
     "RESPECT_ROOM_BLACKOUT",
     "NO_TEACHING_IN_BREAK_SLOT",
+    "LAB_ROTATION_COMPLETE",
     "SAME_SUBJECT_SAME_DAY",
     "CROSS_DEPT_DAILY_CAP",
 )
@@ -528,16 +529,27 @@ def _no_group_double_book(candidate, committed, config, ctx) -> Optional[str]:
 
 
 def _is_parallel_sibling(candidate, committed_slot) -> bool:
-    """Whether a committed slot is the same parallel lab period as the candidate.
+    """Whether a committed slot is the same lab window as the candidate.
 
     True when both carry a batch number and share group, day, overlapping
-    slots, and subject — i.e. batch 2 of the same 2h practical running beside
-    batch 1, not a genuinely different session for the group.
+    slots, and **window identity** — the window key. Members of the same
+    window may carry different subjects (COMP-TE-D: CG->D1D2 + IIS->D3D4), so
+    matching on the window key (A1) instead of the subject is what lets a
+    multi-subject lab window be placed atomically. Falls back to the legacy
+    subject match when no window key is present (older timetables).
     """
     if candidate.batch_number is None:
         return False
     if getattr(committed_slot, "batch_number", None) is None:
         return False
+    if candidate.window_key or getattr(committed_slot, "window_key", None):
+        return (
+            candidate.window_key is not None
+            and candidate.window_key == getattr(committed_slot, "window_key", None)
+            and committed_slot.student_group_id == candidate.student_group_id
+            and committed_slot.day_of_week == candidate.day_of_week
+            and committed_slot.slot_number in candidate.slot_numbers
+        )
     return (
         committed_slot.student_group_id == candidate.student_group_id
         and committed_slot.day_of_week == candidate.day_of_week
@@ -710,7 +722,32 @@ def _respect_room_blackout(candidate, committed, config, ctx) -> Optional[str]:
 
 @hard_rule("SAME_SUBJECT_SAME_DAY")
 def _same_subject_same_day(candidate, committed, config, ctx) -> Optional[str]:
+    """At most one LECTURE per subject per group per day (A1).
+
+    config: ``{"include_session_types"?: ["LAB", "TUTORIAL"]}`` — by default
+    only LECTURE sessions count, so a lecture + lab (or lecture + tutorial) of
+    the same subject on one day is allowed. That is exactly what the real
+    published timetables do — they violate the old always-on rule 160 times,
+    all of them lecture+lab or lecture+tutorial pairings. A profile that wants
+    the strict behaviour adds the session types to include.
+    """
+    config = config or {}
+    include = {str(t).upper() for t in config.get("include_session_types", [])}
+    cand_type = str(getattr(candidate.session_type, "value", candidate.session_type)).upper()
+    if include:
+        if cand_type not in include:
+            return None
+    elif cand_type != "LECTURE":
+        return None
     for s in committed:
+        raw = getattr(s, "session_type", "") or ""
+        stype = getattr(raw, "value", raw)
+        stype = str(stype).upper()
+        if include:
+            if stype not in include:
+                continue
+        elif stype != "LECTURE":
+            continue
         if (
             s.subject_id == candidate.subject_id
             and s.student_group_id == candidate.student_group_id
@@ -753,15 +790,49 @@ def _no_teaching_in_break_slot(candidate, committed, config, ctx) -> Optional[st
     return None
 
 
+@hard_rule("LAB_ROTATION_COMPLETE")
+def _lab_rotation_complete(candidate, committed, config, ctx) -> Optional[str]:
+    """Structural: each batch receives every lab subject exactly once (A1).
+
+    The batch<->subject rotation over a group's lab windows is a Latin square
+    and is CONSTRUCTED, not searched: the solver expands the windows from the
+    grid's declared members, so a (batch, subject) pair appears exactly once.
+    This per-candidate form rejects a candidate window that would duplicate a
+    (batch, subject) pairing the group has already completed, keeping the
+    constructed rotation honest even if the underlying data is malformed.
+    """
+    if candidate.session_type != "LAB" or candidate.student_group_id is None:
+        return None
+    if candidate.batch_number is None or candidate.subject_id is None:
+        return None
+    seen: set = set()
+    for s in committed:
+        if s.student_group_id != candidate.student_group_id:
+            continue
+        if s.batch_number is None or s.subject_id is None:
+            continue
+        stype = getattr(s, "session_type", None)
+        value = getattr(stype, "value", stype)
+        if value != "LAB":
+            continue
+        seen.add((s.batch_number, s.subject_id))
+    if (candidate.batch_number, candidate.subject_id) in seen:
+        return (
+            f"batch {candidate.batch_number} already completed lab subject "
+            f"{candidate.subject_id}; the rotation allows each once"
+        )
+    return None
+
+
 @hard_rule("MAX_ONE_LAB_PER_DAY")
 def _max_one_lab_per_day(candidate, committed, config, ctx) -> Optional[str]:
-    """At most one practical (LAB) subject per group per day.
+    """At most one lab WINDOW per group per day (A1).
 
-    config: ``{"group_id"?: int}`` — narrows to one group. A candidate LAB
-    session is rejected when the group already has any LAB session that day
-    (sibling batches of the same parallel practical are skipped, matching
-    NO_GROUP_DOUBLE_BOOK). Real rule (founder + TE/FE grids): each batch does
-    at most one practical subject per day.
+    config: ``{"group_id"?: int}`` — narrows to one group. A candidate lab
+    window is rejected when the group already has a **different** lab window
+    that day. Members of the same window are siblings (``_is_parallel_sibling``
+    matches window identity) and are allowed to coexist — that is how a
+    multi-subject window (COMP-TE-D: CG->D1D2 + IIS->D3D4) is placed at all.
     """
     config = config or {}
     group_id = config.get("group_id")
@@ -777,8 +848,8 @@ def _max_one_lab_per_day(candidate, committed, config, ctx) -> Optional[str]:
             and not _is_parallel_sibling(candidate, s)
         ):
             return (
-                f"group {candidate.student_group_id} already has a practical "
-                f"on day {candidate.day_of_week}"
+                f"group {candidate.student_group_id} already has a lab "
+                f"window on day {candidate.day_of_week}"
             )
     return None
 
