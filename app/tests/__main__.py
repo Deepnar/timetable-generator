@@ -19,6 +19,7 @@ from app.tests import test_grid_real  # noqa: F401  registers suites
 from app.tests import test_lab_windows  # noqa: F401  registers suites
 from app.tests import test_institution_facts  # noqa: F401  registers suites
 from app.tests import test_cell_parser  # noqa: F401  registers suites
+from app.tests import test_phase4_engine  # noqa: F401  registers suites
 
 if __name__ == "__main__":
     import sys
