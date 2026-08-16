@@ -6,6 +6,10 @@ institute/academic-calendar docs. Never invents data: missing -> null / _note.
 """
 import json, os, re, sys
 
+# Allow "python scripts/generate_tcet_import.py" (plain-file run) to import
+# the shared cell-parser module from the scripts package.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 ROOT = "/home/deepnar/Programs/timetable-api/info"
 UG = os.path.join(ROOT, "03-timetables/class/UG")
 OUT = os.path.join(ROOT, "import")
@@ -69,153 +73,11 @@ print("departments.json:", len(departments), "depts")
 def read(p):
     return open(p, encoding="utf-8").read()
 
-_ROMAN = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
-          "XI", "XII"}
-
-
-def _initials_tokens(paren: str) -> set:
-    """Faculty-initial tokens inside a legend paren, e.g. "(SuS / NW)".
-
-    A paren may hold initial/name pairs ("TN = Tanmayi Nagale"), bare initials
-    ("LJS, PM"), or a plain word ("online", "multi-faculty"). Return the
-    initials only.
-    """
-    out = set()
-    for tok in re.split(r"[/,]", paren):
-        tok = tok.strip()
-        if not tok:
-            continue
-        m = re.match(r"^([A-Z][A-Za-z0-9]{0,3})\s*=\s*(.+)$", tok)
-        if m:
-            ini = m.group(1).strip()
-            if len(ini) <= 4 and ini not in _ROMAN and not ini.isdigit():
-                out.add(ini)
-            continue
-        if (re.match(r"^[A-Z][A-Za-z0-9]{0,3}$", tok) and len(tok) <= 4
-                and tok not in _ROMAN and not tok.isdigit()):
-            out.add(tok)
-    return out
-
-
-def legend_pairs(legend):
-    """Extract (code, name) and (code -> set of initials) from a legend line.
-
-    Real legends are ``CODE (INIT = Name / INIT2 = Name2)``, ``CODE (INIT /
-    INIT2)``, or ``CODE = Name``. Code stays the name when no name is given.
-    """
-    pairs, initials = {}, {}
-    legend = re.sub(r"\s+", " ", legend).rstrip(" .")
-    for s in re.split(r"[·;]", legend):
-        s = re.sub(r"^\s*Legend:?\s*", "", s).strip()
-        if not s:
-            continue
-        pm = re.match(r"^([A-Za-z][A-Za-z0-9&/\-\. ]{0,14}?)\s*(?:\((.*)\))?\s*$", s)
-        if pm:
-            code = pm.group(1).strip()
-            paren = pm.group(2)
-        else:
-            em = re.match(r"^([A-Za-z][A-Za-z0-9&/\-\. ]{0,14}?)\s*=\s*(.+)$", s)
-            if not em:
-                continue
-            code = em.group(1).strip()
-            paren = None
-            name = re.sub(r"\s*\(.*\)\s*$", "", em.group(2)).strip()
-            pairs[code] = name or code
-        if not re.match(r"^[A-Z0-9]", code):
-            continue
-        if paren:
-            inn = _initials_tokens(paren)
-            if inn:
-                initials[code] = inn
-        pairs.setdefault(code, code)
-    return pairs, initials
-
-def split_entries(cell):
-    """A cell may hold 2 parallel entries joined by ' · '."""
-    return [e.strip() for e in cell.split("·")]
+from scripts.cell_parser import (  # noqa: E402
+    legend_pairs, split_entries, parse_cell,
+)
 
 ROMAN = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8}
-
-def parse_cell(entry, legend_codes, legend_initials, glossary_initials):
-    """Parse one grid entry -> cell dict."""
-    e = entry.strip()
-    up = e.upper()
-    cell = {"kind": None, "subject": None, "batch": None, "faculty": [], "room": None,
-            "online": False, "label": e}
-    if not e or e in ("—", "-", "–", ""):
-        cell["kind"] = "FREE"
-        return cell
-    if re.search(r"\bBREAK\b|\bLUNCH\b", up):
-        cell["kind"] = "BREAK"
-        return cell
-    if re.search(r"NOTIONAL|SL/CL|CO-CURRICULAR|EXTRA-CURRICULAR|SELF-LEARNING|LIBRARY|MENTORING", up):
-        cell["kind"] = "NOTIONAL"
-        return cell
-    if re.search(r"\bPROJECT\b|PROJECT-I", up):
-        cell["kind"] = "ACTIVITY"
-        cell["subject"] = "PROJECT"
-        return cell
-    if re.search(r"\bIC\b|INDIAN CONSTITUTION", up) and re.search(r"ONLINE|ON-LINE", up):
-        cell["kind"] = "ACTIVITY"
-        cell["subject"] = "IC"
-        cell["online"] = True
-        return cell
-    # rooms
-    rooms = re.findall(r"\b(\d{3})\b", e)
-    if rooms:
-        cell["room"] = rooms[0]
-        if len(rooms) > 1 and "/" in e:
-            cell["room"] = "/".join(rooms)
-    # batch ids like A1A2 / D1D2 / C3C4 / B1B2 / (A1/A2) / A1 A2
-    bm = (re.search(r"\b([A-D])([1-4])\s*/\s*\1\s*([1-4])\b", e)
-          or re.search(r"\b([A-D])([1-4])\s*[A-D]?\s*([1-4])\b", e))
-    if bm:
-        cell["batch"] = [int(bm.group(2)), int(bm.group(3)) if bm.lastindex >= 3 else int(bm.group(2))]
-    elif re.search(r"Batch\s*([1-9])\b", e, re.I):
-        bs = re.findall(r"Batch\s*([1-9])\b", e, re.I)
-        cell["batch"] = [int(b) for b in bs]
-    # faculty initials: tokens that appear in legend initials or glossary.
-    # Two passes: the short form catches 1-2 uppercase (SuS, PD, NW); the long
-    # form catches 3+ uppercase glossary initials (SPS, VNS, HPK) that the
-    # short regex silently drops — a real source of duplicate-faculty windows.
-    toks = re.findall(r"\b[A-Z][a-z]?[A-Z]?[a-z]?\b", e)
-    known = legend_initials | glossary_initials
-    fac = [t for t in toks if t in known and len(t) >= 2 and t not in legend_codes]
-    if len(fac) <= 1:
-        long_toks = re.findall(r"\b[A-Z]{2,4}\b", e)
-        extra = [t for t in long_toks if t in known and t not in fac and t not in legend_codes]
-        if extra and len(fac) == 0:
-            fac = extra
-        elif extra and len(fac) == 1:
-            fac = fac + [t for t in extra if t != fac[0]]
-    if fac:
-        cell["faculty"] = fac
-    # subject: leading code token matching a legend code
-    for t in toks:
-        if t in legend_codes:
-            cell["subject"] = t
-            break
-    if cell["subject"] is None:
-        # patterns like "Lab DBMS", "M III GS", "OE II PDD", "PE II DA/IS/CC"
-        m = re.match(r"^(?:Lab\s+)?([A-Z][A-Za-z0-9&/.\- ]{1,14}?)\s+(?=[A-Z]|\d{3}|$)", e)
-        if m:
-            cand = m.group(1).strip()
-            if cand in legend_codes or cand.split()[0] in legend_codes:
-                cell["subject"] = cand if cand in legend_codes else cand.split()[0]
-    # kind
-    if re.search(r"^\s*Lab\b", e):
-        cell["kind"] = "LAB"
-    elif re.search(r"TuT|TUT", up):
-        cell["kind"] = "TUTORIAL"
-    elif re.search(r"ONLINE|ON-LINE", up):
-        cell["kind"] = "LECTURE"
-        cell["online"] = True
-    elif cell["subject"]:
-        cell["kind"] = "LECTURE"
-    else:
-        cell["kind"] = "ACTIVITY"
-    return cell
-
 # --------------------------------------------------------------------------
 # glossary: initial -> name
 # --------------------------------------------------------------------------
