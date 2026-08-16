@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, Enum, Text, DateTime, ForeignKey, Integer, Date, Time
+from sqlalchemy import String, Boolean, Enum, Text, DateTime, ForeignKey, Integer, Date, Time, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 from datetime import datetime, date, time
@@ -77,6 +77,12 @@ class TimetableGeneration(Base):
     # placed run stays NULL; the API surfaces it so clients see a COMPLETED
     # run that still dropped sessions.
     placement_warning: Mapped[str | None] = mapped_column(Text)
+    # Pre-solve demand-vs-capacity report (A4): computed before the solver
+    # runs and stored so the UI can show why a run is expected to leave
+    # sessions unplaced, or why it failed before solving. JSON:
+    #   {"feasible": bool, "per_group": {...}, "per_room_type": {...},
+    #    "per_faculty": {...}}
+    feasibility_report: Mapped[dict | None] = mapped_column(JSON)
 
 class TimetableInstance(Base):
     __tablename__ = "timetable_instances"

@@ -21,6 +21,11 @@ class ConstraintType(str, enum.Enum):
     RESPECT_ROOM_BLACKOUT = "RESPECT_ROOM_BLACKOUT"
     CONTIGUOUS_LAB_SLOTS = "CONTIGUOUS_LAB_SLOTS"
     EXAM_DATE_SEPARATION = "EXAM_DATE_SEPARATION"
+    # Phase 3 (D6): turned OFF for imported data because they compare invented
+    # quantities (capacity/strength, 8h/30h caps). In the enum so a profile row
+    # can re-enable them the day real numbers arrive.
+    FACULTY_MAX_HOURS_PER_DAY = "FACULTY_MAX_HOURS_PER_DAY"
+    FACULTY_MAX_HOURS_PER_WEEK = "FACULTY_MAX_HOURS_PER_WEEK"
     # Hard — data-driven (opt-in per profile via config_json; see registry)
     SUBJECT_TIME_PREFERENCE = "SUBJECT_TIME_PREFERENCE"
     MAX_CONSECUTIVE_SAME_TEACHER = "MAX_CONSECUTIVE_SAME_TEACHER"
@@ -56,6 +61,8 @@ HARD_CONSTRAINT_TYPES = [
     ConstraintType.RESPECT_ROOM_BLACKOUT,
     ConstraintType.CONTIGUOUS_LAB_SLOTS,
     ConstraintType.EXAM_DATE_SEPARATION,
+    ConstraintType.FACULTY_MAX_HOURS_PER_DAY,
+    ConstraintType.FACULTY_MAX_HOURS_PER_WEEK,
     ConstraintType.SUBJECT_TIME_PREFERENCE,
     ConstraintType.MAX_CONSECUTIVE_SAME_TEACHER,
     ConstraintType.MAX_DAILY_SUBJECTS,

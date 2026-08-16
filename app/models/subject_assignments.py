@@ -59,6 +59,13 @@ class SubjectAssignment(Base):
     # slot span. NULL falls back to the CONTIGUOUS_LAB_SLOTS rule.
     block_length: Mapped[int | None] = mapped_column(nullable=True)
 
+    # Demand provenance (A3/C5): GRID = weekly_hours derived from the
+    # published grid's cells; SCHEME = fell back to the scheme constant
+    # because the grid was silent on this (subject, division); AUTOFILL = the
+    # importer's --fill-gaps step invented it (reported data gap). NULL for
+    # rows created through the API by hand.
+    source: Mapped[str | None] = mapped_column(String(10), nullable=True)
+
     # Relationships for easy querying
     subject = relationship("Subject", backref="assignments")
     faculty = relationship("Faculty", backref="subject_assignments")
