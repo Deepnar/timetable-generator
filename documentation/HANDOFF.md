@@ -12,34 +12,32 @@ Read `AGENTS.md` (repo root) first — commands, test entry points, commit rules
 
 ## The one-paragraph situation
 
-237 → **237 tests pass** (Phase 3 tests added; two baseline tests updated to use the new
-institutional toggle). **Phase 3 — Honest demand and honest allocation is DONE.** The importer now
-reads weekly hours from the published grids instead of inventing them, auto-fill is an explicit
-`--fill-gaps` step that only picks qualified teachers, a new `faculty_subject_competency` table
-gates every invented assignment and the solver's lab-batch fallback, `profile_resources` dropped
-from 3,710 to 96 rows, every assignment carries `source` provenance, the invented-quantity
-constraints (room capacity, faculty caps) are off unless a profile row re-enables them, a
-pre-solve feasibility report fails loud before solving, and OR-Tools was fixed to actually place
-labs on real data. Recorded as **DD-037..041**.
+**Phase 3b items 1–4 — constraint tiering — is DONE (DD-042, 241 tests green, pushed).**
+`STRUCTURAL_RULES` split into `INVARIANT_RULES` (physics, always-on) and
+`DEFAULT_INSTITUTIONAL_RULES` (policy: SAME_SUBJECT_SAME_DAY, MAX_ONE_LAB_PER_DAY,
+CROSS_DEPT_DAILY_CAP, ROOM_CAPACITY_SUFFICIENT, both faculty caps). Institutional rules fire
+**only** from a profile/college-default `hard_constraints` row (`profile_id NULL` = college-wide);
+migration `c9d4e8f2a6b0` seeds the three that were always-on, and the importer re-seeds them
+after `--wipe`. All 8 previously-unreachable validators are now in the `ConstraintType` enum with
+a **startup parity assertion** (`assert_registry_enum_parity` in `app/main.py` lifespan — the app
+refuses to start if registry and enum drift). `GET /constraints/types` returns tier +
+config JSON-schema per type (`CONSTRAINT_TIERS` / `CONFIG_SCHEMAS` in the registry), so a
+registrar can now change "max labs per day" or turn SAME_SUBJECT_SAME_DAY off through
+`POST/PUT/DELETE /constraints/hard` — no code change. OR-Tools gates its SAME_SUBJECT_SAME_DAY
+parity on an active row to match greedy. Live DB migrated and verified; backend restarted.
 
-**Measured on the 11 COMP divisions (re-seeded with `--fill-gaps`):**
+**Remaining in Phase 3b: item 5** — move the importer's hardcoded constants into an
+institution-profile document (see below). The **constraint editor UI** (the phase's done-when)
+is scheduled with Phase 6's frontend work.
 
-| Metric | Phase 2 | Phase 3 | Target |
-|---|---|---|---|
-| (subject, division) hours within ±1 of grid | flat 3h everywhere | **48 of 51** | ±1 |
-| teachers over cap | 2 | **0** | 0 |
-| profile_resources (FACULTY) | 3,710 | **96** | few hundred |
-| assignment rows | 200 (grid + invented) | **154 GRID + 19 AUTOFILL** | GRID-only |
-| constraint firing on invented number | 3 structural | **0** (toggle) | 0 |
-| OR-Tools labs on COMP-TE-D | 0 | **8 of 12** (23/27 placed) | parity with greedy |
-| OR-Tools labs on COMP-SE-A | 0 | **12 of 16** (29/33 placed) | parity with greedy |
-| unplaced sessions (greedy) | present | still present | 0 (Phase 4) |
-
-> The 3 hour-misses are all **PROJECT** (BE-A/B/C): the college's grid cells for PROJECT name no
-> teacher at all, so no competency exists and no assignment can be made — an honest data gap the
-> registrar must resolve, not a solver bug. The OR-Tools shortfall is the same story: the 4
-> unplaced sessions are the shared-faculty window from DD-036 (Gaurav Nair on CG batches 3+4;
-> Preksha Pareek on DS batches 1+2) — CP-SAT correctly refuses to split a window.
+**Standing answer on "are the current website timetables good?"** No — and don't judge yet.
+Live DB check (16 Aug 2026): 4 of the last 11 runs carry placement warnings (1–3 unplaced each);
+instances 10/11 are sparse (7/19 slots). They are per-division greedy solves: faculty caps never
+compose across divisions, early divisions get first pick, scoring/preference scan is off by
+default. Phase 4 (cohort solving, zero unplaced) changes the output fundamentally; the honest
+yardstick is Phase 5 (fidelity scorer library + synthetic problem generator — any unplaced
+session then provably a solver bug). What IS worth checking now: rendering correctness
+(Phase 6 C1–C4), not timetable quality.
 
 ---
 
@@ -48,50 +46,28 @@ labs on real data. Recorded as **DD-037..041**.
 Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are cross-referenced as
 **[A*n*]** (engine), **[B*n*]** (bugs/security), **[C*n*]** (frontend), **[D*n*]** (generality).
 
-> **Scope rule for Phases 0–5: COMP only.** Set `REAL_DATA_CODES = {"COMP"}` in
-> `scripts/import_tcet.py` and re-seed. 11 divisions with a real roster exercise every hard case.
-> The other five branches are shape-only synthetic — they add no signal and make bugs
-> unattributable. Re-admit IT at Phase 5. See **[D5]**.
+> **Scope rule for Phases 0–5: COMP only.** `REAL_DATA_CODES = {"COMP"}` in
+> `scripts/import_tcet.py`. 11 divisions with a real roster exercise every hard case.
+> The other five branches are shape-only synthetic. Re-admit IT at Phase 5. See **[D5]**.
 
-> ### 🧪 Know what is real before you tune anything — **[D6]**
->
-> Live DB is now **COMP-only**. Current COMP seed (with `--fill-gaps`): **41 rooms, 392 faculty
-> (~59 synthetic for unresolved initials), 11 groups, 30 subjects, 173 assignments (154 GRID +
-> 19 AUTOFILL), 100 competency rows**.
->
-> **The only fully real artefacts are `info/import/timetables.json` (46 grids) and
-> `info/import/grids.json`.** Everything else is a real *name* with an invented *quantity*.
->
-> Two consequences, both load-bearing:
-> 1. **No constraint may depend on an INVENTED quantity.** Done in Phase 3 (DD-039):
->    `ROOM_CAPACITY_SUFFICIENT` and both faculty caps left `STRUCTURAL_RULES`; a profile
->    `hard_constraints` row re-enables each (the INSTITUTIONAL toggle; the two faculty-cap types
->    were added to the `ConstraintType` enum so the toggle is API-reachable). Measured: they
->    rejected 0 of 31,370 candidates before, so removal changed nothing on the live data.
-> 2. **Score fidelity only against `timetables.json`.** The Phase 3 exit metric — weekly hours per
->    (subject, division) within ±1 — is measured grid-vs-assignment (see the appendix script
->    below) and depends on zero invented quantities.
+### Phase 3b — remainder: importer constants → institution profile (1–2 days) ← **start here**
 
-### Phase 3b — Make constraints editable (2 days) ← **start here**
+Items 1–4 are done (DD-042, migration `c9d4e8f2a6b0`). Remaining, **[D2]**:
 
-**Eight registered validators are not in the `ConstraintType` enum**, so they are unreachable through
-the API and only insertable by direct DB write — including `SAME_SUBJECT_SAME_DAY` and
-`MAX_ONE_LAB_PER_DAY`, the two that contradict reality most. (Phase 3 added only the two faculty
-caps; the rest of the drift is untouched.)
+1. Move the importer's hardcoded constants out of `scripts/import_tcet.py` into a declarative
+   institution document the college owns (profile params where scoped, else a settings/config
+   file the importer reads). The list, all still hardcoded: `_scheme_hours` (L:3/T:1/P:2 fallback,
+   `import_tcet.py:105`), the per-year strengths `{1:63, 2:63, 3:70, 4:60}` (`:500`), and
+   `batches = 3 if year == 1 else 2` (`:749`). `lunch_break_after_slot` no longer exists (Phase 1
+   removed the synthetic arithmetic); `default_block_length` already flows through
+   CONTIGUOUS_LAB_SLOTS profile rows. `REAL_DATA_CODES` is a scope gate — decide whether it
+   becomes an importer CLI flag or stays a constant.
+2. Record the decision as **DD-043** (where the document lives: `info/import/institution.json`?
+   `CollegeSettings.config_json`? profile params?) — the audit's D2 sketch shows
+   `scheme_hours: {L:3,T:1,P:2}` as an institution-profile field.
 
-1. Split `STRUCTURAL_RULES` (`constraint_registry.py:43`) into `INVARIANT_RULES` (physics: double
-   booking, cross-timetable) and `DEFAULT_INSTITUTIONAL_RULES` (policy: same-subject-same-day, lab
-   caps, faculty caps, room capacity).
-2. Institutional rules fire only from a profile/college-default row; migration seeds current
-   behaviour so nothing changes silently.
-3. Add all 8 missing validators to `ConstraintType`; add a **startup assertion** that the registry
-   and the enum are the same set. That drift caused the gap. **[A10]**
-4. `GET /constraints/types` returns tier + JSON-schema per `config_json`; build the UI editor.
-5. Move every hardcoded constant out of `import_tcet.py` into institution-profile parameters
-   (`REAL_DATA_CODES`, `lunch_break_after_slot=4`, `default_block_length=2`, the `{1:63,...}`
-   strengths, `_scheme_hours`, `batches = 3 if year==1 else 2`). **[D2]**
-
-**Done when:** a registrar can change "max labs per day" or the break slot in the UI, no code change.
+**Done when:** adding a second fixture college (`fixtures/other.json`, D3) requires zero
+`app/engine/` changes and only adapter changes in the importer.
 
 ### Phase 4 — Solve the cohort, not the division (5–8 days)
 
@@ -144,9 +120,13 @@ grid defects are exactly C2 + C3/C4, verified in code — the backend data is co
    already has the truth (`break_slots` + verbatim `slot_times` per profile) but the instance
    page never fetches profile params. Fix: `breakSlots: number[]` prop + required `slotTime`,
    fed from the profile's params. **[C3, C4]**
-4. Post-generation review: score breakdown, unplaced list **with reasons** (the checker already
+4. **Constraint editor UI** — the Phase 3b done-when: `GET /constraints/types` now returns
+   tier + config JSON-schema per type; the editor renders a form from it and writes
+   `hard_constraints` rows (profile_id NULL for college defaults). Include the DD-039 toggle
+   affordance for capacity/caps.
+5. Post-generation review: score breakdown, unplaced list **with reasons** (the checker already
    produces them and they are discarded), diff vs published. **[C6]**
-5. Accessibility: grid semantics, keyboard nav, non-colour subject encoding; move route protection
+6. Accessibility: grid semantics, keyboard nav, non-colour subject encoding; move route protection
    from `ProtectedShell` to middleware. **[C7]**
 
 ### Phase 7 — Security hardening (2 days)
@@ -160,6 +140,11 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 
 ## Open design decisions (from `design-decisions.md` — carry forward)
 
+- **DD-042 follow-up (Phase 3b item 5)** — importer constants (`_scheme_hours`, strengths,
+  batch counts) move to an institution-profile document; decide where (DD-043). Profile-level
+  override semantics for a college-default rule are also unresolved: a profile row currently
+  *adds to* the default; it cannot switch a default off for one profile alone — the UI edits
+  the default row instead.
 - **DD-036 follow-up** — the 9 scattered lab windows are shared-faculty data gaps: unresolved
   initials (HP vs HPK, SPS, etc.) resolve two batches of a window to the same teacher, so the
   window cannot co-locate (distinct-faculty rule). Fix via faculty resolution /
@@ -170,8 +155,8 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
   (a `faculty_subject_competency` row + an assignment).
 - **DD-038 follow-up** — `preference_weight` on `faculty_subject_competency` is collected but not
   yet used by the least-loaded picker; a UI to manage competencies is a Phase 6/3b item.
-- **DD-039 follow-up** — the institutional toggle needs a UI affordance (Phase 3b's constraint
-  editor); until then re-enabling caps/capacity is a profile-row insert.
+- **DD-039 follow-up** — the institutional toggle (re-enabling capacity/caps) now works via the
+  constraint editor UI (Phase 6); until then it is a profile-row insert.
 - **DD-034 follow-up** — the real grids sometimes move the break by day (COMP-SE-A: slot 4 Mon-Wed,
   slot 5 Thu-Fri); the single `break_slots: [int]` picks the modal slot. Per-(day, slot) break data
   is a future refinement.
@@ -204,7 +189,7 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 - **No college constants in `app/engine/`.** They belong in institution-profile parameters. **[D2]**
 - **Commits**: many small focused ones, impersonal voice, staged in logical chunks (`AGENTS.md`).
 - **Docs in the same change**: `timetable-generator-architecture.md` §3 schema / §4 endpoints /
-  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-042 onward in
+  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-043 onward in
   `design-decisions.md`.
 
 ## Reproducing every number in this handoff
@@ -247,8 +232,20 @@ print(f"outside +-1: {len(bad)}/{total}", bad)
 db.close()
 PY
 
-# faculty utilisation / idle / over-cap (audit appendix script #3)
-# greedy vs OR-Tools benchmark (audit appendix script #4) — see system-audit-and-plan.md
+# live-DB published-instance health (unplaced warnings / sparse instances)
+.venv/bin/python - <<'PY'
+from app.database import SessionLocal
+from app.models.generation import TimetableGeneration, TimetableInstance, InstanceStatus
+from sqlalchemy import select
+db = SessionLocal()
+for g in db.scalars(select(TimetableGeneration).order_by(TimetableGeneration.id.desc()).limit(6)):
+    print(f"run {g.id} [{g.generation_status.value}] alg={g.algorithm_used.value} profile={g.profile_id}"
+          + (f" WARNING: {g.placement_warning}" if g.placement_warning else ""))
+db.close()
+PY
+
+# registry/enum parity + tier catalog (the Phase 3b invariants)
+.venv/bin/python -c "from app.engine.constraint_registry import assert_registry_enum_parity; assert_registry_enum_parity(); print('parity OK')"
 ```
 
 ## How to run
@@ -258,22 +255,24 @@ uv run alembic upgrade head
 uv run python scripts/generate_tcet_import.py      # refresh info/import/*.json from the markdown pack
 uv run python -m scripts.import_tcet --wipe --fill-gaps   # seed Postgres (Phase 3: honest demand)
 uv run python -m scripts.generate_college --instances 1 --clear-locks   # publish all (~2 min)
-uv run python -m app.tests                         # 237 tests
+uv run python -m app.tests                         # 241 tests
 cd frontend && npm run typecheck                   # NOT npm run build
 ```
 
 Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host port **5433**.
 
-> **Re-seed with `--fill-gaps`** — the importer now reports data gaps by default and only
-> invents load (source=AUTOFILL, least-loaded qualified teacher) under `--fill-gaps`. The COMP
-> seed uses it so every grid-taught subject has a teacher; PROJECT stays a reported gap.
+> **Re-seed with `--fill-gaps`** — the importer now re-seeds the college-default institutional
+> constraint rows after `--wipe` (SAME_SUBJECT_SAME_DAY / MAX_ONE_LAB_PER_DAY /
+> CROSS_DEPT_DAILY_CAP, profile_id NULL), so a wiped DB keeps the migrated behaviour. Data gaps
+> are reported by default and load is only invented under `--fill-gaps`.
 
 ## Gotchas (carried forward — still true)
 
 - **alembic `env.py` uses `hide_password=False`** — do not revert; the masked URL broke migrations.
 - **`npm run build` corrupts a running `next dev`** — use `npm run typecheck`. If dev hangs on
   "Checking session…": kill it, `rm -rf frontend/.next`, restart.
-- **Backend dev server runs WITHOUT `--reload`** — restart manually after backend edits.
+- **Backend dev server runs WITHOUT `--reload`** — restart manually after backend edits
+  (`kill` the uvicorn pair, `nohup uv run uvicorn app.main:app --port 8000 > /tmp/timetable-api.log 2>&1 &`).
 - **Tests are `uv run python -m app.tests`, not pytest.** New modules register in
   `app/tests/__main__.py`. When a new router is touched by the SQLite tests, add it to the patch loop
   in `app/tests/conftest.py` or it will hit Postgres.
@@ -285,12 +284,18 @@ Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host po
   from the markdown pack — run `generate_tcet_import.py` before `import_tcet.py` if you change
   the parser. Faculty initials are mapped by position within a cell's batch list (D3D4 SPS/PM →
   batch 3 = SPS, batch 4 = PM).
-- **Capacity and faculty caps are OFF unless a profile row enables them** (DD-039) — tests that
-  need them create a `hard_constraints` row first (see `t_faculty_cap`,
-  `t_recurring_blackout`).
+- **Institutional rules fire only from rows** (Phase 3b, DD-042) — tests that need
+  SAME_SUBJECT_SAME_DAY / MAX_ONE_LAB_PER_DAY rely on the college-default rows that
+  `seed_minimal` now inserts (mirroring migration `c9d4e8f2a6b0`); tests that want a rule OFF
+  delete the rows. Capacity and faculty caps stay off unless a `hard_constraints` row enables
+  them (DD-039) — see `t_faculty_cap`, `t_recurring_blackout`.
 - **The feasibility report hard-fails oversubscribed runs with a 409** (DD-040) — an assignment
   asking for more sessions than the week can hold now fails before solving.
 - **OR-Tools window co-location uses presence indicators** (DD-041) — the old per-pair equality
   was infeasible with 2+ room candidates and silently dropped every lab. `unplaced_count` now
-  counts committed sessions, and the faculty caps honour the institutional toggle.
+  counts committed sessions, and the faculty caps + SAME_SUBJECT_SAME_DAY parity honour the row
+  gating.
+- **`GET /constraints/types` shape changed in Phase 3b** — hard/soft are now lists of
+  `{type, tier, config_schema}` objects, not plain strings; the frontend catalog consumer must
+  read `type`.
 - `scripts/seed_demo.py` is a fabricated demo; `scripts/seed_tcet.py` is superseded by the importer.
