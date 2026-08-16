@@ -49,6 +49,12 @@ from app.models import HardConstraint, SoftConstraint
 HERE = os.path.dirname(os.path.abspath(__file__))
 IMPORT_DIR = os.path.join(os.path.dirname(HERE), "info", "import")
 
+# The college-default institutional constraint rows seeded by migration
+# c9d4e8f2a6b0. ``--wipe`` truncates hard_constraints, so the importer
+# re-seeds them to keep the migrated behaviour after a full re-import
+# (Phase 3b, A10: institutional policy lives in rows, not in code).
+from app.engine.constraint_registry import DEFAULT_INSTITUTIONAL_CONFIGS  # noqa: E402
+
 # Only import the branches with real published-grid knowledge. MBA/MCA/BCA,
 # AI&ML, AI&DS, IoT, CSE-IoT, CS&E, MME and the FE group either publish no
 # grids or their grids carry no resolvable subject/faculty data — leave them
@@ -165,6 +171,32 @@ def wipe(db) -> None:
             db.execute(text(f"TRUNCATE {t} RESTART IDENTITY CASCADE"))
 
 
+def _seed_institutional_defaults(db) -> None:
+    """Re-seed the college-default institutional constraint rows.
+
+    ``--wipe`` truncates hard_constraints, taking the migration-seeded
+    defaults with it. Institutional policy rules fire only from a row
+    (Phase 3b, A10), so without these a wiped DB would silently lose
+    SAME_SUBJECT_SAME_DAY / MAX_ONE_LAB_PER_DAY / CROSS_DEPT_DAILY_CAP.
+    Idempotent: rows that already exist are left untouched.
+    """
+    existing = set(
+        db.scalars(
+            select(HardConstraint.constraint_type).where(
+                HardConstraint.profile_id.is_(None))
+        ).all()
+    )
+    for rule_type, config in DEFAULT_INSTITUTIONAL_CONFIGS.items():
+        if rule_type in existing:
+            continue
+        db.add(HardConstraint(
+            profile_id=None, constraint_type=rule_type,
+            config_json=dict(config),
+            description=f"college default: {rule_type.lower().replace('_', ' ')}",
+        ))
+    db.flush()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wipe", action="store_true",
@@ -201,6 +233,8 @@ def main() -> int:
         if args.wipe:
             print("wiping scheduling tables…")
             wipe(db)
+            print("seeding college-default institutional constraints…")
+            _seed_institutional_defaults(db)
 
         from app.models.admin import Admin
         admin = db.query(Admin).first()
@@ -822,12 +856,12 @@ def _make_profile(db, admin, name, sem, dept, rooms, faculty, groups,
     # Lab windows are 1 slot for most grids (the audit measured 1-slot in 131
     # of 133 real labs); the per-row ``block_length`` from the grid carries the
     # true span (2 only for BE's merged block). This rule is the fallback for
-    # subjects without a per-row span. At most one practical window per day.
+    # subjects without a per-row span. At most one practical window per day is
+    # a college default (profile_id NULL, seeded by migration + the importer),
+    # so no per-profile row is needed here.
     db.add(HardConstraint(profile_id=prof.id, constraint_type="CONTIGUOUS_LAB_SLOTS",
                           config_json={"default_block_length": 1},
                           description="lab window slot span (fallback; grid block_length wins)"))
-    db.add(HardConstraint(profile_id=prof.id, constraint_type="MAX_ONE_LAB_PER_DAY",
-                          config_json={}, description="max one practical subject per day"))
     # Soft scorer: how much of the division's load stays in its venue (A5).
     db.add(SoftConstraint(profile_id=prof.id, constraint_type="ROOM_STABILITY",
                           config_json={}, weight=1.0,
