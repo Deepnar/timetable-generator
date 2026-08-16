@@ -246,6 +246,45 @@ Phase 6's frontend work. Next: **Phase 4 — Solve the cohort, not the division*
 
 ---
 
+## 🧪 Phase 4 — Solve the cohort, not the division — first tranche (16 Aug 2026, DD-044 / A4 / A6)
+
+The audit's "one division at a time, published-sequentially" and "one-shot greedy" findings,
+attacked from the data side first.
+
+- [x] **DD-044 — the cell parser reads position** — lab faculty sit between the batch pattern
+  and the room (no glossary gate), the subject is the first legend-code token with long forms
+  included, lecture faculty sit between subject and room gated by known initials. The old gate
+  dropped every pair's second initial ("Lab CG D3D4 SuS/HP" → [SuS]) and mis-took a faculty
+  initial that collides with a subject code as the subject ("IIS MP 608" → subject MP) —
+  inflating TE-B's MP to 6h and deleting its IIS lectures. `parse_cell` moved to
+  `scripts/cell_parser.py` (unit-testable without re-running the adapter).
+- [x] **DD-044 — single-teacher batch pairs merge in the solver** — window members that share
+  (subject, faculty) ("Lab DWM A1A2 SG") merge into ONE session covering the pair, so the
+  window co-locates instead of failing and scattering its members (which saturated
+  `MAX_ONE_LAB_PER_DAY` and left members unplaced).
+- [x] **A6 — fail-fast `is_valid`** — the acceptance test returns on the first violation;
+  `check_all` keeps the full report for diagnostics.
+- [x] **A6 — most-constrained-first ordering** — sessions sort by room scarcity × faculty
+  demand × group load × block size instead of two booleans.
+- [x] **A6 — quality is the default** — with soft rules active every seeded attempt is scored
+  and the best-scoring distinct one is kept, for every variation.
+- [x] **A4 — published faculty load feeds the caps** — `_load_published_conflicts` returns
+  per-faculty day/week counts; `FACULTY_MAX_HOURS_PER_DAY/WEEK` measure candidate + committed +
+  published, so caps compose across runs.
+- [x] **Deferred with measurement** — the committed-slot index refactor: fresh solves of all 11
+  divisions take 0.55s total, so the linear scans are not yet the bottleneck.
+
+**Measured (11 COMP divisions, fresh solves):** **unplaced 10 → 0** (0.55s total, well under
+the minute-per-cohort budget); hours-per-(subject, division) 3/53 outside ±1, all PROJECT (the
+honest no-mentor gap); all 11 divisions republished with zero unplaced sessions; 256 tests
+green (11 new: parser rules, pair merging, fail-fast, published-load caps, published counts).
+
+**Remaining in Phase 4:** cohort profiles — one generation per (department, year) — which is a
+product-shape decision (how a cohort instance maps to the per-division UI) needing DD-045; and
+construct-then-repair LNS (A11).
+
+---
+
 ## 🔎 Newly Identified (cross-check pass — not yet on the roadmap)
 
 Bugs/gaps found while auditing that `plan.md` does **not** already cover:

@@ -973,3 +973,38 @@ edit round-trips through the API and the re-seeded facts survive.
 caps (`max_hours_per_week=30`, `max_hours_per_day=8`) are still adapter constants; they are
 invented quantities (D6) — the caps are inert without a constraint row. A future pass can move
 them into the document the same way.
+
+### DD-044 — Lab pairs and initials are positional: one teacher per pair means one session
+
+**Status: Decided / Tested.**
+
+**Problem.** Two parser losses masqueraded as "shared-faculty lab windows" (DD-036): the
+glossary gate dropped the second initial of a lab pair ("Lab CG D3D4 SuS/HP" → `[SuS]`), and a
+faculty initial that collides with a subject code was taken as the subject ("IIS MP 608" →
+subject MP, faculty `[]`). Both turned real parallel windows into unco-locatable ones and
+inflated demand (TE-B's MP got 6h instead of 3; its IIS lectures vanished). A genuinely
+single-teacher pair ("Lab DWM A1A2 SG 324") then emitted two member rows sharing one faculty —
+a window that can never co-locate (one teacher cannot run two batches at once), so the window
+failed and its members scattered, saturating `MAX_ONE_LAB_PER_DAY` and leaving members unplaced
+(10 across the 11 COMP divisions, all lab members).
+
+**Decision.** The cell parser reads **position**: lab faculty sit between the batch pattern and
+the room (position is decisive — no glossary gate), the subject is the first legend-code token
+in label order with long forms included, and lecture faculty sit between subject and room still
+gated by known initials so elective course names ("ERP"/"IOT") are never teachers. `parse_cell`
+moved to `scripts/cell_parser.py` so the rules are unit-testable. In the solver, window members
+that share (subject, faculty) — a single-teacher pair — **merge into one session** covering the
+full batch list (representative batch recorded on the slot), so the window co-locates and the
+pair's students stay covered.
+
+**Measured.** Unplaced across the 11 COMP divisions: **10 → 0** (fresh solves, 0.55s total).
+Hours-per-(subject, division) metric: 3/53 outside ±1, all PROJECT (the honest no-mentor gap).
+256 tests green. All 11 divisions republished with zero unplaced sessions.
+
+**Follow-ups (OPEN).** The batch-pair coverage of a merged session is recorded as
+`batch_list` on the session but only the representative `batch_number` reaches the slot; the
+frontend cell renderer (Phase 6 C2) should show the full pair from `window_key`/`batch_list`.
+**Cohort profiles** (Phase 4 item 2) and **construct-then-repair LNS** (item 6) remain; the
+committed-slot index refactor was deferred — measured solves are 0.55s for all 11 divisions, so
+the linear scans are not yet the bottleneck. The college still owes mentors for PROJECT
+(DD-037) and the unresolved initials that synthetic faculty now stand in for.

@@ -152,5 +152,10 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 > hours, per-year strengths, per-year batch counts — moved into
 > `CollegeSettings.config_json`, seeded once and registrar-editable via `PUT /settings`, with
 > the scope gate becoming the `--codes` CLI flag and `config_json` updates merging). The
-> constraint editor UI itself is scheduled with Phase 6's frontend work. Next: **Phase 4 —
-> Solve the cohort, not the division**.
+> constraint editor UI itself is scheduled with Phase 6's frontend work. **Phase 4 — Solve the
+> cohort, not the division, is IN PROGRESS** (DD-044: the cell parser reads lab faculty
+> positionally and single-teacher batch pairs merge into one session — unplaced across the 11
+> COMP divisions dropped 10 → 0; A6: fail-fast `is_valid`, most-constrained-first ordering,
+> best-scoring-distinct-attempt quality default; A4: published faculty load counts feed the
+> caps). Remaining in Phase 4: cohort profiles (one generation per (department, year) — a
+> product-shape decision, DD-045) and construct-then-repair LNS (A11).
