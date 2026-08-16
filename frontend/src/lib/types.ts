@@ -66,6 +66,14 @@ export interface Generation {
   completed_at: string | null;
   error_log: string | null;
   placement_warning: string | null;
+  feasibility_report: {
+    feasible: boolean;
+    summary: string;
+    weekly_slots: number;
+    per_group: { group_id: number; name: string; demand_sessions: number; capacity_sessions: number; ok: boolean }[];
+    per_room_type: { room_type: string; demand_sessions: number; capacity_sessions: number; ok: boolean }[];
+    per_faculty: { faculty_id: number; name: string; demand_hours: number; max_hours_per_week: number | null; ok: boolean }[];
+  } | null;
 }
 
 export interface Instance {
@@ -142,6 +150,8 @@ export interface SubjectAssignment {
   group_id: number;
   weekly_hours: number;
   load_share: number;
+  /** Demand provenance: GRID | SCHEME | AUTOFILL, null for hand-made rows. */
+  source: string | null;
 }
 
 export interface ProfileResource {

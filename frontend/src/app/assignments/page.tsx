@@ -279,6 +279,25 @@ export default function AssignmentsPage() {
                                   <span className="block truncate text-xs font-medium text-ink">{f?.name ?? "—"}</span>
                                 </span>
                                 <Badge variant="neutral" className="shrink-0">{a.weekly_hours}h</Badge>
+                                {a.source && (
+                                  <span
+                                    title={
+                                      a.source === "GRID"
+                                        ? "Hours derived from the published grid"
+                                        : a.source === "SCHEME"
+                                          ? "Grid silent on this class — scheme hours used as a fallback"
+                                          : "Invented by --fill-gaps — a data gap the college should resolve"
+                                    }
+                                    className={cn(
+                                      "shrink-0 rounded px-1 text-[10px] font-semibold uppercase tracking-wide",
+                                      a.source === "GRID" && "bg-success/10 text-success",
+                                      a.source === "SCHEME" && "bg-warning/10 text-warning",
+                                      a.source === "AUTOFILL" && "bg-destructive/10 text-destructive",
+                                    )}
+                                  >
+                                    {a.source === "AUTOFILL" ? "fill" : a.source.toLowerCase()}
+                                  </span>
+                                )}
                               </>
                             ) : (
                               <span className="flex items-center gap-1 text-xs">
