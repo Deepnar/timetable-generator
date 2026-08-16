@@ -13,15 +13,21 @@ Consumes the JSON emitted by ``scripts/generate_tcet_import.py`` (spec:
 - ``source`` provenance (GRID | SCHEME | AUTOFILL) per assignment row.
 
 Demand is honest (A3): assignment ``weekly_hours`` comes from the published
-grid's own cell counts (``_derive_hours``), and ``_scheme_hours`` is only the
-logged fallback when the grid is silent on a (subject, division). The old
-unconditional auto-fill is gone; ``--fill-gaps`` re-enables it as an explicit,
-reported step that assigns the least-loaded *qualified* teacher and stamps
-``source=AUTOFILL`` (A9). Data gaps are printed by default so the registrar
-sees exactly what the college has not published.
+grid's own cell counts (``_derive_hours``), and the institution's ``scheme_hours``
+document is only the logged fallback when the grid is silent on a (subject,
+division). The old unconditional auto-fill is gone; ``--fill-gaps`` re-enables
+it as an explicit, reported step that assigns the least-loaded *qualified*
+teacher and stamps ``source=AUTOFILL`` (A9). Data gaps are printed by default
+so the registrar sees exactly what the college has not published.
+
+College-level facts (D2, DD-043) — scheme hours, per-year class strengths,
+per-year lab batch counts — live in ``CollegeSettings.config_json``; the
+importer seeds them once and reads them back, so ``PUT /settings`` edits win.
+``--codes`` scopes the import to the department codes with real published
+grids (default: COMP).
 
 Usage:
-    uv run python -m scripts.import_tcet [--wipe] [--fill-gaps]
+    uv run python -m scripts.import_tcet [--wipe] [--fill-gaps] [--codes COMP]
 """
 from __future__ import annotations
 
@@ -61,8 +67,30 @@ from app.engine.constraint_registry import DEFAULT_INSTITUTIONAL_CONFIGS  # noqa
 # out until the college supplies real data.
 # Phase 0-5 scope (D5): COMP only — 11 divisions with a real roster exercise
 # every hard case; the other branches are shape-only synthetic and make bugs
-# unattributable. Re-admit IT at Phase 5, the rest after.
-REAL_DATA_CODES = {"COMP"}
+# unattributable. Re-admit IT at Phase 5 with `--codes COMP,IT` (D2: the
+# scope is an adapter invocation knob, not a constant).
+DEFAULT_REAL_DATA_CODES = "COMP"
+
+# Institution facts this adapter knows about TCET (D2, DD-043). The importer
+# seeds them into ``CollegeSettings.config_json`` — the college's declarative
+# document — at the start of an import, and reads them BACK from there, so a
+# registrar can change any of them through ``PUT /settings`` with no code
+# change. A different college writes a different adapter (or fills the form by
+# hand) and the engine never changes. Keys that already exist in the document
+# are never overwritten.
+_INSTITUTION_FACT_SEEDS = {
+    # Real weekly hours per stream kind: ~3 lectures, 1 tutorial, 2h lab, 2h
+    # activity. The grid cell-count derivation is noisy (it over-requests the
+    # week — e.g. a class ends up asking for 88 sessions in a 54-slot week).
+    # The published scheme is the truth: a lecture subject runs 3×/week, a
+    # tutorial 1×, a practical 2h once a week per batch.
+    "scheme_hours": {"LECTURE": 3, "TUTORIAL": 1, "LAB": 2, "ACTIVITY": 2},
+    # Class strengths per year when the source does not publish them (lateral-
+    # entry SE matches FE, TE is the largest cohort).
+    "year_strengths": {"1": 63, "2": 63, "3": 70, "4": 60},
+    # Lab batch counts per year (a division splits into parallel practicals).
+    "batches_per_year": {"1": 3, "2": 2, "3": 2, "4": 2},
+}
 
 KIND_SESSION = {
     "LECTURE": "LECTURE",
@@ -102,15 +130,40 @@ def _requirements(kind: str, room_type, is_online: bool) -> dict | None:
     return {"session_type": KIND_SESSION.get(kind, "CUSTOM"), "room_types": ["CLASSROOM"]}
 
 
-def _scheme_hours(kind: str) -> int:
-    """Real weekly hours per stream kind: ~3 lectures, 1 tutorial, 2h lab, 2h activity.
+def _parse_codes(value: str) -> set[str]:
+    """Parse the --codes CLI flag ("COMP,IT") into a set of department codes."""
+    return {c.strip().upper() for c in value.split(",") if c.strip()}
 
-    The grid cell-count derivation is noisy (it over-requests the week — e.g.
-    a class ends up asking for 88 sessions in a 54-slot week). The published
-    scheme is the truth: a lecture subject runs 3×/week, a tutorial 1×, a
-    practical 2h once a week per batch.
+
+def _institution_facts(db) -> dict:
+    """The college's declarative facts, from ``CollegeSettings.config_json``.
+
+    Keys that are missing from the document (a fresh DB, or a registrar who
+    pruned the blob) are seeded from this adapter's knowledge of its source
+    and written back, so after the first import the document is the single
+    source of truth and ``PUT /settings`` edits win on later runs.
     """
-    return {"LAB": 2, "TUTORIAL": 1, "ACTIVITY": 2}.get(kind, 3)
+    from app.services.settings_service import get_settings
+
+    settings = get_settings(db)
+    cfg = dict(settings.config_json or {})
+    missing = [k for k in _INSTITUTION_FACT_SEEDS if k not in cfg]
+    if missing:
+        print(f"  institution facts missing from CollegeSettings.config_json — "
+              f"seeding: {', '.join(missing)}")
+        for k in missing:
+            cfg[k] = _INSTITUTION_FACT_SEEDS[k]
+        settings.config_json = cfg
+        db.commit()
+    return {
+        k: cfg.get(k, _INSTITUTION_FACT_SEEDS[k])
+        for k in _INSTITUTION_FACT_SEEDS
+    }
+
+
+def _scheme_hours(facts: dict, kind: str) -> int:
+    """Weekly hours per stream kind from the institution's scheme document."""
+    return (facts.get("scheme_hours") or {}).get(kind, 3)
 
 
 def _derive_hours(timetables: list) -> tuple[dict, dict]:
@@ -205,7 +258,12 @@ def main() -> int:
                         help="assign least-loaded qualified teachers to subjects "
                              "the published grids leave unassigned (reported "
                              "as data gaps by default)")
+    parser.add_argument("--codes", default=DEFAULT_REAL_DATA_CODES,
+                        help="comma-separated department codes to import "
+                             f"(default: {DEFAULT_REAL_DATA_CODES!r}; e.g. "
+                             "--codes COMP,IT re-admits IT at Phase 5)")
     args = parser.parse_args()
+    codes = _parse_codes(args.codes)
 
     departments = _load("departments.json")["departments"]
     faculty_rows = _load("faculty.json")["faculty"]
@@ -219,14 +277,14 @@ def main() -> int:
 
     subject_hours, group_hours = _derive_hours(timetables)
 
-    # Scope to the branches with real data.
+    # Scope to the branches with real data (--codes).
     timetables = [t for t in timetables
-                  if t["group_name"].split("-")[0] in REAL_DATA_CODES]
-    groups_rows = [g for g in groups_rows if g["department_code"] in REAL_DATA_CODES]
-    subjects_rows = [s for s in subjects_rows if s["department_code"] in REAL_DATA_CODES]
+                  if t["group_name"].split("-")[0] in codes]
+    groups_rows = [g for g in groups_rows if g["department_code"] in codes]
+    subjects_rows = [s for s in subjects_rows if s["department_code"] in codes]
     assignments_rows = [a for a in assignments_rows
-                        if a["group_name"].split("-")[0] in REAL_DATA_CODES]
-    rooms_rows = [r for r in rooms_rows if r.get("department_code") in REAL_DATA_CODES]
+                        if a["group_name"].split("-")[0] in codes]
+    rooms_rows = [r for r in rooms_rows if r.get("department_code") in codes]
 
     db = SessionLocal()
     try:
@@ -235,6 +293,15 @@ def main() -> int:
             wipe(db)
             print("seeding college-default institutional constraints…")
             _seed_institutional_defaults(db)
+
+        # The college's declarative facts (scheme hours, strengths, batch
+        # counts) come from CollegeSettings.config_json (D2, DD-043): missing
+        # keys are seeded once, registrar edits win forever after.
+        facts = _institution_facts(db)
+        print("  institution facts (CollegeSettings.config_json): "
+              f"scheme_hours={facts['scheme_hours']}, "
+              f"year_strengths={facts['year_strengths']}, "
+              f"batches_per_year={facts['batches_per_year']}")
 
         from app.models.admin import Admin
         admin = db.query(Admin).first()
@@ -338,7 +405,7 @@ def main() -> int:
                     lab_room_names.update(
                         p.strip() for p in str(c["room"]).split("/") if p.strip())
         rooms_by_code: dict[str, Room] = {}
-        rooms_by_dept: dict[str, list[Room]] = {c: [] for c in REAL_DATA_CODES}
+        rooms_by_dept: dict[str, list[Room]] = {c: [] for c in codes}
         for row in rooms_rows:
             is_lab = row["name"] in lab_room_names
             rtype = RoomType.LAB if is_lab else RoomType.CLASSROOM
@@ -382,7 +449,7 @@ def main() -> int:
             # logged fallback when the grid is silent on this subject.
             hrs = subject_hours.get(key)
             if not hrs:
-                hrs = _scheme_hours(row["kind"])
+                hrs = _scheme_hours(facts, row["kind"])
                 scheme_fallback_log.append(
                     f"{row['department_code']} S{row['semester']} "
                     f"{row['code']} ({row['kind']}): grid silent, "
@@ -495,9 +562,11 @@ def main() -> int:
             dept_name = dept_by_code.get(dept_code, {}).get("name", dept_code)
             strength = row.get("strength")
             if strength is None:
-                # Not published; synthesize the realistic shape (lateral-entry
-                # SE matches FE, TE is the largest cohort).
-                strength = {1: 63, 2: 63, 3: 70, 4: 60}.get(row["year"], 60)
+                # Not published; the institution's year_strengths document
+                # supplies the realistic shape (lateral-entry SE matches FE,
+                # TE is the largest cohort).
+                strength = (facts.get("year_strengths") or {}).get(
+                    str(row["year"]), 60)
             home_ids = home_rooms_by_group.get(name, [])
             g = StudentGroup(name=name, group_type=GroupType.DIVISION,
                              department=dept_name, year=row["year"],
@@ -548,7 +617,9 @@ def main() -> int:
                 n += 1
             used_codes.add(code)
             s = Subject(name=name, subject_code=code, department=dept_name,
-                        semester=g.semester, hours_per_week=2, requires_lab=True,
+                        semester=g.semester,
+                        hours_per_week=(facts.get("scheme_hours") or {}).get("LAB", 2),
+                        requires_lab=True,
                         requirements_json={"session_type": "LAB",
                                            "room_types": ["LAB"], "min_capacity": 40})
             db.add(s)
@@ -626,7 +697,9 @@ def main() -> int:
                 faculty.department = g.department
             kind = subject.requirements_json.get("session_type", "LECTURE")
             if row.get("batch_number"):
-                hours = 2  # each batch does the 2h practical once a week
+                # Each batch does the practical once a week; the weekly load is
+                # the institution's scheme hours for LAB (D2).
+                hours = (facts.get("scheme_hours") or {}).get("LAB", 2)
                 source = "GRID"
             else:
                 # The division's grid load for this subject across its
@@ -640,7 +713,7 @@ def main() -> int:
                     hours = grid_total
                     source = "GRID"
                 else:
-                    hours = subject.hours_per_week or _scheme_hours(kind)
+                    hours = subject.hours_per_week or _scheme_hours(facts, kind)
                     source = "SCHEME"
                     assignment_fallback_log.append(
                         f"{row['group_name']} {row['subject_code']} ({kind}): "
@@ -746,12 +819,16 @@ def main() -> int:
                 pick = min(qualified, key=lambda fid: (loads.get(fid, 0), fid))
                 is_lab = subject.requires_lab
                 if is_lab:
-                    batches = 3 if g.year == 1 else 2
+                    # Batch count per year comes from the institution's
+                    # batches_per_year document (D2).
+                    batches = (facts.get("batches_per_year") or {}).get(
+                        str(g.year), 2)
                     for b in range(1, batches + 1):
                         db.add(SubjectAssignment(
                             subject_id=subject.id, faculty_id=pick,
                             group_id=g.id,
-                            weekly_hours=subject.hours_per_week or 2,
+                            weekly_hours=(subject.hours_per_week
+                                          or (facts.get("scheme_hours") or {}).get("LAB", 2)),
                             load_share=1.0, batch_number=b, period_number=1,
                             source="AUTOFILL",
                         ))
