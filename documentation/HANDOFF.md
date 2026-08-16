@@ -12,29 +12,28 @@ Read `AGENTS.md` (repo root) first — commands, test entry points, commit rules
 
 ## The one-paragraph situation
 
-**Phase 3b (constraint editing) is COMPLETE; Phase 4's engine work is DONE with the headline
-metric: zero unplaced across all 11 COMP divisions (was 10), 0.63s total, 256 tests green,
-pushed.** Phase 3b: INVARIANT/INSTITUTIONAL tiering (DD-042, migration `c9d4e8f2a6b0`),
-institutional rules fire only from rows, `GET /constraints/types` returns tier + config
-JSON-schema, registry/enum parity assertion, college facts in `CollegeSettings.config_json`
-(DD-043, `--codes` flag, config_json merge). Phase 4: **DD-044** — the cell parser reads lab
-faculty positionally (the glossary gate dropped every pair's second initial; "IIS MP 608" was
-misparsed as subject MP, inflating demand and deleting IIS lectures) and single-teacher batch
-pairs merge into one session; **A6** — fail-fast `is_valid`, most-constrained-first ordering,
-best-scoring-distinct-attempt quality default, committed-slot index; **A4** — faculty caps
-include published load. **Measured: unplaced 10 → 0**; hours metric 3/53 outside ±1 (all
-PROJECT — the honest no-mentor gap). Site republished 11/11 with zero unplaced.
+**Phase 5's core is DONE: fidelity scorer, synthetic problems, golden test, the tutorial-stream
+fix (DD-046), and IT re-admission — 263 tests green, golden COMP+IT 21/21 divisions with zero
+unplaced, pushed.** Phase 3b (constraint editing) and Phase 4's engine work are complete
+(DD-042..045): tiers, facts document, positional cell parsing, pair merging, fail-fast/indexed
+checking, most-constrained-first, quality-default, published-load caps. **Phase 5:** the A8
+metrics are now a library (`app/engine/fidelity.py`, incl. grid-side-gap classification —
+subjects whose cells name no teacher are the registrar's problem, not solver regressions);
+`scripts/synthetic_problem.py` plants valid timetables and derives the solver inputs — four
+shapes in the suite all solve with zero unplaced, including the D3 second-fixture shape (no
+home rooms, 2-slot labs, break 3) with **zero engine changes** (no overfitting to TCET);
+`scripts/golden_test.py` regenerates every division and fails on regression — **COMP+IT 21/21:
+zero unplaced, zero break/Saturday violations, 100% room stability, 0 solver-attributable hour
+misses (7 grid gaps)**. **DD-046:** IT's re-admission exposed the flattened-demand bug — the
+grid's TUTORIAL cells inflated weekly_hours, every hour expanded as a LECTURE session, and
+SAME_SUBJECT_SAME_DAY needed one distinct day per hour (IT-SE-C: 7h on 5 days → 4 unplaced).
+`subject_assignments.tutorial_hours` (migration `d4e8f2a6c0b1`) splits the streams; IT-SE-C
+4 → 0. Site publishes 21/21 divisions (COMP + IT).
 
-**Cohort profiles and LNS are deferred (DD-045), gated on real needs:** every year's divisions
-differ in their grids (SE: breaks 4/5/none; TE: 4/3; BE-A Saturday+ACTIVITY_ONLY vs B/C none),
-so the cohort requires **per-group grid parameters** threaded through greedy, the checker,
-OR-Tools, the importer, and the resolver — a genuine engine change — while the phase's done-when
-is already met per division and the audit's other cohort motivations (room competition, caps)
-are inert until the college supplies real numbers. **Next up: Phase 5 — Prove it.**
-
-**On "are the website timetables good now?"** — placement-complete and honest, but Phase 5
-(fidelity scorer + synthetic problem generator) is the honest yardstick, and rendering
-correctness (Phase 6 C1–C4) is the only thing worth eyeballing today.
+**On "are the website timetables good now?"** — 21/21 divisions place every session with zero
+rule violations; the fidelity scorer + golden test now make regressions visible numbers. The
+remaining quality work is the frontend rendering (Phase 6 C1–C4), the deferred cohort/LNS
+(DD-045), and the registrar-side data gaps (PROJECT mentors, unresolved initials).
 
 ---
 
@@ -43,41 +42,27 @@ correctness (Phase 6 C1–C4) is the only thing worth eyeballing today.
 Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are cross-referenced as
 **[A*n*]** (engine), **[B*n*]** (bugs/security), **[C*n*]** (frontend), **[D*n*]** (generality).
 
-> **Scope rule for Phases 0–5: COMP only.** The importer defaults to `--codes COMP`; re-admit
-> IT with `--codes COMP,IT` at Phase 5 (see [D5]).
+> **Scope rule:** the importer defaults to `--codes COMP`; the live site runs `COMP,IT`. The
+> remaining branches (EXTC, E&CS, MECH, CIVIL) are **shape-only synthetic** (fake teachers,
+> `build_synthetic_branches.py`) — keep them OUT of golden scoring (the golden test's `--codes`
+> flag makes that explicit) and re-admit only gated on the suite staying green.
 
-### Phase 5 — Prove it, and prove it stays proved (4 days) ← **start here**
+### Phase 5 — remainder
 
-1. **Fidelity scorer as a library** — the Phase 3 exit metric (weekly hours per (subject,
-   division) within ±1 of the published grid) as a reusable scorer with the metrics table from
-   **[A8]**; the handoff's "Reproducing every number" script is the seed of it.
-2. **Golden tests** — regenerate every division, score, fail CI on regression.
-3. **Synthetic problem generator** — plant a valid timetable, derive inputs from it. Any unplaced
-   session is then provably a solver bug. Retire `build_synthetic_branches.py` as a scoring input.
-   **[D4]**
-4. **Second fixture college** with a different shape (6 slots, break at 3, 5-day, 2 batches,
-   2-slot labs, no home room). CI generates both. If it needs an `app/engine/` change, overfitting
-   is caught that day. **[D3]** — note: this fixture is also the natural vehicle for the
-   per-group-grid parameters from DD-045 if the cohort is picked up.
-5. Re-admit IT (`--codes COMP,IT`), then the rest, each gated on the suite staying green.
+1. **Second fixture through the importer adapter (D3, "CI generates both")** — the engine-level
+   fixture test exists (synthetic problem, no home rooms, 2-slot labs); the adapter-level half
+   needs a scratch Postgres (the importer's `--wipe` TRUNCATEs the live DB, so do NOT run it
+   there). Build `scripts/build_fixture_other.py` writing `info/import-other/*.json` (6 slots,
+   break 3, 5-day, 2 batches, 2-slot labs, no home rooms, full faculty names so the glossary
+   path is not needed) + an `--import-dir` flag on `import_tcet.py`, then import → generate →
+   score in a scratch DB.
+2. **Remaining branches** — re-admit EXTC etc. one at a time (`--codes COMP,IT,EXTC` …), each
+   gated on the golden test staying green; keep them out of the scored set while their data is
+   synthetic (D4).
+3. **Retire `build_synthetic_branches.py` as a scoring input** — done in practice (synthetic
+   problems + golden replaced it); the script can stay for demo data but nothing scores on it.
 
-**Done when:** every division regenerates to the same score; a planted timetable is reproduced
-exactly; the second college needs zero engine changes.
-
-### Phase 4 — remainder (deferred by DD-045, build when needed)
-
-1. **Per-group grid parameters** (`break_slots_by_group`, `working_days_by_group`,
-   `saturday_policy_by_group`) through greedy scans, the checker's `NO_TEACHING_IN_BREAK_SLOT`,
-   OR-Tools day domains, the importer, and the profile resolver.
-2. **Cohort profiles** — one generation per (department, year); decide the artifact shape
-   (cohort instance vs solve-once-slice-per-division) with the frontend (Phase 6).
-3. **Construct-then-repair LNS** (A11) — greedy constructs; CP-SAT re-optimises small
-   neighbourhoods. **Never post-filter a CP-SAT answer.**
-
-**Done when:** zero unplaced across the COMP cohort, under a minute per cohort (already true per
-division; the cohort changes the *artifact*).
-
-### Phase 6 — Frontend (4–6 days)
+### Phase 6 — Frontend (4–6 days) ← the big remaining chunk
 
 **Confirmed on the live site (16 Aug 2026, COMP-SE-A/B instance pages):** the two visible
 grid defects are exactly C2 + C3/C4, verified in code — the backend data is correct:
@@ -86,8 +71,8 @@ grid defects are exactly C2 + C3/C4, verified in code — the backend data is co
 2. **Redesign the parallel-batch cell** — `CellStack` (`TimetableGrid.tsx:194`) stacks 4 lab
    batches in a 76px row (`TimetableGrid.tsx:87`); text clips and batch badges overlap
    (COMP-SE-A Mon/Tue/Wed 08:30, Thu 14:30). A 2×2 split layout or auto-grown row height.
-   Note: DD-044 merged pairs record the representative batch on the slot — show the full pair
-   from `window_key`/`batch_list`. **[C2]**
+   DD-044 merged pairs record the representative batch on the slot — show the full pair from
+   `window_key`/`batch_list`. **[C2]**
 3. **Real break + slot times reach the grid** — `breakAfterSlot={4}` is **hardcoded**
    (`instances/[id]/page.tsx:153`), so the break row is wrong for every division whose break is
    not slot 4 (SE-C: 5, TE-B: 3, BE-*: 6), and the break slot renders as an **empty unlabeled
@@ -100,10 +85,22 @@ grid defects are exactly C2 + C3/C4, verified in code — the backend data is co
    tier + config JSON-schema per type; the editor renders a form from it and writes
    `hard_constraints` rows (profile_id NULL for college defaults) and `PUT /settings` facts
    (config_json merges). Include the DD-039 toggle affordance.
-5. Post-generation review: score breakdown, unplaced list **with reasons** (the checker already
+5. **Tutorial badges** — DD-046 sessions are TUTORIAL-typed now; the grid should render the
+   tutorial stream distinctly.
+6. Post-generation review: score breakdown, unplaced list **with reasons** (the checker already
    produces them and they are discarded), diff vs published. **[C6]**
-6. Accessibility: grid semantics, keyboard nav, non-colour subject encoding; move route protection
+7. Accessibility: grid semantics, keyboard nav, non-colour subject encoding; move route protection
    from `ProtectedShell` to middleware. **[C7]**
+
+### Phase 4 — remainder (deferred by DD-045, build when needed)
+
+1. **Per-group grid parameters** (`break_slots_by_group`, `working_days_by_group`,
+   `saturday_policy_by_group`) through greedy scans, the checker's `NO_TEACHING_IN_BREAK_SLOT`,
+   OR-Tools day domains, the importer, and the profile resolver.
+2. **Cohort profiles** — one generation per (department, year); decide the artifact shape
+   (cohort instance vs solve-once-slice-per-division) with the frontend.
+3. **Construct-then-repair LNS** (A11) — greedy constructs; CP-SAT re-optimises small
+   neighbourhoods. **Never post-filter a CP-SAT answer.**
 
 ### Phase 7 — Security hardening (2 days)
 
@@ -116,6 +113,9 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 
 ## Open design decisions (from `design-decisions.md` — carry forward)
 
+- **DD-046 follow-up** — the practical stream (a subject with LECTURE + LAB demand beyond the
+  window model) may need the same two-stream treatment; today lab demand is window-shaped from
+  the grid, which is the TCET pattern.
 - **DD-045 follow-up** — per-group grid parameters are the cohort prerequisite; the artifact-
   shape choice (cohort instance vs slice-per-division) needs the frontend's input. Gated on the
   college enabling caps or asking for the per-year document.
@@ -128,10 +128,11 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
   constraint row enables the caps); a future pass can move them into the facts document.
 - **DD-042 follow-up** — profile-level override semantics for a college-default rule (a profile
   row currently *adds to* the default; it cannot switch a default off for one profile alone).
-- **DD-037 follow-up** — PROJECT (BE-A/B/C) has grid cells but no named teacher, so no competency
-  exists and even `--fill-gaps` cannot assign it. The college must supply project mentors.
+- **DD-037 follow-up** — PROJECT (BE-A/B/C) and online electives (IT-SE-A AAD etc.) have grid
+  cells but no named teacher — the golden test classifies these as grid-side gaps; the college
+  must supply the teachers.
 - **DD-038 follow-up** — `preference_weight` on `faculty_subject_competency` is collected but not
-  yet used by the least-loaded picker; a UI to manage competencies is a Phase 6/3b item.
+  yet used by the least-loaded picker; a UI to manage competencies is a Phase 6 item.
 - **DD-039 follow-up** — the institutional toggle (re-enabling capacity/caps) works via rows; the
   constraint editor UI (Phase 6) is the affordance.
 - **DD-034 follow-up** — the real grids sometimes move the break by day (COMP-SE-A: slot 4 Mon-Wed,
@@ -146,14 +147,14 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 - **DD-001 follow-up** — point the publish mailer at real HOD-role accounts now RBAC exists.
 - **DD-018 follow-up** — full `docker compose up` on free port 3000; login→dashboard in a browser;
   mark DD-018 Live-verified.
-- **DD-020 follow-up** — wire seed + battle test into CI or keep local; cadence after engine changes.
+- **DD-020 follow-up** — wire seed + battle test + golden test into CI or keep local; cadence after
+  engine changes (the golden test is the natural CI gate).
 - **DD-021 follow-up** — teacher/student read-scoping on list endpoints.
 - **DD-022 follow-up** — WebSocket push + student "today" parity are polish.
 - **DD-023 follow-up** — block-level overrides (moving one slot of a merged lab block leaves its
   siblings behind).
 - **DD-024 (OPEN)** — the college's real rules; verify each against real data, then design. Superseded
-  in priority by DD-031's phases, which cover the same ground (lab windows, one-lab-per-day, per-day
-  grids).
+  in priority by DD-031's phases (the tutorial stream, DD-046, resolves one of its items).
 
 ## Working agreements for this plan
 
@@ -161,69 +162,37 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
   question. Phases 1–2 changed the output shape; Phase 3 made the input honest; Phase 4 makes it
   complete.
 - **Every phase ends with a measured number**, not a description. The metrics table above is the
-  scoreboard; re-run it and put the delta in the commit body.
+  scoreboard; re-run `scripts/golden_test.py` and put the delta in the commit body.
 - **No new synthetic people.** More fake teachers make bugs unattributable. See **[A9, D4]**.
 - **No college constants in `app/engine/`.** They belong in the institution facts document. **[D2]**
 - **Commits**: many small focused ones, impersonal voice, staged in logical chunks (`AGENTS.md`).
 - **Docs in the same change**: `timetable-generator-architecture.md` §3 schema / §4 endpoints /
-  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-046 onward in
+  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-047 onward in
   `design-decisions.md`.
 
 ## Reproducing every number in this handoff
 
 ```bash
-# zero-unplaced + timing across the 11 COMP divisions (Phase 4 exit metric)
-.venv/bin/python - <<'PY'
-import time
-from app.database import SessionLocal
-from app.engine.profile_resolver import ProfileResolver
-from app.engine.solvers.greedy_solver import GreedySolver
-from app.models.profiles import TimetableProfile
-from sqlalchemy import select
-db = SessionLocal()
-total = 0; t0 = time.time()
-for prof in db.scalars(select(TimetableProfile).order_by(TimetableProfile.id)).all():
-    solver = GreedySolver(db=db, profile=ProfileResolver(db).resolve(prof.id), instance_id=9999)
-    solver.solve()
-    total += solver.unplaced_count
-print(f"unplaced: {total}  time: {time.time()-t0:.2f}s")
-db.close()
-PY
+# golden fidelity: regenerate every division, score, fail on regression
+uv run python -m scripts.golden_test --codes COMP,IT
+
+# synthetic problems: guaranteed-satisfiable instances, zero unplaced (in the suite)
+uv run python -m app.tests
 
 # weekly hours per (subject, division) vs the published grid (Phase 3 exit metric)
 .venv/bin/python - <<'PY'
-import json
 from app.database import SessionLocal
-from app.models.subject_assignments import SubjectAssignment
-from sqlalchemy import select
-from app.models.groups import StudentGroup
-from app.models.subjects import Subject
+from app.engine.fidelity import hours_deltas, grid_gap_subjects
+import json
 db = SessionLocal()
+tts = [t for t in json.load(open("info/import/timetables.json"))["timetables"]
+       if t["group_name"].split("-")[0] in ("COMP", "IT")]
 subjects = json.load(open("info/import/subjects.json"))["subjects"]
 code_to_name = {(s["department_code"], s["semester"], s["code"]): s["name"] for s in subjects}
-comp = [t for t in json.load(open("info/import/timetables.json"))["timetables"]
-        if t["group_name"].split("-")[0] == "COMP"]
-grid = {}
-for t in comp:
-    for c in t["cells"]:
-        k = c.get("kind")
-        if k in ("LECTURE", "TUTORIAL", "ACTIVITY") and c.get("subject"):
-            grid[(t["group_name"], c["subject"])] = grid.get((t["group_name"], c["subject"]), 0) + 1
-assigns = {}
-for a in db.scalars(select(SubjectAssignment)).all():
-    if a.batch_number is not None: continue
-    g = db.get(StudentGroup, a.group_id); s = db.get(Subject, a.subject_id)
-    if g and s: assigns[(g.name, s.name)] = assigns.get((g.name, s.name), 0) + (a.weekly_hours or 0)
-bad, total, seen = [], 0, set()
-for t in comp:
-    sem, dept = t["semester"], t["group_name"].split("-")[0]
-    for (gname, code), grid_h in sorted(grid.items()):
-        if gname != t["group_name"]: continue
-        name = code_to_name.get((dept, sem, code), code)
-        if (gname, name) in seen: continue
-        seen.add((gname, name)); total += 1
-        if abs(grid_h - assigns.get((gname, name), 0)) > 1: bad.append((gname, name, grid_h))
-print(f"outside +-1: {len(bad)}/{total}", bad)
+bad, total = hours_deltas(db, tts, code_to_name)
+gaps = grid_gap_subjects(tts)
+solver_bad = [b for b in bad if (b[0], b[1]) not in gaps and b[1] != "PROJECT"]
+print(f"outside +-1: {len(bad)}/{total} (solver-attributable: {len(solver_bad)})")
 db.close()
 PY
 
@@ -237,19 +206,19 @@ PY
 ```bash
 uv run alembic upgrade head
 uv run python scripts/generate_tcet_import.py      # refresh info/import/*.json from the markdown pack
-uv run python -m scripts.import_tcet --wipe --fill-gaps   # seed Postgres (--codes COMP default)
-uv run python -m scripts.generate_college --instances 1 --clear-locks   # publish all (~2 min)
-uv run python -m app.tests                         # 256 tests
+uv run python -m scripts.import_tcet --wipe --fill-gaps --codes COMP,IT   # seed Postgres
+uv run python -m scripts.generate_college --instances 1 --clear-locks   # publish all (21 profiles, ~2 min)
+uv run python -m app.tests                         # 263 tests
+uv run python -m scripts.golden_test --codes COMP,IT   # fidelity gate
 cd frontend && npm run typecheck                   # NOT npm run build
 ```
 
 Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host port **5433**.
 
 > **Re-seed with `--fill-gaps`** — the importer re-seeds the college-default institutional
-> constraint rows after `--wipe`, seeds the institution facts document (missing keys only,
-> registrar edits win), and reports data gaps by default. `parse_cell` lives in
-> `scripts/cell_parser.py`; change the parser → regenerate (`generate_tcet_import.py`) →
-> re-import → re-publish.
+> constraint rows after `--wipe`, seeds the institution facts document (missing keys only), and
+> reports data gaps by default. `parse_cell` lives in `scripts/cell_parser.py`; change the
+> parser → regenerate (`generate_tcet_import.py`) → re-import → re-publish.
 
 ## Gotchas (carried forward — still true)
 
@@ -267,10 +236,13 @@ Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host po
 - **Lab windows are `(group, period)`** — `subject_assignments.period_number` is group-scoped
   (A1); two subjects in one window share a period. **Single-teacher batch pairs merge (DD-044)**:
   the merged member records the representative batch on the slot; `batch_list` carries the pair.
+- **Tutorials are a second stream (DD-046)** — `subject_assignments.tutorial_hours` splits the
+  weekly load; those sessions are TUTORIAL-typed and exempt from SAME_SUBJECT_SAME_DAY. The
+  golden test classifies grid-side gaps (no teacher named) separately from solver regressions.
 - **Institutional rules fire only from rows** (Phase 3b, DD-042) — tests rely on the college-
   default rows `seed_minimal` inserts (mirroring migration `c9d4e8f2a6b0`). Capacity and faculty
-  caps stay off unless a `hard_constraints` row enables them (DD-039) — and now count PUBLISHED
-  load (A4).
+  caps stay off unless a `hard_constraints` row enables them (DD-039) — and count PUBLISHED load
+  (A4).
 - **`CollegeSettings.config_json` is the facts document** (DD-043) — `PUT /settings` MERGES
   key-by-key; the importer seeds `scheme_hours`/`year_strengths`/`batches_per_year` when missing.
 - **The feasibility report hard-fails oversubscribed runs with a 409** (DD-040).
@@ -278,7 +250,8 @@ Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host po
   committed sessions; the faculty caps + SAME_SUBJECT_SAME_DAY parity honour the row gating.
 - **`GET /constraints/types` shape changed in Phase 3b** — hard/soft are lists of
   `{type, tier, config_schema}` objects, not plain strings.
-- **`is_valid` is fail-fast** (Phase 4 A6) — `check_all` still collects the full report;
-  diagnostics that need every reason use `check_all`. Validators read indexed committed-slot
-  buckets via the context; direct validator calls without a context fall back to scanning.
+- **`is_valid` is fail-fast** (Phase 4 A6) — `check_all` still collects the full report.
+- **Synthetic branches stay out of scoring** (D4) — `build_synthetic_branches.py` feeds the
+  importer's branch pools but nothing scores on it; the golden test scores only the `--codes`
+  you pass.
 - `scripts/seed_demo.py` is a fabricated demo; `scripts/seed_tcet.py` is superseded by the importer.
