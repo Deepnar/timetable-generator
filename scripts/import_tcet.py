@@ -8,10 +8,20 @@ Consumes the JSON emitted by ``scripts/generate_tcet_import.py`` (spec:
 - real subjects per branch+semester (hours derived from the published grids),
 - real numbered rooms,
 - per-division profiles with the real per-year time grid + constraints,
-- ``subject_assignments`` with per-batch rows for parallel lab practicals.
+- ``subject_assignments`` with per-batch rows for parallel lab practicals,
+- ``faculty_subject_competency`` from every grid-derived assignment,
+- ``source`` provenance (GRID | SCHEME | AUTOFILL) per assignment row.
+
+Demand is honest (A3): assignment ``weekly_hours`` comes from the published
+grid's own cell counts (``_derive_hours``), and ``_scheme_hours`` is only the
+logged fallback when the grid is silent on a (subject, division). The old
+unconditional auto-fill is gone; ``--fill-gaps`` re-enables it as an explicit,
+reported step that assigns the least-loaded *qualified* teacher and stamps
+``source=AUTOFILL`` (A9). Data gaps are printed by default so the registrar
+sees exactly what the college has not published.
 
 Usage:
-    uv run python -m scripts.import_tcet [--wipe]
+    uv run python -m scripts.import_tcet [--wipe] [--fill-gaps]
 """
 from __future__ import annotations
 
@@ -29,6 +39,7 @@ from app.models.groups import StudentGroup, GroupType
 from app.models.rooms import Room, RoomType
 from app.models.subjects import Subject
 from app.models.subject_assignments import SubjectAssignment
+from app.models.faculty_subject_competency import FacultySubjectCompetency
 from app.models.profiles import (
     TimetableProfile, ProfileResource, ProfileParameter, ResourceType,
     ScopeType, ParamType,
@@ -128,6 +139,15 @@ def _derive_hours(timetables: list) -> tuple[dict, dict]:
     return subject_hours, group_hours
 
 
+def _source_for(grid_total: int) -> str:
+    """Demand provenance for a grid-derived assignment row.
+
+    ``GRID`` when the division's weekly_hours came from its published cells;
+    ``SCHEME`` when the grid was silent and the scheme constant was used.
+    """
+    return "GRID" if grid_total else "SCHEME"
+
+
 def wipe(db) -> None:
     from sqlalchemy import text
     tables = [
@@ -135,7 +155,8 @@ def wipe(db) -> None:
         "timetable_overrides", "timetable_history", "timetable_reset_log",
         "profile_combination_members", "profile_combinations",
         "profile_parameters", "profile_resources", "timetable_profiles",
-        "subject_assignments", "hard_constraints", "soft_constraints",
+        "subject_assignments", "faculty_subject_competency",
+        "hard_constraints", "soft_constraints",
         "faculty_availability", "room_blackouts",
         "student_groups", "subjects", "faculty", "rooms", "audit_logs",
     ]
@@ -148,6 +169,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wipe", action="store_true",
                         help="truncate all scheduling tables before importing")
+    parser.add_argument("--fill-gaps", action="store_true",
+                        help="assign least-loaded qualified teachers to subjects "
+                             "the published grids leave unassigned (reported "
+                             "as data gaps by default)")
     args = parser.parse_args()
 
     departments = _load("departments.json")["departments"]
@@ -314,10 +339,20 @@ def main() -> int:
         subjects_by_key: dict = {}
         skipped_subjects = 0
         used_codes: set[str] = set()
+        scheme_fallback_log: list[str] = []
         for idx, row in enumerate(subjects_rows):
             key = (row["department_code"], row["semester"], row["code"], row["kind"])
             dept_name = dept_by_code.get(row["department_code"], {}).get("name", "Shared")
-            hrs = _scheme_hours(row["kind"])
+            # Phase 3 (A3): hours come from the published grid's own cell
+            # counts (max load seen anywhere); the scheme constant is only the
+            # logged fallback when the grid is silent on this subject.
+            hrs = subject_hours.get(key)
+            if not hrs:
+                hrs = _scheme_hours(row["kind"])
+                scheme_fallback_log.append(
+                    f"{row['department_code']} S{row['semester']} "
+                    f"{row['code']} ({row['kind']}): grid silent, "
+                    f"scheme hours {hrs}")
             base = (
                 f"{row['department_code'].replace('&', '').replace('-', '')[:4]}"
                 f"-S{row['semester']}-"
@@ -488,8 +523,17 @@ def main() -> int:
         subjects_by_key.update(lab_extra)
 
         # ── assignments (resolve faculty + hours) ─────────────
+        # Phase 3 (A3): weekly_hours come from the division's own published
+        # grid (group_hours), summed over the non-lab kinds the subject
+        # appears in (LECTURE + TUTORIAL + ACTIVITY cells). Batched lab rows
+        # keep 2h per batch (each batch does the practical once a week). The
+        # scheme constant is the logged fallback only where the grid is
+        # silent. Every grid-derived row stamps source=GRID; scheme fallbacks
+        # stamp SCHEME.
+        _NON_LAB_KINDS = ("LECTURE", "TUTORIAL", "ACTIVITY")
         created = skipped = 0
         seen_assignments: set[tuple] = set()
+        assignment_fallback_log: list[str] = []
         for row in assignments_rows:
             ginfo = group_by_name.get(row["group_name"])
             if not ginfo:
@@ -549,8 +593,24 @@ def main() -> int:
             kind = subject.requirements_json.get("session_type", "LECTURE")
             if row.get("batch_number"):
                 hours = 2  # each batch does the 2h practical once a week
+                source = "GRID"
             else:
-                hours = subject.hours_per_week or 1
+                # The division's grid load for this subject across its
+                # non-lab kinds (a lecture subject may also have tutorial
+                # cells). The scheme constant is the logged fallback.
+                grid_total = sum(
+                    group_hours.get((row["group_name"], row["subject_code"], k), 0)
+                    for k in _NON_LAB_KINDS
+                )
+                if grid_total:
+                    hours = grid_total
+                    source = "GRID"
+                else:
+                    hours = subject.hours_per_week or _scheme_hours(kind)
+                    source = "SCHEME"
+                    assignment_fallback_log.append(
+                        f"{row['group_name']} {row['subject_code']} ({kind}): "
+                        f"grid silent, scheme hours {hours}")
             # One row per (subject, group, batch, period) — the grid sometimes
             # carries the same subject twice (a LECTURE cell and a TUTORIAL cell
             # under the same code). Skip the duplicate rather than violate the
@@ -567,6 +627,7 @@ def main() -> int:
                 batch_number=row.get("batch_number"),
                 period_number=row.get("period_id"),
                 block_length=row.get("block_length"),
+                source=source,
             ))
             created += 1
         # The unique index (one row per subject/group/batch/period) means
@@ -574,28 +635,46 @@ def main() -> int:
         # the grid-derived assignments so the `has` check below sees them.
         db.flush()
         print(f"  assignments: {created} created, {skipped} skipped (unresolved)")
+        for line in scheme_fallback_log[:10]:
+            print(f"    [scheme fallback] {line}")
+        if len(scheme_fallback_log) > 10:
+            print(f"    ... and {len(scheme_fallback_log) - 10} more")
+        for line in assignment_fallback_log[:10]:
+            print(f"    [assignment fallback] {line}")
+        if len(assignment_fallback_log) > 10:
+            print(f"    ... and {len(assignment_fallback_log) - 10} more")
 
-        # ── auto-fill: every subject in a class's profile must be taught ──
-        # Some grids don't resolve to assignment rows (MBA name-codes, BE/FE
-        # cells with unresolved faculty). For those, assign the class's first
-        # department faculty deterministically so no subject silently vanishes;
-        # the exact teacher is a college-data gap, this is the system's
-        # suggestion. Labs get the standard 2-batch (SE+) / 3-batch (FE) split.
+        # ── faculty_subject_competency (A9/B4) ────────────────
+        # Every (faculty, subject) pair the published grids assign becomes a
+        # competency row. The solver's _lab_batch_faculty fallback and the
+        # --fill-gaps step may only pick from here, so a practical never goes
+        # to someone who has not taught the subject.
+        competency_rows = db.scalars(
+            select(SubjectAssignment).where(
+                SubjectAssignment.faculty_id.isnot(None))).all()
+        seen_competency: set[tuple] = set()
+        comp_count = 0
+        for a in competency_rows:
+            pair = (a.faculty_id, a.subject_id)
+            if pair in seen_competency:
+                continue
+            seen_competency.add(pair)
+            db.add(FacultySubjectCompetency(faculty_id=a.faculty_id,
+                                            subject_id=a.subject_id))
+            comp_count += 1
+        db.flush()
+        print(f"  competencies: {comp_count} (faculty x subject pairs)")
+
+        # ── gap report + --fill-gaps ──────────────────────────
+        # The old unconditional auto-fill invented teachers and hours; the
+        # audit measured the result (279 idle teachers, fabricated load). Now
+        # gaps are REPORTED by default; --fill-gaps assigns the least-loaded
+        # teacher who holds a competency for the subject, and stamps the row
+        # AUTOFILL so the provenance is visible.
         auto = 0
+        gaps: list[str] = []
         for name, g, dept_code in group_rows:
             dept_name = dept_by_code.get(dept_code, {}).get("name")
-            # Branch-local pool ONLY — the shared "Faculty" bucket must never
-            # serve a branch (that is what let one placeholder teacher burn his
-            # weekly cap across five branches and starve the last one).
-            dept_fac = sorted(
-                (f for f in faculty_by_name.values() if f.department == dept_name),
-                key=lambda f: f.id,
-            )
-            if not dept_fac:
-                continue
-            # Distribute subjects across the department's faculty (one subject
-            # per slot of the pool) so no single teacher exceeds the weekly cap.
-            subj_idx = 0
             for key, subject in subjects_by_key.items():
                 if key[0] != dept_code or key[1] != g.semester:
                     continue
@@ -604,27 +683,60 @@ def main() -> int:
                     SubjectAssignment.group_id == g.id)) or 0
                 if has:
                     continue
+                if not args.fill_gaps:
+                    gaps.append(f"{name} has no teacher for {subject.name} "
+                                f"({subject.subject_code})")
+                    continue
+                # Least-loaded qualified teacher for this subject (A9/B4).
+                qualified = db.scalars(
+                    select(Faculty.id)
+                    .join(FacultySubjectCompetency,
+                          FacultySubjectCompetency.faculty_id == Faculty.id)
+                    .where(FacultySubjectCompetency.subject_id == subject.id,
+                           Faculty.department == dept_name)
+                ).all()
+                if not qualified:
+                    gaps.append(
+                        f"{name}: no QUALIFIED teacher for {subject.name} "
+                        f"({subject.subject_code}) — collect a competency")
+                    continue
+                loads: dict[int, int] = {}
+                for (fid, load) in db.execute(
+                    select(SubjectAssignment.faculty_id,
+                           func.sum(SubjectAssignment.weekly_hours))
+                    .where(SubjectAssignment.faculty_id.in_(qualified))
+                    .group_by(SubjectAssignment.faculty_id)
+                ).all():
+                    if fid is not None:
+                        loads[fid] = int(load or 0)
+                pick = min(qualified, key=lambda fid: (loads.get(fid, 0), fid))
                 is_lab = subject.requires_lab
                 if is_lab:
                     batches = 3 if g.year == 1 else 2
                     for b in range(1, batches + 1):
                         db.add(SubjectAssignment(
-                            subject_id=subject.id,
-                            faculty_id=dept_fac[(g.id + subj_idx + b) % len(dept_fac)].id,
-                            group_id=g.id, weekly_hours=subject.hours_per_week or 2,
+                            subject_id=subject.id, faculty_id=pick,
+                            group_id=g.id,
+                            weekly_hours=subject.hours_per_week or 2,
                             load_share=1.0, batch_number=b, period_number=1,
+                            source="AUTOFILL",
                         ))
                         auto += 1
                 else:
                     db.add(SubjectAssignment(
-                        subject_id=subject.id,
-                        faculty_id=dept_fac[(g.id + subj_idx) % len(dept_fac)].id,
+                        subject_id=subject.id, faculty_id=pick,
                         group_id=g.id, weekly_hours=subject.hours_per_week or 1,
-                        load_share=1.0,
+                        load_share=1.0, source="AUTOFILL",
                     ))
                     auto += 1
-                subj_idx += 1
         print(f"  auto-fill assignments: {auto}")
+        if gaps:
+            print(f"  data gaps ({len(gaps)}): run with --fill-gaps to "
+                  f"assign qualified teachers:")
+            for line in gaps[:15]:
+                print(f"    - {line}")
+            if len(gaps) > 15:
+                print(f"    ... and {len(gaps) - 15} more")
 
         # Attach the group/subject/faculty/room resources to each profile.
         for name, g, dept_code in group_rows:
@@ -726,14 +838,26 @@ def _make_profile(db, admin, name, sem, dept, rooms, faculty, groups,
 def _attach_profile_resources(db, prof, group, dept_code, rooms_by_code,
                               rooms_by_dept, faculty_by_name, subjects_by_key,
                               dept_name):
-    # Branch-bound: a profile only sees its own branch's rooms and faculty, so a
-    # teacher never appears teaching in two departments and the shared pool can
-    # never starve the last branch.
+    # Branch-bound rooms: a profile only sees its own branch's rooms, so a
+    # division never lands in another department's lab.
     for r in rooms_by_dept.get(dept_code, []):
         db.add(ProfileResource(profile_id=prof.id, resource_type=ResourceType.ROOM,
                                resource_id=r.id))
+    # Phase 3 (A9): faculty pool pruned to teachers who actually hold an
+    # assignment for THIS division — the old "every branch teacher in every
+    # profile" attached 390 teachers per profile (3,710 rows total) and let
+    # the lab-batch fallback invent staff from idle strangers. The solver only
+    # ever picks teachers with an assignment, so the pool is exactly those.
+    assigned_faculty_ids = set(
+        db.scalars(
+            select(SubjectAssignment.faculty_id).where(
+                SubjectAssignment.group_id == group.id,
+                SubjectAssignment.faculty_id.isnot(None),
+            )
+        ).all()
+    )
     for f in faculty_by_name.values():
-        if f.department == dept_name:
+        if f.department == dept_name and f.id in assigned_faculty_ids:
             db.add(ProfileResource(profile_id=prof.id, resource_type=ResourceType.FACULTY,
                                    resource_id=f.id))
     db.add(ProfileResource(profile_id=prof.id, resource_type=ResourceType.STUDENT_GROUP,
