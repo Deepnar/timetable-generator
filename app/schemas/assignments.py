@@ -24,6 +24,9 @@ class SubjectAssignmentResponse(BaseModel):
     group_id: int
     weekly_hours: int
     load_share: float
+    # Demand provenance: GRID | SCHEME | AUTOFILL (set by the importer); None
+    # for rows created through the API by hand.
+    source: Optional[str] = None
 
     class Config:
         from_attributes = True
