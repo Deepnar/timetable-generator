@@ -566,6 +566,7 @@ def main() -> int:
                 weekly_hours=hours, load_share=1.0,
                 batch_number=row.get("batch_number"),
                 period_number=row.get("period_id"),
+                block_length=row.get("block_length"),
             ))
             created += 1
         # The unique index (one row per subject/group/batch/period) means
@@ -706,10 +707,13 @@ def _make_profile(db, admin, name, sem, dept, rooms, faculty, groups,
         db.add(ProfileParameter(profile_id=prof.id, param_key="preferred_rooms",
                                 param_value=json.dumps(preferred_rooms),
                                 param_type=ParamType.JSON))
-    # Labs are 2h blocks; at most one practical subject per day (real rules).
+    # Lab windows are 1 slot for most grids (the audit measured 1-slot in 131
+    # of 133 real labs); the per-row ``block_length`` from the grid carries the
+    # true span (2 only for BE's merged block). This rule is the fallback for
+    # subjects without a per-row span. At most one practical window per day.
     db.add(HardConstraint(profile_id=prof.id, constraint_type="CONTIGUOUS_LAB_SLOTS",
-                          config_json={"default_block_length": 2},
-                          description="2h lab blocks (real TCET practicals)"))
+                          config_json={"default_block_length": 1},
+                          description="lab window slot span (fallback; grid block_length wins)"))
     db.add(HardConstraint(profile_id=prof.id, constraint_type="MAX_ONE_LAB_PER_DAY",
                           config_json={}, description="max one practical subject per day"))
     # Soft scorer: how much of the division's load stays in its venue (A5).

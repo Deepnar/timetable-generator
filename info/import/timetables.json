@@ -132,7 +132,8 @@
       2
      ],
      "faculty": [
-      "PM"
+      "PM",
+      "LJS"
      ],
      "room": "324",
      "online": false,
@@ -294,7 +295,8 @@
       4
      ],
      "faculty": [
-      "PM"
+      "PM",
+      "LJS"
      ],
      "room": "324",
      "online": false,
@@ -676,7 +678,8 @@
       2
      ],
      "faculty": [
-      "GJ"
+      "GJ",
+      "LJS"
      ],
      "room": "324",
      "online": false,
@@ -729,7 +732,9 @@
      "kind": "LECTURE",
      "subject": "DLDCA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "LJS"
+     ],
      "room": "608",
      "online": false,
      "label": "DLDCA LJS 608",
@@ -1231,7 +1236,8 @@
       4
      ],
      "faculty": [
-      "NW"
+      "NW",
+      "LJS"
      ],
      "room": "306",
      "online": false,
@@ -1247,7 +1253,8 @@
       2
      ],
      "faculty": [
-      "PM"
+      "PM",
+      "VNS"
      ],
      "room": "304",
      "online": false,
@@ -1609,7 +1616,9 @@
      "kind": "LECTURE",
      "subject": "DLDCA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "LJS"
+     ],
      "room": "718",
      "online": false,
      "label": "DLDCA LJS 718",
@@ -1791,7 +1800,9 @@
      "kind": "LECTURE",
      "subject": "DLDCA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "LJS"
+     ],
      "room": "607",
      "online": false,
      "label": "DLDCA LJS 607",
@@ -1805,7 +1816,9 @@
       1,
       2
      ],
-     "faculty": [],
+     "faculty": [
+      "SAS"
+     ],
      "room": "305",
      "online": false,
      "label": "Lab DS C1C2 SAS VG 305",
@@ -1903,7 +1916,9 @@
      "kind": "LECTURE",
      "subject": "DLDCA",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "LJS"
+     ],
      "room": "607",
      "online": false,
      "label": "DLDCA LJS 607",
@@ -2155,7 +2170,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "FS"
+      "FS",
+      "VNS"
      ],
      "room": "610/718",
      "online": false,
@@ -2230,7 +2246,8 @@
       2
      ],
      "faculty": [
-      "PM"
+      "PM",
+      "SPS"
      ],
      "room": "306",
      "online": false,
@@ -2271,7 +2288,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VNS"
+     ],
      "room": "608",
      "online": false,
      "label": "DS VNS 608",
@@ -2282,7 +2301,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VNS"
+     ],
      "room": "608",
      "online": false,
      "label": "DS VNS 608",
@@ -2328,7 +2349,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VNS"
+     ],
      "room": "608",
      "online": false,
      "label": "DS VNS 608",
@@ -2437,7 +2460,8 @@
       2
      ],
      "faculty": [
-      "AR"
+      "AR",
+      "RIS"
      ],
      "room": "325",
      "online": false,
@@ -2466,7 +2490,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VNS"
+     ],
      "room": "608",
      "online": false,
      "label": "DS VNS 608",
@@ -3264,7 +3290,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VNS"
+     ],
      "room": "326",
      "online": false,
      "label": "B3 VNS/SuS 326",
@@ -4054,7 +4082,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "VNS"
+     ],
      "room": "326",
      "online": false,
      "label": "B3 VNS/SuS 326",
@@ -4335,7 +4365,9 @@
      "kind": "LECTURE",
      "subject": "SSIC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": "609",
      "online": false,
      "label": "SSIC SKS 609",
@@ -4498,7 +4530,8 @@
       4
      ],
      "faculty": [
-      "AP"
+      "AP",
+      "RIS"
      ],
      "room": "304",
      "online": false,
@@ -4523,7 +4556,9 @@
      "kind": "LECTURE",
      "subject": "SSIC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": "609",
      "online": false,
      "label": "SSIC SKS 609",
@@ -4560,7 +4595,8 @@
       2
      ],
      "faculty": [
-      "FS"
+      "FS",
+      "RIS"
      ],
      "room": "305",
      "online": false,
@@ -4613,7 +4649,9 @@
      "kind": "LECTURE",
      "subject": "IIS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "RIS"
+     ],
      "room": "607",
      "online": false,
      "label": "IIS RIS 607",
@@ -4624,7 +4662,9 @@
      "kind": "LECTURE",
      "subject": "SSIC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": "607",
      "online": false,
      "label": "SSIC SKS 607",
@@ -4730,7 +4770,9 @@
       1,
       2
      ],
-     "faculty": [],
+     "faculty": [
+      "RIS"
+     ],
      "room": "306",
      "online": false,
      "label": "Lab IIS C1C2 RIS/VK 306",
@@ -4768,7 +4810,9 @@
      "kind": "LECTURE",
      "subject": "IIS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "RIS"
+     ],
      "room": "607",
      "online": false,
      "label": "IIS RIS 607",
@@ -4838,7 +4882,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SuS"
+      "SuS",
+      "VNS"
      ],
      "room": "326",
      "online": false,
@@ -5133,7 +5178,9 @@
      "kind": "LECTURE",
      "subject": "IIS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SPS"
+     ],
      "room": "718",
      "online": false,
      "label": "IIS SPS 718",
@@ -5176,7 +5223,8 @@
       4
      ],
      "faculty": [
-      "PM"
+      "PM",
+      "SPS"
      ],
      "room": "325",
      "online": false,
@@ -5362,7 +5410,9 @@
      "kind": "LECTURE",
      "subject": "SSIC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": "608",
      "online": false,
      "label": "SSIC SKS 608",
@@ -5430,7 +5480,8 @@
       2
      ],
      "faculty": [
-      "SS"
+      "SS",
+      "SPS"
      ],
      "room": "325",
      "online": false,
@@ -5510,7 +5561,9 @@
      "kind": "LECTURE",
      "subject": "IIS",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SPS"
+     ],
      "room": "610",
      "online": false,
      "label": "IIS SPS 610",
@@ -5532,7 +5585,9 @@
      "kind": "LECTURE",
      "subject": "SSIC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": "608",
      "online": false,
      "label": "SSIC SKS 608",
@@ -5628,7 +5683,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SuS"
+      "SuS",
+      "VNS"
      ],
      "room": "326",
      "online": false,
@@ -6013,7 +6069,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "IOT"
+     ],
      "room": "610/513/532/718",
      "online": false,
      "label": "PE III ERP/IOT/Robo 610/513/532/718",
@@ -6206,7 +6264,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "GJ"
+      "GJ",
+      "SPS"
      ],
      "room": "305",
      "online": false,
@@ -6219,7 +6278,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "DJ"
+      "DJ",
+      "VNS"
      ],
      "room": "324",
      "online": false,
@@ -6692,7 +6752,9 @@
       1,
       2
      ],
-     "faculty": [],
+     "faculty": [
+      "CSS"
+     ],
      "room": "326",
      "online": false,
      "label": "Lab CSS B1B2 TM 326",
@@ -6730,7 +6792,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "IOT"
+     ],
      "room": null,
      "online": false,
      "label": "PE III ERP/IOT/Robo",
@@ -6754,7 +6818,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "CSS"
+     ],
      "room": "610",
      "online": false,
      "label": "CSS RIS 610",
@@ -6817,7 +6883,10 @@
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "CSS",
+      "SPS"
+     ],
      "room": "304",
      "online": false,
      "label": "Lab CSS B3B4 SPS 304",
@@ -6866,7 +6935,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "CSS"
+     ],
      "room": "606",
      "online": false,
      "label": "CSS RIS 606",
@@ -6943,7 +7014,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "CSS"
+     ],
      "room": "610",
      "online": false,
      "label": "CSS RIS 610",
@@ -6967,7 +7040,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "CSS"
+     ],
      "room": "325",
      "online": false,
      "label": "CSS RIS 325",
@@ -7068,7 +7143,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "CSS"
+     ],
      "room": "610",
      "online": false,
      "label": "CSS RIS 610",
@@ -7403,7 +7480,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "IOT"
+     ],
      "room": null,
      "online": false,
      "label": "PE III ERP/IOT/Robo",
@@ -7615,7 +7694,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "GJ"
+      "GJ",
+      "SPS"
      ],
      "room": "305",
      "online": false,
@@ -7628,7 +7708,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "DJ"
+      "DJ",
+      "VNS"
      ],
      "room": "324",
      "online": false,
@@ -14714,7 +14795,9 @@
      "kind": "LECTURE",
      "subject": "M-IV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SSH"
+     ],
      "room": "621",
      "online": false,
      "label": "M-IV SSH 621",
@@ -14804,7 +14887,9 @@
      "kind": "LECTURE",
      "subject": "M-IV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SSH"
+     ],
      "room": "621",
      "online": false,
      "label": "M-IV SSH 621",
@@ -14929,7 +15014,9 @@
      "kind": "LECTURE",
      "subject": "M-IV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SSH"
+     ],
      "room": "621",
      "online": false,
      "label": "M-IV SSH 621",
@@ -15006,7 +15093,9 @@
      "kind": "LECTURE",
      "subject": "M-IV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SSH"
+     ],
      "room": "621",
      "online": false,
      "label": "M-IV SSH 621 (FA)",
@@ -15330,7 +15419,9 @@
      "kind": "LECTURE",
      "subject": "M-IV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SSH"
+     ],
      "room": null,
      "online": false,
      "label": "M-IV SSH",
@@ -15376,7 +15467,9 @@
      "kind": "LECTURE",
      "subject": "M-IV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SSH"
+     ],
      "room": null,
      "online": false,
      "label": "M-IV SSH",
@@ -15432,7 +15525,8 @@
       2
      ],
      "faculty": [
-      "NA"
+      "NA",
+      "RKM"
      ],
      "room": "214",
      "online": false,
@@ -15482,7 +15576,9 @@
      "kind": "LECTURE",
      "subject": "M-IV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SSH"
+     ],
      "room": null,
      "online": false,
      "label": "M-IV SSH (FA)",
@@ -15585,7 +15681,9 @@
      "kind": "LECTURE",
      "subject": "M-IV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SSH"
+     ],
      "room": null,
      "online": false,
      "label": "M-IV SSH (FA)",
@@ -15928,7 +16026,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "LJ"
+      "LJ",
+      "RKM"
      ],
      "room": "712/719",
      "online": false,
@@ -16169,7 +16268,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AR"
+      "AR",
+      "RKM"
      ],
      "room": "712/719",
      "online": false,
@@ -16507,7 +16607,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "LJ"
+      "LJ",
+      "RKM"
      ],
      "room": "712/719",
      "online": false,
@@ -16660,7 +16761,8 @@
       2
      ],
      "faculty": [
-      "PC"
+      "PC",
+      "RKM"
      ],
      "room": "214",
      "online": false,
@@ -16745,7 +16847,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AR"
+      "AR",
+      "RKM"
      ],
      "room": "712/719",
      "online": false,
@@ -17530,7 +17633,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SN"
+      "SN",
+      "RKM"
      ],
      "room": "719",
      "online": false,
@@ -17543,7 +17647,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SN"
+      "SN",
+      "RKM"
      ],
      "room": "624",
      "online": false,
@@ -17684,7 +17789,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SN"
+      "SN",
+      "RKM"
      ],
      "room": "624",
      "online": false,
@@ -17732,7 +17838,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "SN"
+      "SN",
+      "RKM"
      ],
      "room": "719",
      "online": false,
@@ -19821,7 +19928,8 @@
      "subject": "AAD-III",
      "batch": null,
      "faculty": [
-      "RS"
+      "RS",
+      "AAD"
      ],
      "room": "705",
      "online": false,
@@ -20136,7 +20244,9 @@
       3,
       4
      ],
-     "faculty": [],
+     "faculty": [
+      "SVC"
+     ],
      "room": "012",
      "online": false,
      "label": "A3A4 SVC 012",
@@ -21223,7 +21333,9 @@
      "kind": "LECTURE",
      "subject": "EDC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HPK"
+     ],
      "room": null,
      "online": false,
      "label": "EDC HPK",
@@ -21336,7 +21448,9 @@
      "kind": "LECTURE",
      "subject": "UHV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SCP"
+     ],
      "room": null,
      "online": false,
      "label": "UHV SCP",
@@ -21394,7 +21508,8 @@
      "subject": "DCD",
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "SCP"
      ],
      "room": "109",
      "online": false,
@@ -21433,7 +21548,9 @@
      "kind": "LECTURE",
      "subject": "UHV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SCP"
+     ],
      "room": null,
      "online": false,
      "label": "UHV SCP",
@@ -21975,7 +22092,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SCP"
+     ],
      "room": "109",
      "online": false,
      "label": "PS E1E2 SCP 109",
@@ -22086,7 +22205,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SCP"
+     ],
      "room": "109",
      "online": false,
      "label": "PS E1E2 SCP 109",
@@ -22406,7 +22527,9 @@
      "kind": "LECTURE",
      "subject": "R&CV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HPK"
+     ],
      "room": "605",
      "online": false,
      "label": "R&CV HPK 605",
@@ -22417,7 +22540,9 @@
      "kind": "LECTURE",
      "subject": "R&CV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HPK"
+     ],
      "room": "605",
      "online": false,
      "label": "R&CV HPK 605",
@@ -22428,7 +22553,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SCP"
+     ],
      "room": "605",
      "online": false,
      "label": "OE II SCP 605",
@@ -22488,7 +22615,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "NLP"
      ],
      "room": "114",
      "online": false,
@@ -22557,7 +22685,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SCP"
+     ],
      "room": "605",
      "online": false,
      "label": "OE II SCP 605",
@@ -22623,7 +22753,9 @@
      "kind": "LECTURE",
      "subject": "R&CV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HPK"
+     ],
      "room": "109",
      "online": false,
      "label": "R&CV Lab HPK 109",
@@ -22656,7 +22788,9 @@
      "kind": "LECTURE",
      "subject": "R&CV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HPK"
+     ],
      "room": "605",
      "online": false,
      "label": "R&CV HPK 605",
@@ -22667,7 +22801,9 @@
      "kind": "LECTURE",
      "subject": "R&CV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HPK"
+     ],
      "room": "605",
      "online": false,
      "label": "R&CV HPK 605",
@@ -22679,7 +22815,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "NLP"
      ],
      "room": "605",
      "online": false,
@@ -22716,7 +22853,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "NLP"
      ],
      "room": "108",
      "online": false,
@@ -22752,7 +22890,9 @@
      "kind": "LECTURE",
      "subject": "R&CV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HPK"
+     ],
      "room": "109",
      "online": false,
      "label": "R&CV Lab HPK 109",
@@ -22820,7 +22960,9 @@
      "kind": "LECTURE",
      "subject": "R&CV",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "HPK"
+     ],
      "room": "605",
      "online": false,
      "label": "R&CV HPK 605",
@@ -22831,7 +22973,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SCP"
+     ],
      "room": "605",
      "online": false,
      "label": "OE II SCP 605",
@@ -22854,7 +22998,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "NLP"
      ],
      "room": "108",
      "online": false,
@@ -22904,7 +23049,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "NLP"
      ],
      "room": "114",
      "online": false,
@@ -22939,7 +23085,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "NLP"
      ],
      "room": "108",
      "online": false,
@@ -22988,7 +23135,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SCP"
+     ],
      "room": "605",
      "online": false,
      "label": "OE II SCP 605",
@@ -23216,7 +23365,9 @@
      "kind": "LECTURE",
      "subject": "AMP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "JKP"
+     ],
      "room": null,
      "online": false,
      "label": "AMP A3 JKP",
@@ -23227,7 +23378,9 @@
      "kind": "LECTURE",
      "subject": "KOM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "RSD"
+     ],
      "room": null,
      "online": false,
      "label": "KOM A4 RSD",
@@ -23292,7 +23445,9 @@
      "kind": "LECTURE",
      "subject": "AMP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "JKP"
+     ],
      "room": null,
      "online": false,
      "label": "AMP JKP",
@@ -23303,7 +23458,9 @@
      "kind": "LECTURE",
      "subject": "AMP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "JKP"
+     ],
      "room": null,
      "online": false,
      "label": "AMP A2 JKP",
@@ -23375,7 +23532,9 @@
      "kind": "LECTURE",
      "subject": "KOM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "RSD"
+     ],
      "room": null,
      "online": false,
      "label": "KOM RSD",
@@ -23475,7 +23634,9 @@
      "kind": "LECTURE",
      "subject": "KOM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "RSD"
+     ],
      "room": null,
      "online": false,
      "label": "KOM A2 RSD",
@@ -23486,7 +23647,9 @@
      "kind": "LECTURE",
      "subject": "AMP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "JKP"
+     ],
      "room": null,
      "online": false,
      "label": "AMP A4 JKP",
@@ -23543,7 +23706,9 @@
      "kind": "LECTURE",
      "subject": "KOM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "RSD"
+     ],
      "room": null,
      "online": false,
      "label": "KOM RSD",
@@ -23554,7 +23719,9 @@
      "kind": "LECTURE",
      "subject": "AMP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "JKP"
+     ],
      "room": null,
      "online": false,
      "label": "AMP JKP",
@@ -23683,7 +23850,9 @@
      "kind": "LECTURE",
      "subject": "AMP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "JKP"
+     ],
      "room": null,
      "online": false,
      "label": "AMP JKP",
@@ -23789,7 +23958,9 @@
      "kind": "LECTURE",
      "subject": "AMP",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "JKP"
+     ],
      "room": null,
      "online": false,
      "label": "AMP JKP (FA)",
@@ -24035,7 +24206,9 @@
      "kind": "LECTURE",
      "subject": "PE-I",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "DMS"
+     ],
      "room": null,
      "online": false,
      "label": "PE-I DMS IM",
@@ -24046,7 +24219,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "APM"
+     ],
      "room": null,
      "online": false,
      "label": "APM VM",
@@ -24318,7 +24493,10 @@
      "kind": "LECTURE",
      "subject": "PE-I",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "DMS",
+      "APM"
+     ],
      "room": null,
      "online": false,
      "label": "PE-I DMS/APM/PED",
@@ -24377,7 +24555,10 @@
      "kind": "LECTURE",
      "subject": "PE-I",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "DMS",
+      "APM"
+     ],
      "room": null,
      "online": false,
      "label": "PE-I DMS/APM/PED",
@@ -24759,7 +24940,8 @@
      "subject": null,
      "batch": null,
      "faculty": [
-      "VB"
+      "VB",
+      "DMS"
      ],
      "room": "320",
      "online": false,
@@ -24819,7 +25001,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "DMS"
+     ],
      "room": "313",
      "online": false,
      "label": "DMS 313",
@@ -24974,7 +25158,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "DMS"
+     ],
      "room": "313",
      "online": false,
      "label": "DMS 313",
@@ -25018,7 +25204,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "DMS"
+     ],
      "room": "313",
      "online": false,
      "label": "DMS 313",
@@ -25603,7 +25791,8 @@
      "subject": "COA",
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "RSH"
      ],
      "room": "523",
      "online": false,
@@ -25651,7 +25840,8 @@
      "subject": "COA",
      "batch": null,
      "faculty": [
-      "AJ"
+      "AJ",
+      "RSH"
      ],
      "room": "520",
      "online": false,
@@ -26193,7 +26383,9 @@
      "kind": "LECTURE",
      "subject": "MWC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": "520",
      "online": false,
      "label": "MWC SKS (520-523, 714)",
@@ -26283,7 +26475,9 @@
      "kind": "LECTURE",
      "subject": "MWC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": null,
      "online": false,
      "label": "MWC SKS",
@@ -26567,7 +26761,9 @@
      "kind": "LECTURE",
      "subject": "MWC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": null,
      "online": false,
      "label": "MWC SKS",
@@ -26866,7 +27062,9 @@
      "kind": "LECTURE",
      "subject": "MWC",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKS"
+     ],
      "room": null,
      "online": false,
      "label": "MWC SKS",
@@ -27295,7 +27493,9 @@
      "kind": "LECTURE",
      "subject": "WE",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKH"
+     ],
      "room": null,
      "online": false,
      "label": "WE B1 SKH",
@@ -27319,7 +27519,9 @@
      "kind": "LECTURE",
      "subject": "SPM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKH"
+     ],
      "room": "710",
      "online": false,
      "label": "SPM SKH 710",
@@ -27492,7 +27694,9 @@
      "kind": "LECTURE",
      "subject": "SPM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKH"
+     ],
      "room": "714",
      "online": false,
      "label": "SPM SKH 714",
@@ -27571,7 +27775,9 @@
      "kind": "LECTURE",
      "subject": "SPM",
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SKH"
+     ],
      "room": "710",
      "online": false,
      "label": "SPM SKH 710",
@@ -28046,7 +28252,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SIP"
+     ],
      "room": null,
      "online": false,
      "label": "SIP",
@@ -28460,7 +28668,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SIP"
+     ],
      "room": null,
      "online": false,
      "label": "SIP",
@@ -28537,7 +28747,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SIP"
+     ],
      "room": null,
      "online": false,
      "label": "SIP",
@@ -28830,7 +29042,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SIP"
+     ],
      "room": null,
      "online": false,
      "label": "SIP",
@@ -29376,7 +29590,9 @@
      "kind": "ACTIVITY",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "SIP"
+     ],
      "room": null,
      "online": false,
      "label": "SIP",
@@ -29927,7 +30143,9 @@
      "kind": "LECTURE",
      "subject": null,
      "batch": null,
-     "faculty": [],
+     "faculty": [
+      "AAD"
+     ],
      "room": null,
      "online": true,
      "label": "10:30 AAD-II online",

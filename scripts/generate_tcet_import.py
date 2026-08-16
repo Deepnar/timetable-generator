@@ -174,10 +174,20 @@ def parse_cell(entry, legend_codes, legend_initials, glossary_initials):
     elif re.search(r"Batch\s*([1-9])\b", e, re.I):
         bs = re.findall(r"Batch\s*([1-9])\b", e, re.I)
         cell["batch"] = [int(b) for b in bs]
-    # faculty initials: tokens that appear in legend initials or glossary
+    # faculty initials: tokens that appear in legend initials or glossary.
+    # Two passes: the short form catches 1-2 uppercase (SuS, PD, NW); the long
+    # form catches 3+ uppercase glossary initials (SPS, VNS, HPK) that the
+    # short regex silently drops — a real source of duplicate-faculty windows.
     toks = re.findall(r"\b[A-Z][a-z]?[A-Z]?[a-z]?\b", e)
     known = legend_initials | glossary_initials
     fac = [t for t in toks if t in known and len(t) >= 2 and t not in legend_codes]
+    if len(fac) <= 1:
+        long_toks = re.findall(r"\b[A-Z]{2,4}\b", e)
+        extra = [t for t in long_toks if t in known and t not in fac and t not in legend_codes]
+        if extra and len(fac) == 0:
+            fac = extra
+        elif extra and len(fac) == 1:
+            fac = fac + [t for t in extra if t != fac[0]]
     if fac:
         cell["faculty"] = fac
     # subject: leading code token matching a legend code
@@ -357,7 +367,62 @@ json.dump({"timetables": timetables}, open(os.path.join(OUT, "timetables.json"),
 # 6. assignments.json — whole-division from legends + per-batch from lab cells
 assign_rows = []
 seen_asg = set()
-period_counter: dict = {}
+# A lab WINDOW is (group, period): all lab cells at the same (group, day,
+# contiguous-slot-run) belong to ONE window, and its members are
+# (batch_number, subject_id, faculty_id) rows sharing that period. This
+# re-scopes period from subject to group (A1): two different subjects can be
+# co-located in one window (COMP-TE-D day 0: CG->D1D2 + IIS->D3D4).
+from collections import defaultdict
+lab_cells_by_group: dict = defaultdict(list)
+for tt in timetables:
+    for c in tt["cells"]:
+        if c["kind"] == "LAB" and c.get("subject") and c.get("batch"):
+            lab_cells_by_group[tt["group_name"]].append(c)
+
+for gname, cells in lab_cells_by_group.items():
+    by_pos: dict = defaultdict(list)
+    for c in cells:
+        by_pos[(c["day"], c["slot"])].append(c)
+    positions = sorted(by_pos)
+    # contiguous slot runs per day = one window per run; the run length is the
+    # window's block_length (1 slot for most grids, 2 for BE's merged block).
+    window_for_pos: dict = {}
+    window_num = 0
+    prev_day = prev_slot = None
+    for (d, s) in positions:
+        if prev_day != d or s != prev_slot + 1:
+            window_num += 1
+        window_for_pos[(d, s)] = window_num
+        prev_day, prev_slot = d, s
+    # run length (block_length) per window
+    run_len = {}
+    for (d, s), w in window_for_pos.items():
+        run_len[w] = max(run_len.get(w, 0), 1)
+        if (d, s - 1) in window_for_pos:
+            run_len[w] = max(run_len.get(w, 0), 2)
+    for (d, s), cells_at in sorted(by_pos.items()):
+        w = window_for_pos[(d, s)]
+        for c in cells_at:
+            fac = c.get("faculty") or []
+            cell_batches = c["batch"]
+            for idx, b in enumerate(cell_batches):
+                # Faculty map by POSITION in the cell's batch list, not by the
+                # global batch number: "D3D4 SPS/PM" -> batch 3 = SPS,
+                # batch 4 = PM. The old `b - 1` indexing gave every batch of a
+                # D3D4 cell the same teacher.
+                f = fac[min(idx, len(fac) - 1)] if fac else None
+                key = (gname, c["subject"], b, f, w)
+                if key in seen_asg:
+                    continue
+                seen_asg.add(key)
+                row = {"subject_code": c["subject"], "group_name": gname,
+                       "faculty_initials": f, "weekly_hours": None,
+                       "batch_number": b, "period_id": w,
+                       "block_length": run_len[w],
+                       "_note": "hours_per_week null — derive from grid slot count"}
+                if f and f in GLOSS and GLOSS[f] != "?" and ";" not in GLOSS[f]:
+                    row["faculty_name"] = GLOSS[f]
+                assignments.append(row)
 for tt in timetables:
     code = tt["group_name"].split("-")[0]
     sem = tt["semester"]
@@ -366,35 +431,19 @@ for tt in timetables:
         subj = c.get("subject")
         if not subj or c["kind"] in ("NOTIONAL", "BREAK", "FREE"):
             continue
-        fac = c.get("faculty") or []
         if c["kind"] == "LAB" and c.get("batch"):
-            # Each LAB cell is ONE weekly period (a set of parallel batches).
-            pc = period_counter.get((gname, subj), 0) + 1
-            period_counter[(gname, subj)] = pc
-            # one row per batch, faculty mapped by position (fallback: all faculty for batch 1)
-            for b in c["batch"]:
-                f = fac[min(b - 1, len(fac) - 1)] if fac else None
-                key = (gname, subj, b, f)
-                if key in seen_asg:
-                    continue
-                seen_asg.add(key)
-                row = {"subject_code": subj, "group_name": gname, "faculty_initials": f,
-                       "weekly_hours": None, "batch_number": b, "period_id": pc,
-                       "_note": "hours_per_week null — derive from grid slot count"}
-                if f and f in GLOSS and GLOSS[f] != "?" and ";" not in GLOSS[f]:
-                    row["faculty_name"] = GLOSS[f]
-                assignments.append(row)
-        else:
-            for f in fac:
-                key = (gname, subj, None, f)
-                if key in seen_asg:
-                    continue
-                seen_asg.add(key)
-                row = {"subject_code": subj, "group_name": gname, "faculty_initials": f,
-                       "weekly_hours": None, "batch_number": None}
-                if f and f in GLOSS and GLOSS[f] != "?" and ";" not in GLOSS[f]:
-                    row["faculty_name"] = GLOSS[f]
-                assignments.append(row)
+            continue  # handled above with group-scoped windows
+        fac = c.get("faculty") or []
+        for f in fac:
+            key = (gname, subj, None, f)
+            if key in seen_asg:
+                continue
+            seen_asg.add(key)
+            row = {"subject_code": subj, "group_name": gname, "faculty_initials": f,
+                   "weekly_hours": None, "batch_number": None}
+            if f and f in GLOSS and GLOSS[f] != "?" and ";" not in GLOSS[f]:
+                row["faculty_name"] = GLOSS[f]
+            assignments.append(row)
 json.dump({"assignments": assignments}, open(os.path.join(OUT, "assignments.json"), "w"),
           indent=1, ensure_ascii=False)
 print("assignments:", len(assignments))
