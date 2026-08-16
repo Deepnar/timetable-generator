@@ -40,7 +40,14 @@ def update_settings(
     enable_soft_constraint_scoring: Optional[bool] = None,
     config_json: Optional[dict] = None,
 ) -> CollegeSettings:
-    """Update one or more flags. None means "leave unchanged"."""
+    """Update one or more flags. None means "leave unchanged".
+
+    ``config_json`` is MERGED into the existing blob key-by-key instead of
+    replaced, so a partial document edit (e.g. the constraint editor touching
+    ``max_cross_dept_per_day``) cannot clobber the sibling keys — the
+    institution facts (scheme_hours / year_strengths / batches_per_year,
+    DD-043) and the cross-dept cap share this document.
+    """
     settings = get_settings(db)
     if enable_lab_batches is not None:
         settings.enable_lab_batches = enable_lab_batches
@@ -49,7 +56,9 @@ def update_settings(
     if enable_soft_constraint_scoring is not None:
         settings.enable_soft_constraint_scoring = enable_soft_constraint_scoring
     if config_json is not None:
-        settings.config_json = config_json
+        current = dict(settings.config_json or {})
+        current.update(config_json)
+        settings.config_json = current
     db.commit()
     db.refresh(settings)
     return settings
