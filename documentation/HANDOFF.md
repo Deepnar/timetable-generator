@@ -12,32 +12,26 @@ Read `AGENTS.md` (repo root) first — commands, test entry points, commit rules
 
 ## The one-paragraph situation
 
-**Phase 3b items 1–4 — constraint tiering — is DONE (DD-042, 241 tests green, pushed).**
+**Phase 3b — Make constraints editable — is COMPLETE (DD-042 + DD-043, 246 tests green, pushed).**
 `STRUCTURAL_RULES` split into `INVARIANT_RULES` (physics, always-on) and
 `DEFAULT_INSTITUTIONAL_RULES` (policy: SAME_SUBJECT_SAME_DAY, MAX_ONE_LAB_PER_DAY,
 CROSS_DEPT_DAILY_CAP, ROOM_CAPACITY_SUFFICIENT, both faculty caps). Institutional rules fire
 **only** from a profile/college-default `hard_constraints` row (`profile_id NULL` = college-wide);
-migration `c9d4e8f2a6b0` seeds the three that were always-on, and the importer re-seeds them
-after `--wipe`. All 8 previously-unreachable validators are now in the `ConstraintType` enum with
-a **startup parity assertion** (`assert_registry_enum_parity` in `app/main.py` lifespan — the app
-refuses to start if registry and enum drift). `GET /constraints/types` returns tier +
-config JSON-schema per type (`CONSTRAINT_TIERS` / `CONFIG_SCHEMAS` in the registry), so a
-registrar can now change "max labs per day" or turn SAME_SUBJECT_SAME_DAY off through
-`POST/PUT/DELETE /constraints/hard` — no code change. OR-Tools gates its SAME_SUBJECT_SAME_DAY
-parity on an active row to match greedy. Live DB migrated and verified; backend restarted.
-
-**Remaining in Phase 3b: item 5** — move the importer's hardcoded constants into an
-institution-profile document (see below). The **constraint editor UI** (the phase's done-when)
-is scheduled with Phase 6's frontend work.
+migration `c9d4e8f2a6b0` seeds the three that were always-on, the importer re-seeds them after
+`--wipe`. All 8 previously-unreachable validators are in the `ConstraintType` enum with a
+**startup parity assertion**. `GET /constraints/types` returns tier + config JSON-schema per
+type. **Item 5 (D2):** the importer's college facts — `scheme_hours`, `year_strengths`,
+`batches_per_year` — moved into `CollegeSettings.config_json` (seeded once, registrar-editable
+via `PUT /settings`), the scope gate became the `--codes` CLI flag, and `update_settings` now
+merges `config_json` instead of replacing it. Re-seeded live DB reproduces the Phase 3 numbers
+exactly (48/51 within ±1; 154 GRID + 19 AUTOFILL; 100 competencies); college republished 11/11.
 
 **Standing answer on "are the current website timetables good?"** No — and don't judge yet.
-Live DB check (16 Aug 2026): 4 of the last 11 runs carry placement warnings (1–3 unplaced each);
-instances 10/11 are sparse (7/19 slots). They are per-division greedy solves: faculty caps never
-compose across divisions, early divisions get first pick, scoring/preference scan is off by
-default. Phase 4 (cohort solving, zero unplaced) changes the output fundamentally; the honest
-yardstick is Phase 5 (fidelity scorer library + synthetic problem generator — any unplaced
-session then provably a solver bug). What IS worth checking now: rendering correctness
-(Phase 6 C1–C4), not timetable quality.
+They are per-division greedy solves: faculty caps never compose across divisions, early
+divisions get first pick, scoring/preference scan is off by default. **Phase 4 (cohort solving,
+zero unplaced) changes the output fundamentally**; the honest yardstick is Phase 5 (fidelity
+scorer library + synthetic problem generator — any unplaced session then provably a solver
+bug). What IS worth checking now: rendering correctness (Phase 6 C1–C4), not timetable quality.
 
 ---
 
@@ -46,30 +40,10 @@ session then provably a solver bug). What IS worth checking now: rendering corre
 Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are cross-referenced as
 **[A*n*]** (engine), **[B*n*]** (bugs/security), **[C*n*]** (frontend), **[D*n*]** (generality).
 
-> **Scope rule for Phases 0–5: COMP only.** `REAL_DATA_CODES = {"COMP"}` in
-> `scripts/import_tcet.py`. 11 divisions with a real roster exercise every hard case.
-> The other five branches are shape-only synthetic. Re-admit IT at Phase 5. See **[D5]**.
+> **Scope rule for Phases 0–5: COMP only.** The importer defaults to `--codes COMP`; re-admit
+> IT with `--codes COMP,IT` at Phase 5 (see [D5]). The other branches are shape-only synthetic.
 
-### Phase 3b — remainder: importer constants → institution profile (1–2 days) ← **start here**
-
-Items 1–4 are done (DD-042, migration `c9d4e8f2a6b0`). Remaining, **[D2]**:
-
-1. Move the importer's hardcoded constants out of `scripts/import_tcet.py` into a declarative
-   institution document the college owns (profile params where scoped, else a settings/config
-   file the importer reads). The list, all still hardcoded: `_scheme_hours` (L:3/T:1/P:2 fallback,
-   `import_tcet.py:105`), the per-year strengths `{1:63, 2:63, 3:70, 4:60}` (`:500`), and
-   `batches = 3 if year == 1 else 2` (`:749`). `lunch_break_after_slot` no longer exists (Phase 1
-   removed the synthetic arithmetic); `default_block_length` already flows through
-   CONTIGUOUS_LAB_SLOTS profile rows. `REAL_DATA_CODES` is a scope gate — decide whether it
-   becomes an importer CLI flag or stays a constant.
-2. Record the decision as **DD-043** (where the document lives: `info/import/institution.json`?
-   `CollegeSettings.config_json`? profile params?) — the audit's D2 sketch shows
-   `scheme_hours: {L:3,T:1,P:2}` as an institution-profile field.
-
-**Done when:** adding a second fixture college (`fixtures/other.json`, D3) requires zero
-`app/engine/` changes and only adapter changes in the importer.
-
-### Phase 4 — Solve the cohort, not the division (5–8 days)
+### Phase 4 — Solve the cohort, not the division (5–8 days) ← **start here**
 
 All 36 profiles are single-group; the college is built by publish-then-generate, so faculty caps
 never compose across divisions and early divisions take the best slots.
@@ -77,8 +51,9 @@ never compose across divisions and early divisions take the best slots.
 1. Bridge first (cheap): extend `Scheduler._load_published_conflicts()` (`scheduler.py:441`) to also
    return per-faculty day/week counts, and seed the checker's counters with them. **[A4]**
 2. Cohort profiles — one generation per (department, year). `greedy_solver.py:265` already filters by
-   `profile_group_ids`, so this is mostly a data-shape change.
-3. Fail-fast `is_valid` (`constraint_checker.py:112` runs all 14 rules even after the first failure);
+   `profile_group_ids`, so this is mostly a data-shape change (importer: one profile per
+   (dept, year) bundling the year's divisions; `generate_college` publishes per division).
+3. Fail-fast `is_valid` (`constraint_checker.py:112` runs all rules even after the first failure);
    index committed slots by `(faculty|room|group, day, slot)` instead of linear scans. Cheapest large
    speedup in the codebase. **[A6]**
 4. Real "most constrained first" — `greedy_solver.py:330` currently sorts on two booleans.
@@ -100,7 +75,7 @@ never compose across divisions and early divisions take the best slots.
 4. **Second fixture college** with a different shape (6 slots, break at 3, 5-day, 2 batches, 2-slot
    labs, no home room). CI generates both. If it needs an `app/engine/` change, overfitting is caught
    that day. **[D3]**
-5. Re-admit IT, then the rest, each gated on the suite staying green.
+5. Re-admit IT (`--codes COMP,IT`), then the rest, each gated on the suite staying green.
 
 ### Phase 6 — Frontend (4–6 days)
 
@@ -122,8 +97,8 @@ grid defects are exactly C2 + C3/C4, verified in code — the backend data is co
    fed from the profile's params. **[C3, C4]**
 4. **Constraint editor UI** — the Phase 3b done-when: `GET /constraints/types` now returns
    tier + config JSON-schema per type; the editor renders a form from it and writes
-   `hard_constraints` rows (profile_id NULL for college defaults). Include the DD-039 toggle
-   affordance for capacity/caps.
+   `hard_constraints` rows (profile_id NULL for college defaults) and `PUT /settings` facts
+   (the config_json merge is already in place). Include the DD-039 toggle affordance.
 5. Post-generation review: score breakdown, unplaced list **with reasons** (the checker already
    produces them and they are discarded), diff vs published. **[C6]**
 6. Accessibility: grid semantics, keyboard nav, non-colour subject encoding; move route protection
@@ -140,11 +115,12 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 
 ## Open design decisions (from `design-decisions.md` — carry forward)
 
-- **DD-042 follow-up (Phase 3b item 5)** — importer constants (`_scheme_hours`, strengths,
-  batch counts) move to an institution-profile document; decide where (DD-043). Profile-level
-  override semantics for a college-default rule are also unresolved: a profile row currently
-  *adds to* the default; it cannot switch a default off for one profile alone — the UI edits
-  the default row instead.
+- **DD-043 follow-up** — the synthesized lab-subject `min_capacity: 40` and the synthetic
+  faculty caps (`max_hours_per_week=30`, `max_hours_per_day=8`) are still adapter constants;
+  the caps are inert without a constraint row (D6). A future pass can move them into the facts
+  document the same way. Also unresolved from DD-042: profile-level override semantics for a
+  college-default rule (a profile row currently *adds to* the default; it cannot switch a
+  default off for one profile alone — the UI edits the default row instead).
 - **DD-036 follow-up** — the 9 scattered lab windows are shared-faculty data gaps: unresolved
   initials (HP vs HPK, SPS, etc.) resolve two batches of a window to the same teacher, so the
   window cannot co-locate (distinct-faculty rule). Fix via faculty resolution /
@@ -186,10 +162,10 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 - **Every phase ends with a measured number**, not a description. The metrics table above is the
   scoreboard; re-run it and put the delta in the commit body.
 - **No new synthetic people.** More fake teachers make bugs unattributable. See **[A9, D4]**.
-- **No college constants in `app/engine/`.** They belong in institution-profile parameters. **[D2]**
+- **No college constants in `app/engine/`.** They belong in the institution facts document. **[D2]**
 - **Commits**: many small focused ones, impersonal voice, staged in logical chunks (`AGENTS.md`).
 - **Docs in the same change**: `timetable-generator-architecture.md` §3 schema / §4 endpoints /
-  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-043 onward in
+  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-044 onward in
   `design-decisions.md`.
 
 ## Reproducing every number in this handoff
@@ -232,17 +208,8 @@ print(f"outside +-1: {len(bad)}/{total}", bad)
 db.close()
 PY
 
-# live-DB published-instance health (unplaced warnings / sparse instances)
-.venv/bin/python - <<'PY'
-from app.database import SessionLocal
-from app.models.generation import TimetableGeneration, TimetableInstance, InstanceStatus
-from sqlalchemy import select
-db = SessionLocal()
-for g in db.scalars(select(TimetableGeneration).order_by(TimetableGeneration.id.desc()).limit(6)):
-    print(f"run {g.id} [{g.generation_status.value}] alg={g.algorithm_used.value} profile={g.profile_id}"
-          + (f" WARNING: {g.placement_warning}" if g.placement_warning else ""))
-db.close()
-PY
+# institution facts document (D2 / DD-043)
+.venv/bin/python -c "from app.database import SessionLocal; from app.services.settings_service import get_settings; print(get_settings(SessionLocal()).config_json)"
 
 # registry/enum parity + tier catalog (the Phase 3b invariants)
 .venv/bin/python -c "from app.engine.constraint_registry import assert_registry_enum_parity; assert_registry_enum_parity(); print('parity OK')"
@@ -253,18 +220,19 @@ PY
 ```bash
 uv run alembic upgrade head
 uv run python scripts/generate_tcet_import.py      # refresh info/import/*.json from the markdown pack
-uv run python -m scripts.import_tcet --wipe --fill-gaps   # seed Postgres (Phase 3: honest demand)
+uv run python -m scripts.import_tcet --wipe --fill-gaps   # seed Postgres (Phase 3: honest demand; --codes COMP default)
 uv run python -m scripts.generate_college --instances 1 --clear-locks   # publish all (~2 min)
-uv run python -m app.tests                         # 241 tests
+uv run python -m app.tests                         # 246 tests
 cd frontend && npm run typecheck                   # NOT npm run build
 ```
 
 Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host port **5433**.
 
-> **Re-seed with `--fill-gaps`** — the importer now re-seeds the college-default institutional
+> **Re-seed with `--fill-gaps`** — the importer re-seeds the college-default institutional
 > constraint rows after `--wipe` (SAME_SUBJECT_SAME_DAY / MAX_ONE_LAB_PER_DAY /
-> CROSS_DEPT_DAILY_CAP, profile_id NULL), so a wiped DB keeps the migrated behaviour. Data gaps
-> are reported by default and load is only invented under `--fill-gaps`.
+> CROSS_DEPT_DAILY_CAP, profile_id NULL), seeds the institution facts document
+> (`CollegeSettings.config_json`: scheme_hours / year_strengths / batches_per_year — missing
+> keys only, registrar edits win), and reports data gaps by default.
 
 ## Gotchas (carried forward — still true)
 
@@ -289,6 +257,9 @@ Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host po
   `seed_minimal` now inserts (mirroring migration `c9d4e8f2a6b0`); tests that want a rule OFF
   delete the rows. Capacity and faculty caps stay off unless a `hard_constraints` row enables
   them (DD-039) — see `t_faculty_cap`, `t_recurring_blackout`.
+- **`CollegeSettings.config_json` is the facts document** (DD-043) — `PUT /settings` MERGES
+  key-by-key (never send a full replacement expecting clobber; partial edits are safe). The
+  importer seeds `scheme_hours`/`year_strengths`/`batches_per_year` only when missing.
 - **The feasibility report hard-fails oversubscribed runs with a 409** (DD-040) — an assignment
   asking for more sessions than the week can hold now fails before solving.
 - **OR-Tools window co-location uses presence indicators** (DD-041) — the old per-pair equality
