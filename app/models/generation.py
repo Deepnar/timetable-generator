@@ -116,6 +116,12 @@ class TimetableSlot(Base):
     # each batch's practical runs at the same time in a different room. NULL
     # means a whole-division / non-batched session.
     batch_number: Mapped[int | None] = mapped_column(nullable=True)
+    # Window identity (A1): which lab window this batch slot belongs to. A
+    # window is (group_id, period_number) and its members — different batches,
+    # possibly different subjects — all share this key. NULL for non-window
+    # sessions. Lets the checker recognise siblings of the same window without
+    # requiring the same subject.
+    window_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
     session_type: Mapped[SessionType] = mapped_column(Enum(SessionType))
     is_manual_override: Mapped[bool] = mapped_column(Boolean, default=False)
     override_reason: Mapped[str | None] = mapped_column(String(300))

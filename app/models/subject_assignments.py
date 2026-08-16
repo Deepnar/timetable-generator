@@ -48,7 +48,16 @@ class SubjectAssignment(Base):
     # A lab runs several parallel practicals a week (TE CG: D1D2 one day,
     # D3D4 another); ``batch_number`` is a global batch id so it cannot
     # separate periods on its own. NULL = single-period / non-batched.
+    # Phase 2 (A1) re-scopes this to the GROUP: a window is (group_id,
+    # period_number), and its members are (batch_number, subject_id,
+    # faculty_id) rows sharing that period. Two different lab subjects in the
+    # same window therefore share a period number.
     period_number: Mapped[int | None] = mapped_column(nullable=True)
+
+    # How many consecutive slots this row's window occupies (1 = the common
+    # case; 2 = a merged 2-period practical). Read from the published grid's
+    # slot span. NULL falls back to the CONTIGUOUS_LAB_SLOTS rule.
+    block_length: Mapped[int | None] = mapped_column(nullable=True)
 
     # Relationships for easy querying
     subject = relationship("Subject", backref="assignments")
