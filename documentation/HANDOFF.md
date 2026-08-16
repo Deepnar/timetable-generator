@@ -7,53 +7,39 @@ Read `AGENTS.md` (repo root) first — commands, test entry points, commit rules
 > An independent audit (15 Aug 2026) found the engine is **solving the wrong problem correctly**.
 > That document is the current source of truth for what is wrong and what to build, in order.
 > The decision record is **DD-031** in `documentation/design-decisions.md`.
->
-> **Do not start from `real-data-rollout-plan.md` or `timetable-audit.md`** — both are superseded
-> for anything they claim about lab handling, hours derivation, or rollout health.
 
 ---
 
 ## The one-paragraph situation
 
-225 → **230 tests pass** (window suite added). The engine can now express the real scheduling
-unit — a *lab window* where one division splits into batches doing **different subjects**
-simultaneously (COMP-TE-D day 0: `Lab CG D1D2` + `Lab IIS D3D4`). Remaining structural gaps are
-honest data/allocation problems (Phase 3), not modelling errors.
+237 → **237 tests pass** (Phase 3 tests added; two baseline tests updated to use the new
+institutional toggle). **Phase 3 — Honest demand and honest allocation is DONE.** The importer now
+reads weekly hours from the published grids instead of inventing them, auto-fill is an explicit
+`--fill-gaps` step that only picks qualified teachers, a new `faculty_subject_competency` table
+gates every invented assignment and the solver's lab-batch fallback, `profile_resources` dropped
+from 3,710 to 96 rows, every assignment carries `source` provenance, the invented-quantity
+constraints (room capacity, faculty caps) are off unless a profile row re-enables them, a
+pre-solve feasibility report fails loud before solving, and OR-Tools was fixed to actually place
+labs on real data. Recorded as **DD-037..041**.
 
-**Phase 0 (stop the bleeding) is DONE**: role guards on every mutating route (B-CRIT-1/B-HIGH-2),
-`subject_assignments` dedup + unique index (A3), `Callable` import (B1), `CROSS_DEPT_DAILY_CAP`
-counting fix (B2). Recorded as **DD-032/DD-033**.
+**Measured on the 11 COMP divisions (re-seeded with `--fill-gaps`):**
 
-**Phase 1 (make the grid real) is DONE**: `break_slots` + verbatim `slot_times`, `saturday_policy`,
-`NO_TEACHING_IN_BREAK_SLOT`, home-room hard restriction, `ROOM_STABILITY` scorer. Recorded as
-**DD-034/DD-035**. Measured on the 11 COMP divisions: **0 break-slot sessions, 0 Saturday sessions,
-100% room stability, slot times exactly match `grids.json`**.
-
-**Phase 2 (model the lab window) is DONE**: group-scoped `period_number`, window construction,
-`_is_parallel_sibling` by `window_key`, `MAX_ONE_LAB_PER_DAY` counts windows, `LAB_ROTATION_COMPLETE`
-Latin-square validator, `SAME_SUBJECT_SAME_DAY` relaxed to lectures-only, OR-Tools window support.
-Recorded as **DD-036**. **Measured: 21/30 windows fully co-located (up from 0), 21 carry 2+
-subjects; COMP-TE-D day 0 is the real shape.**
-
-**Current measured state** (live DB is now **COMP-only, 11 published instances** — re-seeded under
-the Phase 0–5 scope rule `REAL_DATA_CODES = {"COMP"}`):
-
-| Metric | Phase 0 (audit, 36 divs) | Phase 2 (11 COMP divs) | Target |
+| Metric | Phase 2 | Phase 3 | Target |
 |---|---|---|---|
-| sessions in a break slot | 175 | **0** | 0 |
-| Saturday sessions | 163 | **0** | 0 |
-| lecture pairs split across rooms | 245 of 245 | **0 of 100% in-venue** | <5% |
-| lab windows co-located (all batches same day+slot) | 0 (unexpressible) | **21 of 30 (70%)** | 100% |
-| lab windows carrying 2+ subjects | 0 (unexpressible) | **21 of 30 (70%)** | ~67% (audit's 52/78) |
-| divisions with unplaced sessions | 26 of 36 | still present | 0 (Phase 4) |
-| lab pairs where some batch gets no practical | 35 of 63 | **0** (COMP had none) | 0 |
-| (subject, division) pairs with 2+ teachers | 37 → 0 (deduped) | **0** | 0 |
-| faculty utilisation | 5–32%, 279 idle, 2 over cap | COMP-only (~54 fac) | even (Phase 3) |
-| OR-Tools on real data | half a timetable, zero practicals | fixed (windows + batch_number) | works or not offered |
+| (subject, division) hours within ±1 of grid | flat 3h everywhere | **48 of 51** | ±1 |
+| teachers over cap | 2 | **0** | 0 |
+| profile_resources (FACULTY) | 3,710 | **96** | few hundred |
+| assignment rows | 200 (grid + invented) | **154 GRID + 19 AUTOFILL** | GRID-only |
+| constraint firing on invented number | 3 structural | **0** (toggle) | 0 |
+| OR-Tools labs on COMP-TE-D | 0 | **8 of 12** (23/27 placed) | parity with greedy |
+| OR-Tools labs on COMP-SE-A | 0 | **12 of 16** (29/33 placed) | parity with greedy |
+| unplaced sessions (greedy) | present | still present | 0 (Phase 4) |
 
-> **Note:** unplaced sessions persist but are now *honest* — Phases 1–2 removed the fake Saturday,
-> break-slot, and per-subject-lab capacity that was hiding them. Zero-unplaced is Phase 4's job.
-> The 9 scattered windows are all shared-faculty data gaps (unresolved initials — Phase 3).
+> The 3 hour-misses are all **PROJECT** (BE-A/B/C): the college's grid cells for PROJECT name no
+> teacher at all, so no competency exists and no assignment can be made — an honest data gap the
+> registrar must resolve, not a solver bug. The OR-Tools shortfall is the same story: the 4
+> unplaced sessions are the shared-faculty window from DD-036 (Gaurav Nair on CG batches 3+4;
+> Preksha Pareek on DS batches 1+2) — CP-SAT correctly refuses to split a window.
 
 ---
 
@@ -69,152 +55,29 @@ Full detail per phase is in `system-audit-and-plan.md` **Part E**. Findings are 
 
 > ### 🧪 Know what is real before you tune anything — **[D6]**
 >
-> Live DB is now **COMP-only** (Phase 0–5 scope rule). Counts for the 6-branch seed (for
-> reference) were: 205 rooms (61 real names), 407 faculty (38 real), 36 groups, 149 subjects,
-> 540→495 assignments. Current COMP seed: **41 rooms, 390 faculty (~59 synthetic for unresolved
-> initials), 11 groups, 30 subjects, 200 assignments**.
+> Live DB is now **COMP-only**. Current COMP seed (with `--fill-gaps`): **41 rooms, 392 faculty
+> (~59 synthetic for unresolved initials), 11 groups, 30 subjects, 173 assignments (154 GRID +
+> 19 AUTOFILL), 100 competency rows**.
 >
-> | Entity | in DB (COMP) | real | invented |
-> |---|---|---|---|
-> | rooms | 41 | COMP venue + cell names | **100% of capacities** |
-> | faculty | 390 | real roster names | synthetic names + **100% of workload caps** (30h/8h) |
-> | student_groups | 11 | names + venue | **100% of strengths** |
-> | subjects | 30 | names + codes | **100% of hours_per_week** |
-> | subject_assignments | 200 | subject↔group pairing | **100% of weekly_hours** |
->
-> **The only fully real artefacts are `info/import/timetables.json` (46 grids, 2,451 cells) and
+> **The only fully real artefacts are `info/import/timetables.json` (46 grids) and
 > `info/import/grids.json`.** Everything else is a real *name* with an invented *quantity*.
 >
 > Two consequences, both load-bearing:
-> 1. **No constraint may depend on an INVENTED quantity.** Phase 3 item 7 turns three of them off.
->    **Measured: this changes nothing today** — `ROOM_CAPACITY_SUFFICIENT` and both faculty caps
->    reject **0 of 31,370** candidate evaluations. They are inert *because* the numbers are
->    invented, and become load-bearing the moment real data arrives (capacity) or cohort solving
->    lands (caps). Zero-risk to remove now; must be switched on deliberately later.
-> 2. **Score fidelity only against `timetables.json`.** Every A8 metric (room stability, batch
->    coverage, break-slot usage, Saturday, hours per subject) is derivable from it and depends on
->    **zero** invented quantities — which is exactly why nothing breaks when reality differs from
->    the placeholders.
->
-> **Full ledger, the counterfactual measurements, the data we must eventually collect (ranked), and
-> the per-branch coverage table: `documentation/data-requirements.md`.**
->
-> Headline from that doc: **`MAX_ONE_LAB_PER_DAY` alone causes 64% of unplaced sessions** (22 → 8
-> across 5 divisions when removed) — one line at `import_tcet.py:615`, enforcing a rule the real
-> timetable violates 54 times. Phase 2 is the correct fix; this is the size of the prize.
+> 1. **No constraint may depend on an INVENTED quantity.** Done in Phase 3 (DD-039):
+>    `ROOM_CAPACITY_SUFFICIENT` and both faculty caps left `STRUCTURAL_RULES`; a profile
+>    `hard_constraints` row re-enables each (the INSTITUTIONAL toggle; the two faculty-cap types
+>    were added to the `ConstraintType` enum so the toggle is API-reachable). Measured: they
+>    rejected 0 of 31,370 candidates before, so removal changed nothing on the live data.
+> 2. **Score fidelity only against `timetables.json`.** The Phase 3 exit metric — weekly hours per
+>    (subject, division) within ±1 — is measured grid-vs-assignment (see the appendix script
+>    below) and depends on zero invented quantities.
 
-### Phase 0 — Stop the bleeding ✅ DONE (15 Aug 2026)
-
-All five items shipped, tested, committed in four focused commits, pushed:
-
-1. `require_roles("admin","hod")` on `overrides.py` (B-CRIT-1); `notifications.py` gated to all
-   four roles — it is recipient-scoped self-service, so admin/hod-only would have broken the
-   portal bell (B-HIGH-2; **DD-033**).
-2. Mutation-sweep regression test in `test_security.py` — enumerates every mutating route in the
-   OpenAPI schema, asserts a STUDENT token is 403 except the public auth + recipient-scoped
-   notification paths. A new unguarded router fails the suite the same day.
-3. `Callable` imported in `greedy_solver.py` (B1).
-4. `CROSS_DEPT_DAILY_CAP` counts only cross-dept sessions (B2; recomputed from subject/group
-   departments since `TimetableSlot` doesn't persist the flag).
-5. Unique expression index `(subject_id, group_id, COALESCE(batch_number,0),
-   COALESCE(period_number,0))` + dedup migration `e6a1b7c3d9f2` (540 → 495 rows); `POST/PUT
-   /assignments` return 409 on duplicates (A3). **DD-032** records that `load_share` shared-teaching
-   is incompatible with the constraint and untouched.
-
-**Open from DD-032:** shared teaching (two teachers, one subject, `load_share` 0.8/0.2) is
-currently impossible under the unique index. The solver ignores `load_share` today, so nothing
-breaks; if it is ever wanted it needs its own mechanism, not duplicate rows.
-
-### Phase 1 — Make the grid real ✅ DONE (15 Aug 2026)
-
-Five items shipped, tested, committed in six focused commits, pushed:
-
-1. `break_slots: [int]` per profile (modal BREAK slot from the division's published grid) +
-   `slot_times` read verbatim from `grids.json`; the synthetic lunch arithmetic is now only the
-   fallback for grid-less colleges. **[A2]**
-2. Per-division `working_days` (from days that actually teach) + `saturday_policy`
-   (`NONE|ACTIVITY_ONLY|FULL`). **[A2]**
-3. `NO_TEACHING_IN_BREAK_SLOT` structural validator (breaks a block that spans a break too). **[A2]**
-4. `StudentGroup.home_room_id` + `home_room_secondary_id` (migration `f7b2c8d4e1a3`); `_get_rooms`
-   hard-restricts non-lab sessions to the venue. **[A5]**
-5. `ROOM_STABILITY` soft scorer, stamped on imported profiles.
-
-**Exit metrics measured (11 COMP divisions):** 0 break-slot sessions · 0 Saturday sessions ·
-100% room stability · slot times exactly match `grids.json` (0 mismatches) · day ends 17:30.
-
-**Open from DD-034:** the real grids sometimes move the break by day (COMP-SE-A: slot 4 Mon-Wed,
-slot 5 Thu-Fri). The single `break_slots: [int]` picks the modal slot; per-(day, slot) break data
-is a future refinement.
-
-### Phase 2 — Model the lab window ✅ DONE (16 Aug 2026)
-
-Seven items shipped, tested, committed in six focused commits, pushed:
-
-1. `period_number` re-scoped to the GROUP (window = (group, period); members =
-   (batch, subject, faculty)); importer groups lab cells by (day, slot-run). **[A1]**
-2. Window construction: `_build_sessions` groups by `(group, period)`, `_expand_lab_batches`
-   emits one session per batch with its own subject. **[A1]**
-3. `_is_parallel_sibling` matches `window_key`, not subject. **[A1]**
-4. `MAX_ONE_LAB_PER_DAY` counts windows per group per day. **[A1]**
-5. `LAB_ROTATION_COMPLETE` (Latin square, constructed from the grid, never searched). **[A1]**
-6. `SAME_SUBJECT_SAME_DAY` relaxed to lectures-only default, labs/tutorials exempt. **[A1]**
-7. OR-Tools calls `_expand_lab_batches`, models window co-location, propagates
-   `batch_number`/`window_key`. **[A6]**
-
-**Exit metrics measured (11 COMP divisions):** 21/30 windows fully co-located (up from 0), 21
-carry 2+ subjects, COMP-TE-D day 0 = CG batches 1,2 + IIS batches 3,4 at the same slot.
-
-**Open from DD-036:** the 9 scattered windows are shared-faculty data gaps (unresolved initials
-like HP vs HPK, SPS) — a Phase 3 data-collection item, not a model bug. The rotation is read from
-the grid's declared members, not re-derived by the solver.
-
-### Phase 3 — Honest demand and honest allocation ← **start here**
-
-Ground truth, `COMP-TE-D` day 0 slot 5: `Lab CG D1D2 SuS/PD 324` **and** `Lab IIS D3D4 SPS/PM 325`
-— one window, two subjects, four teachers. `COMP-BE-A` shows the rotation explicitly:
-`period 1: DWM→batches 1,2 | CSS→batches 3,4`; `period 2: the swap`.
-
-1. Re-scope `period_number` from *(subject, group)* to **group**. A window is
-   `(group_id, period_number)`; members are `(batch_number, subject_id, faculty_id)`.
-2. `ParallelWindow` scheduling unit; `_expand_lab_batches` (`greedy_solver.py:471`) builds windows,
-   not per-subject groups. Fix the grouping at `greedy_solver.py:299`.
-3. `_is_parallel_sibling` (`constraint_registry.py:527`) matches **window identity**, not subject.
-4. `MAX_ONE_LAB_PER_DAY` counts **windows** per group per day.
-5. Construct the batch↔subject rotation as a **Latin square** before solving (window `k` gives batch
-   `i` subject `(i+k) mod K`); add `LAB_ROTATION_COMPLETE` validation. Don't search for it.
-6. Relax `SAME_SUBJECT_SAME_DAY` from always-on to configurable, defaulting to "at most one
-   *lecture* per subject per day; labs and tutorials exempt" — which is exactly what the 160 real
-   violations are. **[A1]**
-7. Fix `ORToolsSolver` to expand windows and propagate `batch_number`.
-
-**Done when:** batch coverage is 100%, lab windows carry multiple subjects, and a generated
-`COMP-TE-D` is recognisably the same *shape* as `info/import/timetables.json`.
-
-### Phase 3 — Honest demand and honest allocation (3 days)
-
-`scripts/import_tcet.py:160` computes `_derive_hours()` from the published grids **and never reads
-it**; `_scheme_hours()` gives every lecture a flat 3h instead. Then auto-fill (line 496) invents
-assignments with a modulo teacher rotation — which is why 279 teachers are idle while two are over
-cap.
-
-1. Use `_derive_hours()`; `_scheme_hours()` becomes the logged fallback. **[A3]**
-2. Demote auto-fill to an explicit `--fill-gaps` step that **reports** data gaps instead of
-   inventing load.
-3. Replace the modulo rotation (`import_tcet.py:539`) with least-loaded assignment. **[A9]**
-4. New `faculty_subject_competency` table; assignment and `_lab_batch_faculty` may only pick
-   qualified teachers. **[A9, B4]**
-5. Prune `profile_resources` (currently 3,710 rows) to teachers who actually hold an assignment.
-6. `source` provenance (`GRID|SCHEME|AUTOFILL`) on `subject_assignments`, surfaced in the UI. **[C5]**
-7. Pre-solve feasibility report (demand vs capacity per resource).
-
-**Done when:** weekly hours per (subject, division) within ±1 of the published grid; nobody over cap
-while anyone qualified is idle.
-
-### Phase 3b — Make constraints editable (2 days)
+### Phase 3b — Make constraints editable (2 days) ← **start here**
 
 **Eight registered validators are not in the `ConstraintType` enum**, so they are unreachable through
 the API and only insertable by direct DB write — including `SAME_SUBJECT_SAME_DAY` and
-`MAX_ONE_LAB_PER_DAY`, the two that contradict reality most.
+`MAX_ONE_LAB_PER_DAY`, the two that contradict reality most. (Phase 3 added only the two faculty
+caps; the rest of the drift is untouched.)
 
 1. Split `STRUCTURAL_RULES` (`constraint_registry.py:43`) into `INVARIANT_RULES` (physics: double
    booking, cross-timetable) and `DEFAULT_INSTITUTIONAL_RULES` (policy: same-subject-same-day, lab
@@ -245,9 +108,7 @@ never compose across divisions and early divisions take the best slots.
 4. Real "most constrained first" — `greedy_solver.py:330` currently sorts on two booleans.
 5. Scoring + preference scan **on by default**; always keep the best distinct attempt
    (`scheduler.py:268` currently takes the first *different* one, ignoring quality).
-6. Fix OR-Tools' `unplaced_count` under-report (`or_tools_solver.py:239` counts from `chosen`, before
-   the safety-net filter deletes placements). **[B9]**
-7. **Construct-then-repair with LNS** — greedy constructs; CP-SAT re-optimises small neighbourhoods
+6. **Construct-then-repair with LNS** — greedy constructs; CP-SAT re-optimises small neighbourhoods
    (a day, a division, the blockers of an unplaced session). **Never post-filter a CP-SAT answer**:
    every rule is modelled or enforced during construction. **[A11]**
 
@@ -267,12 +128,10 @@ never compose across divisions and early divisions take the best slots.
 
 ### Phase 6 — Frontend (4–6 days)
 
-1. **Print stylesheet** — A4 landscape, one division per page. A timetable's primary output is paper.
-   `TimetableGrid` has a `min-w-[980px]` scroll container and no print CSS. **[C1]**
+1. **Print stylesheet** — A4 landscape, one division per page. **[C1]**
 2. Redesign the parallel-batch cell — `CellStack` (`TimetableGrid.tsx:194`) hides the 3rd/4th batch
-   behind a scrollbar in a 76px row. After Phase 2, windows routinely hold 4. **[C2]**
-3. `breakAfterSlot` → `breakSlots: number[]`; make `slotTime` required (its default invents a 30-min
-   grid). **[C3, C4]**
+   behind a scrollbar in a 76px row. **[C2]**
+3. `breakAfterSlot` → `breakSlots: number[]`; make `slotTime` required. **[C3, C4]**
 4. Post-generation review: score breakdown, unplaced list **with reasons** (the checker already
    produces them and they are discarded), diff vs published. **[C6]**
 5. Accessibility: grid semantics, keyboard nav, non-colour subject encoding; move route protection
@@ -291,15 +150,22 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 
 - **DD-036 follow-up** — the 9 scattered lab windows are shared-faculty data gaps: unresolved
   initials (HP vs HPK, SPS, etc.) resolve two batches of a window to the same teacher, so the
-  window cannot co-locate (distinct-faculty rule). Fix in Phase 3 via faculty resolution /
-  `faculty_subject_competency`, not in the solver.
-- **DD-034 follow-up** — the real grids sometimes move the break by day (COMP-SE-A: slot 4
-  Mon-Wed, slot 5 Thu-Fri); the single `break_slots: [int]` picks the modal slot. A per-(day,
-  slot) break model would need per-day break data; worth revisiting in Phase 2 when lab windows
-  change how a day is structured anyway.
-- **DD-032 follow-up** — shared teaching (two teachers, one subject) is blocked by the new unique
-  index; the solver ignores `load_share` so nothing breaks today. If wanted later, needs its own
-  mechanism (a per-session teacher share), not duplicate rows.
+  window cannot co-locate (distinct-faculty rule). Fix via faculty resolution /
+  `faculty_subject_competency` (DD-038), not in the solver. OR-Tools now *refuses* such windows
+  (they show as its honest unplaced); greedy splits them.
+- **DD-037 follow-up** — PROJECT (BE-A/B/C) has grid cells but no named teacher, so no competency
+  exists and even `--fill-gaps` cannot assign it. The college must supply project mentors
+  (a `faculty_subject_competency` row + an assignment).
+- **DD-038 follow-up** — `preference_weight` on `faculty_subject_competency` is collected but not
+  yet used by the least-loaded picker; a UI to manage competencies is a Phase 6/3b item.
+- **DD-039 follow-up** — the institutional toggle needs a UI affordance (Phase 3b's constraint
+  editor); until then re-enabling caps/capacity is a profile-row insert.
+- **DD-034 follow-up** — the real grids sometimes move the break by day (COMP-SE-A: slot 4 Mon-Wed,
+  slot 5 Thu-Fri); the single `break_slots: [int]` picks the modal slot. Per-(day, slot) break data
+  is a future refinement.
+- **DD-032 follow-up** — shared teaching (two teachers, one subject, `load_share` 0.8/0.2) is
+  blocked by the unique index; the solver ignores `load_share` today. If wanted later, needs its own
+  mechanism, not duplicate rows.
 - **DD-004 follow-up** — promote mail gating to a `CollegeSettings.mail_enabled` flag or keep
   env-only.
 - **DD-003 follow-up** — email notifications need a retry queue / per-recipient opt-out.
@@ -318,24 +184,59 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 ## Working agreements for this plan
 
 - **Model before solver.** Do not optimise or replace a solver that is being asked the wrong
-  question. Phases 1–2 change how the output looks; Phase 4 makes it complete.
+  question. Phases 1–2 changed the output shape; Phase 3 made the input honest; Phase 4 makes it
+  complete.
 - **Every phase ends with a measured number**, not a description. The metrics table above is the
   scoreboard; re-run it and put the delta in the commit body.
 - **No new synthetic people.** More fake teachers make bugs unattributable. See **[A9, D4]**.
 - **No college constants in `app/engine/`.** They belong in institution-profile parameters. **[D2]**
 - **Commits**: many small focused ones, impersonal voice, staged in logical chunks (`AGENTS.md`).
 - **Docs in the same change**: `timetable-generator-architecture.md` §3 schema / §4 endpoints /
-  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-037 onward in
+  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-042 onward in
   `design-decisions.md`.
 
 ## Reproducing every number in this handoff
 
 ```bash
-# engine rules vs the real published timetables (160 / 54 / 131-of-133)
-# current output quality (unplaced, room churn, Saturday, break-slot usage)
-# faculty utilisation and idle count
-# greedy vs OR-Tools benchmark
-# -> all four scripts are in system-audit-and-plan.md, Appendix
+# weekly hours per (subject, division) vs the published grid (Phase 3 exit metric)
+.venv/bin/python - <<'PY'
+import json
+from app.database import SessionLocal
+from app.models.subject_assignments import SubjectAssignment
+from sqlalchemy import select
+from app.models.groups import StudentGroup
+from app.models.subjects import Subject
+db = SessionLocal()
+subjects = json.load(open("info/import/subjects.json"))["subjects"]
+code_to_name = {(s["department_code"], s["semester"], s["code"]): s["name"] for s in subjects}
+comp = [t for t in json.load(open("info/import/timetables.json"))["timetables"]
+        if t["group_name"].split("-")[0] == "COMP"]
+grid = {}
+for t in comp:
+    for c in t["cells"]:
+        k = c.get("kind")
+        if k in ("LECTURE", "TUTORIAL", "ACTIVITY") and c.get("subject"):
+            grid[(t["group_name"], c["subject"])] = grid.get((t["group_name"], c["subject"]), 0) + 1
+assigns = {}
+for a in db.scalars(select(SubjectAssignment)).all():
+    if a.batch_number is not None: continue
+    g = db.get(StudentGroup, a.group_id); s = db.get(Subject, a.subject_id)
+    if g and s: assigns[(g.name, s.name)] = assigns.get((g.name, s.name), 0) + (a.weekly_hours or 0)
+bad, total, seen = [], 0, set()
+for t in comp:
+    sem, dept = t["semester"], t["group_name"].split("-")[0]
+    for (gname, code), grid_h in sorted(grid.items()):
+        if gname != t["group_name"]: continue
+        name = code_to_name.get((dept, sem, code), code)
+        if (gname, name) in seen: continue
+        seen.add((gname, name)); total += 1
+        if abs(grid_h - assigns.get((gname, name), 0)) > 1: bad.append((gname, name, grid_h))
+print(f"outside +-1: {len(bad)}/{total}", bad)
+db.close()
+PY
+
+# faculty utilisation / idle / over-cap (audit appendix script #3)
+# greedy vs OR-Tools benchmark (audit appendix script #4) — see system-audit-and-plan.md
 ```
 
 ## How to run
@@ -343,14 +244,17 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 ```bash
 uv run alembic upgrade head
 uv run python scripts/generate_tcet_import.py      # refresh info/import/*.json from the markdown pack
-uv run python scripts/build_synthetic_branches.py  # per-branch pools (being retired — see D4)
-uv run python -m scripts.import_tcet --wipe        # seed Postgres
+uv run python -m scripts.import_tcet --wipe --fill-gaps   # seed Postgres (Phase 3: honest demand)
 uv run python -m scripts.generate_college --instances 1 --clear-locks   # publish all (~2 min)
-uv run python -m app.tests                         # 230 tests (plumbing only — see A8)
+uv run python -m app.tests                         # 237 tests
 cd frontend && npm run typecheck                   # NOT npm run build
 ```
 
 Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host port **5433**.
+
+> **Re-seed with `--fill-gaps`** — the importer now reports data gaps by default and only
+> invents load (source=AUTOFILL, least-loaded qualified teacher) under `--fill-gaps`. The COMP
+> seed uses it so every grid-taught subject has a teacher; PROJECT stays a reported gap.
 
 ## Gotchas (carried forward — still true)
 
@@ -369,4 +273,12 @@ Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host po
   from the markdown pack — run `generate_tcet_import.py` before `import_tcet.py` if you change
   the parser. Faculty initials are mapped by position within a cell's batch list (D3D4 SPS/PM →
   batch 3 = SPS, batch 4 = PM).
+- **Capacity and faculty caps are OFF unless a profile row enables them** (DD-039) — tests that
+  need them create a `hard_constraints` row first (see `t_faculty_cap`,
+  `t_recurring_blackout`).
+- **The feasibility report hard-fails oversubscribed runs with a 409** (DD-040) — an assignment
+  asking for more sessions than the week can hold now fails before solving.
+- **OR-Tools window co-location uses presence indicators** (DD-041) — the old per-pair equality
+  was infeasible with 2+ room candidates and silently dropped every lab. `unplaced_count` now
+  counts committed sessions, and the faculty caps honour the institutional toggle.
 - `scripts/seed_demo.py` is a fabricated demo; `scripts/seed_tcet.py` is superseded by the importer.
