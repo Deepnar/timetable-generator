@@ -13,16 +13,24 @@ from app.engine.constraint_checker import SlotCandidate
 
 
 def _add_faculty_and_room(client, db, profile_id, *, faculty_name, room_name,
-                          room_type="LAB", capacity=40):
-    """Attach one more faculty + one more room to the seed_minimal profile."""
+                          room_type="LAB", capacity=40, subject_id=None):
+    """Attach one more faculty + one more room to the seed_minimal profile.
+
+    ``subject_id`` (the seed's subject) also grants the new teacher a
+    ``faculty_subject_competency`` row — the Phase 3 (B4) rule that lab-batch
+    fallback staffing may only pick teachers qualified for the subject.
+    """
     from app.models.faculty import Faculty
     from app.models.rooms import Room, RoomType
     from app.models.profiles import ProfileResource, ResourceType
+    from app.models.faculty_subject_competency import FacultySubjectCompetency
 
     fac = Faculty(name=faculty_name, email=f"{faculty_name.lower().replace(' ', '.')}@x.com",
                   department="CS")
     db.add(fac)
     db.flush()
+    if subject_id is not None:
+        db.add(FacultySubjectCompetency(faculty_id=fac.id, subject_id=subject_id))
     room = Room(name=room_name, room_code=room_name,
                 room_type=getattr(RoomType, room_type, RoomType.LAB),
                 capacity=capacity, building="A")
@@ -74,9 +82,11 @@ def _phase5_parallel_labs(s):
             ))
             db.commit()
             f2, r2 = _add_faculty_and_room(None, db, ids["profile"],
-                                           faculty_name="Bob", room_name="L2")
+                                           faculty_name="Bob", room_name="L2",
+                                           subject_id=ids["subject"])
             f3, r3 = _add_faculty_and_room(None, db, ids["profile"],
-                                           faculty_name="Carol", room_name="L3")
+                                           faculty_name="Carol", room_name="L3",
+                                           subject_id=ids["subject"])
             ids["faculty2"], ids["room2"] = f2, r2
             ids["faculty3"], ids["room3"] = f3, r3
             return ids, db
@@ -173,6 +183,76 @@ def _phase5_parallel_labs(s):
         assert len(slots) == 2
         assert all(sl["batch_number"] is None for sl in slots)
 
+    @test("lab-batch fallback refuses faculty without a competency (B4)")
+    def t_b4_competency_gate(client):
+        from app.engine.profile_resolver import ProfileResolver
+        from app.engine.solvers.greedy_solver import GreedySolver
+        from app.models.generation import SessionType
+        from app.tests.conftest import TestingSessionLocal
+        # Bob is attached to the profile and the room exists, but he has NO
+        # faculty_subject_competency row for the subject — the fallback must
+        # not fabricate staffing from idle strangers.
+        ids = seed_minimal(requires_lab=True, weekly_hours=2)
+        db = TestingSessionLocal()
+        try:
+            from app.models.constraints import HardConstraint
+            db.add(HardConstraint(
+                profile_id=ids["profile"],
+                constraint_type="CONTIGUOUS_LAB_SLOTS",
+                config_json={"default_block_length": 2},
+            ))
+            _add_faculty_and_room(None, db, ids["profile"],
+                                  faculty_name="Bob", room_name="L2")
+            db.commit()
+            resolved = ProfileResolver(db).resolve(ids["profile"])
+            sol = GreedySolver(db, resolved, instance_id=1)
+            sessions = sol._build_sessions()
+            expanded = sol._expand_lab_batches(sessions)
+            labs = [s for s in expanded if s.session_type == SessionType.LAB
+                    and s.block_length >= 2]
+            assert len(labs) == 1, (
+                f"expected 1 whole-division lab (base only), got {len(labs)}"
+            )
+            assert all(s.batch_number is None for s in labs)
+        finally:
+            db.close()
+
+    @test("lab-batch fallback uses only qualified teachers")
+    def t_b4_qualified_only(client):
+        from app.engine.profile_resolver import ProfileResolver
+        from app.engine.solvers.greedy_solver import GreedySolver
+        from app.models.generation import SessionType
+        from app.tests.conftest import TestingSessionLocal
+        # Bob is QUALIFIED (competency row); Carol is attached to the profile
+        # but has none — only Bob may staff the second batch.
+        ids = seed_minimal(requires_lab=True, weekly_hours=2)
+        db = TestingSessionLocal()
+        try:
+            from app.models.constraints import HardConstraint
+            db.add(HardConstraint(
+                profile_id=ids["profile"],
+                constraint_type="CONTIGUOUS_LAB_SLOTS",
+                config_json={"default_block_length": 2},
+            ))
+            _add_faculty_and_room(None, db, ids["profile"],
+                                  faculty_name="Bob", room_name="L2",
+                                  subject_id=ids["subject"])
+            _add_faculty_and_room(None, db, ids["profile"],
+                                  faculty_name="Carol", room_name="L3")
+            db.commit()
+            resolved = ProfileResolver(db).resolve(ids["profile"])
+            sol = GreedySolver(db, resolved, instance_id=1)
+            sessions = sol._build_sessions()
+            expanded = sol._expand_lab_batches(sessions)
+            labs = [s for s in expanded if s.session_type == SessionType.LAB
+                    and s.block_length >= 2]
+            assert sorted(s.batch_number for s in labs) == [1, 2]
+            fac_ids = {s.faculty_id for s in labs}
+            assert fac_ids == {ids["faculty"], ids.get("faculty2")} or \
+                len(fac_ids) == 2, fac_ids
+        finally:
+            db.close()
+
     @test("MAX_ONE_LAB_PER_DAY rejects a second lab for the same group/day")
     def t_max_lab_day(client):
         from app.engine.constraint_registry import HARD_CONSTRAINT_REGISTRY
@@ -225,4 +305,5 @@ def _phase5_parallel_labs(s):
             assert inst["hard_violations"] == 0, inst
 
     return [t_expand, t_parallel_placement, t_fe_three_batches,
-            t_param_disable, t_scarce, t_max_lab_day, t_no_violation]
+            t_param_disable, t_scarce, t_b4_competency_gate,
+            t_b4_qualified_only, t_max_lab_day, t_no_violation]

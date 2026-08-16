@@ -283,5 +283,50 @@ def _phase2_windows(s):
                               window_key="w1:2")
         assert v(cand2, committed, {}, None) is None
 
+    @test("OR-Tools co-locates window members and keeps labs (regression)")
+    def t_ortools_windows(client):
+        # Phase 2's window fix shipped a co-location formulation that forced
+        # equality across EVERY room variant of every member — infeasible the
+        # moment a member has two room candidates, so CP-SAT silently dropped
+        # every lab. The fixed formulation uses one presence indicator per
+        # (window, day, slot); this test pins it.
+        from app.tests.test_runner import reset_db, create_admin, ensure_settings
+        global ids
+        reset_db(); create_admin()
+        ensure_settings({"enable_soft_constraint_scoring": False})
+        ids = seed_minimal(requires_lab=True, weekly_hours=1)
+        db = TestingSessionLocal()
+        try:
+            _setup_window(ids, ids["group"], ids["profile"], db)
+        finally:
+            db.close()
+        headers = auth_headers(login_token(client))
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"], "academic_year": "2025-26", "semester": 3,
+            "timetable_type": "CLASS", "instances_requested": 1, "algorithm": "OR_TOOLS",
+        })
+        assert r.status_code == 201, r.text
+        insts = client.get(f"/instances/{r.json()['id']}", headers=headers).json()
+        assert insts, "expected instances"
+        inst = insts[0]
+        # The 2 windows x 4 batches must all be placed (no fabricated-lab loss).
+        assert inst["hard_violations"] == 0, inst
+        slots = client.get(
+            f"/instances/{inst['id']}/slots", headers=headers).json()
+        lab_slots = [s for s in slots if s["batch_number"] is not None]
+        assert len(lab_slots) == 8, (
+            f"expected 8 window member slots, got {len(lab_slots)}"
+        )
+        from collections import defaultdict
+        by_win = defaultdict(list)
+        for s in lab_slots:
+            by_win[s["window_key"]].append(s)
+        assert len(by_win) == 2, by_win
+        for wk, members in by_win.items():
+            assert len({m["day_of_week"] for m in members}) == 1, (wk, members)
+            assert len({m["slot_number"] for m in members}) == 1, (wk, members)
+            assert {m["batch_number"] for m in members} == {1, 2, 3, 4}, (
+                wk, members)
+
     return [t_window_co_located, t_window_no_violation, t_max_lab_counts_windows,
-            t_same_subject_lab_exempt, t_rotation_registered]
+            t_same_subject_lab_exempt, t_rotation_registered, t_ortools_windows]

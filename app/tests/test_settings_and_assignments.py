@@ -88,6 +88,31 @@ def _phase1_assignments(s):
         body = r.json()
         assert body["weekly_hours"] == 4
         assert abs(body["load_share"] - 0.8) < 1e-9
+        # Phase 3 (C5): provenance is a read-only field — hand-made API rows
+        # carry no source; the importer stamps GRID/SCHEME/AUTOFILL.
+        assert body["source"] is None
+
+    @test("source provenance round-trips through the API")
+    def t_source_provenance(client):
+        from app.tests.test_runner import login_token, auth_headers
+        from app.tests.conftest import TestingSessionLocal
+        from app.models.subject_assignments import SubjectAssignment
+        from sqlalchemy import select
+        ids = seed_minimal()
+        db = TestingSessionLocal()
+        try:
+            a = db.scalars(select(SubjectAssignment)).first()
+            assert a is not None
+            a.source = "GRID"
+            db.commit()
+        finally:
+            db.close()
+        token = login_token(client)
+        data = client.get("/assignments/", headers=auth_headers(token)).json()
+        rows = data.get("rows", data) if isinstance(data, dict) else data
+        assert rows, "expected at least one assignment"
+        assert all(r["source"] in (None, "GRID", "SCHEME", "AUTOFILL") for r in rows)
+        assert any(r["source"] == "GRID" for r in rows)
 
     @test("duplicate (subject, group) assignment is a 409, not a 500")
     def t_duplicate(client):
@@ -155,7 +180,8 @@ def _phase1_assignments(s):
         r = client.get("/assignments/", headers=auth_headers(token))
         assert r.json() == []
 
-    return [t_create, t_duplicate, t_invalid, t_list, t_update, t_delete]
+    return [t_create, t_duplicate, t_invalid, t_list, t_update, t_delete,
+            t_source_provenance]
 
 
 @suite("Phase 1 — Engine honors feature flags")
@@ -227,7 +253,66 @@ def _phase1_engine(s):
         assert gen["instances_produced"] == 2, gen
         assert gen["generation_status"] == "COMPLETED", gen
 
-    return [t_cross_off, t_cross_on, t_bug_fix]
+    @test("generation carries a pre-solve feasibility report (A4)")
+    def t_feasibility_report(client):
+        from app.tests.test_runner import login_token, auth_headers
+        ids = seed_minimal()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"],
+            "academic_year": "2025-26",
+            "semester": 3,
+            "timetable_type": "CLASS",
+            "instances_requested": 1,
+            "algorithm": "GREEDY",
+        })
+        assert r.status_code == 201, r.text
+        gen = r.json()
+        report = gen.get("feasibility_report")
+        assert report is not None, "feasibility_report missing from the run"
+        assert report["feasible"] is True, report["summary"]
+        assert report["per_group"], report
+        assert all(g["ok"] for g in report["per_group"]), report
+        assert "per_room_type" in report and "per_faculty" in report
+
+    @test("an oversubscribed run fails loudly with the report (A4)")
+    def t_feasibility_hard_fail(client):
+        from app.tests.test_runner import login_token, auth_headers
+        from app.tests.conftest import TestingSessionLocal
+        from app.models.subject_assignments import SubjectAssignment
+        from sqlalchemy import select
+        ids = seed_minimal()
+        db = TestingSessionLocal()
+        try:
+            a = db.scalars(select(SubjectAssignment)).first()
+            a.weekly_hours = 400  # far beyond any weekly slot capacity
+            db.commit()
+        finally:
+            db.close()
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/generate/", headers=headers, json={
+            "profile_id": ids["profile"],
+            "academic_year": "2025-26",
+            "semester": 3,
+            "timetable_type": "CLASS",
+            "instances_requested": 1,
+            "algorithm": "GREEDY",
+        })
+        assert r.status_code == 409, r.text
+        detail = r.json()["detail"]
+        assert "feasibility_report" in detail, detail
+        assert detail["feasibility_report"]["feasible"] is False
+        # The run row records the failure with the report as error_log.
+        run_id = detail["feasibility_report"].get("run_id")
+        if run_id:
+            status = client.get(
+                f"/generate/{run_id}/status", headers=headers).json()
+            assert status["generation_status"] == "FAILED", status
+
+    return [t_cross_off, t_cross_on, t_bug_fix, t_feasibility_report,
+            t_feasibility_hard_fail]
 
 
 @suite("Phase 1 — Faculty availability date ranges")
@@ -435,14 +520,34 @@ def _phase1_flexibility(s):
     @test("faculty weekly max-hours cap limits placed sessions")
     def t_faculty_cap(client):
         from app.tests.test_runner import login_token, auth_headers
-        # Assignment asks for 3 weekly hours but the teacher is capped at 2.
+        # Phase 3 (D6): the faculty caps are OFF by default (the numbers are
+        # invented placeholders). A profile hard-constraints row re-enables
+        # them — the institutional toggle. Assignment asks for 3 weekly hours
+        # but the teacher is capped at 2.
+        ids = seed_minimal(faculty_max_per_week=2)
+        token = login_token(client)
+        headers = auth_headers(token)
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "FACULTY_MAX_HOURS_PER_WEEK",
+            "config_json": {},
+        })
+        assert r.status_code == 201, r.text
+        slots = _generate_slots(client, headers, ids["profile"])
+        assert len(slots) == 2, f"expected 2 (weekly cap), got {len(slots)}"
+
+    @test("faculty caps do not fire unless a profile row enables them")
+    def t_faculty_cap_off_by_default(client):
+        from app.tests.test_runner import login_token, auth_headers
         ids = seed_minimal(faculty_max_per_week=2)
         token = login_token(client)
         headers = auth_headers(token)
         slots = _generate_slots(client, headers, ids["profile"])
-        assert len(slots) == 2, f"expected 2 (weekly cap), got {len(slots)}"
+        assert len(slots) == 3, (
+            f"expected 3 (cap off by default), got {len(slots)}"
+        )
 
-    return [t_day_start, t_faculty_cap]
+    return [t_day_start, t_faculty_cap, t_faculty_cap_off_by_default]
 
 
 @suite("Phase 2 — Dynamic constraint registry")
@@ -894,8 +999,16 @@ def _phase2_recurring(s):
         ids = seed_minimal()
         token = login_token(client)
         headers = auth_headers(token)
-        # The classroom is the only room big enough for the group; black it out
-        # all day every Monday (day 0).
+        # Phase 3 (D6): capacity is off by default, so re-enable it as a
+        # profile row (the institutional toggle) to keep the classroom the
+        # only room big enough for the group, then black it out all day every
+        # Monday (day 0).
+        r = client.post("/constraints/hard", headers=headers, json={
+            "profile_id": ids["profile"],
+            "constraint_type": "ROOM_CAPACITY_SUFFICIENT",
+            "config_json": {},
+        })
+        assert r.status_code == 201, r.text
         r = client.post("/blackouts/", headers=headers, json={
             "room_id": ids["classroom"], "day_of_week": 0,
         })
