@@ -385,27 +385,59 @@ input validation and discovery, not a DB enum. The `constraint_type` column
 has been `VARCHAR(100)` since migration `b7d9f2a1c3e4` so a new data-driven
 rule can be added without a schema migration.
 
-**Hard — structural (always-on in `ConstraintChecker`):**
+Every rule is a registered validator in `app/engine/constraint_registry.py`
+(`HARD_CONSTRAINT_REGISTRY`). Since Phase 3b (A10, DD-042) the rules are
+**tiered**; the tier decides who can turn the rule off:
 
-| Type                              | Where                                                |
-|-----------------------------------|------------------------------------------------------|
-| `NO_TEACHER_DOUBLE_BOOK`          | `_check_teacher_double_book`                         |
-| `NO_ROOM_DOUBLE_BOOK`             | `_check_room_double_book`                            |
-| `NO_GROUP_DOUBLE_BOOK`            | `_check_group_double_book`                           |
-| `ROOM_REQUIREMENTS_MET`           | `_room_requirements_met` (matches declared requirements vs room attributes, §5.5) |
-| `RESPECT_TEACHER_UNAVAILABILITY`  | `_check_teacher_availability` (consults `effective_from`/`effective_to` vs the slot's materialized date) |
-| `RESPECT_ROOM_BLACKOUT`           | `_check_room_blackout` (recurring weekday always; date-specific only when the slot carries a materialized `slot_date`) |
-| `NO_CROSS_TIMETABLE_TEACHER_CONFLICT` | `_check_published_conflicts`                     |
-| `NO_CROSS_TIMETABLE_ROOM_CONFLICT`    | `_check_published_conflicts`                     |
-| `NO_CROSS_TIMETABLE_GROUP_CONFLICT`   | `_check_published_conflicts`                     |
-| `SAME_SUBJECT_SAME_DAY`           | `_check_same_subject_same_day` (default: at most one LECTURE per subject per group per day; labs/tutorials exempt — the 160 real violations are all lecture+lab/tutorial pairings, A1) |
+| Tier | Meaning | Examples | Editable? |
+|---|---|---|---|
+| **INVARIANT** | Physics — a person/room/group cannot be in two places at once | double-booking, cross-timetable conflicts, `ROOM_REQUIREMENTS_MET`, availability, blackouts, `NO_TEACHING_IN_BREAK_SLOT`, `LAB_ROTATION_COMPLETE` | Never |
+| **INSTITUTIONAL** | Policy that varies per college | `SAME_SUBJECT_SAME_DAY`, `MAX_ONE_LAB_PER_DAY`, `CROSS_DEPT_DAILY_CAP`, `ROOM_CAPACITY_SUFFICIENT`, both faculty caps | Yes — via rows |
+| **OPTIONAL** | Per-profile data-driven rules | `SUBJECT_TIME_PREFERENCE`, `MAX_DAILY_SUBJECTS`, … | Yes — via rows |
+| **PREFERENCE** | Soft, weighted, never blocks | the seven soft rules | Yes |
+
+`ConstraintChecker.check_all` dispatches `INVARIANT_RULES` (`constraint_registry.py`)
+on every candidate regardless of any DB row; institutional and optional rules
+fire **only** from a `hard_constraints` row — a profile-scoped row or a
+**college-default row** (`profile_id IS NULL` = applies to every profile).
+Migration `c9d4e8f2a6b0` seeds the college-default set that preserves
+pre-Phase-3b behaviour (`SAME_SUBJECT_SAME_DAY`, `MAX_ONE_LAB_PER_DAY`,
+`CROSS_DEPT_DAILY_CAP`); the importer re-seeds the same rows after `--wipe`.
+A registrar edits or disables a rule through `POST/PUT/DELETE /constraints/hard`.
+
+**INVARIANT (always-on):**
+
+| Type                              | Validator                                          |
+|-----------------------------------|----------------------------------------------------|
+| `NO_TEACHER_DOUBLE_BOOK`          | `_no_teacher_double_book`                          |
+| `NO_ROOM_DOUBLE_BOOK`             | `_no_room_double_book`                             |
+| `NO_GROUP_DOUBLE_BOOK`            | `_no_group_double_book` (parallel siblings of one lab window exempt, A1) |
+| `NO_CROSS_TIMETABLE_TEACHER_CONFLICT` | `_no_cross_timetable_teacher_conflict` (§5.1)  |
+| `NO_CROSS_TIMETABLE_ROOM_CONFLICT`    | `_no_cross_timetable_room_conflict` (§5.1)     |
+| `NO_CROSS_TIMETABLE_GROUP_CONFLICT`   | `_no_cross_timetable_group_conflict` (§5.1)    |
+| `ROOM_REQUIREMENTS_MET`           | `_room_requirements_met` (declared requirements vs room attributes, §5.5) |
+| `RESPECT_TEACHER_UNAVAILABILITY`  | `_respect_teacher_unavailability` (consults `effective_from`/`effective_to` vs the slot's materialized date) |
+| `RESPECT_ROOM_BLACKOUT`           | `_respect_room_blackout` (recurring weekday always; date-specific only when the slot carries a materialized `slot_date`) |
 | `NO_TEACHING_IN_BREAK_SLOT`       | `_no_teaching_in_break_slot` (reads `ctx.break_slots` from the profile's `break_slots` param; a block spanning a break is rejected too) |
 | `LAB_ROTATION_COMPLETE`           | `_lab_rotation_complete` (each batch receives each lab subject exactly once — a Latin square, constructed not searched, A1) |
-| `CROSS_DEPT_DAILY_CAP`            | `_check_cross_dept_cap` (driven by `config_json.max_cross_dept_per_day`; counts only the faculty's **cross-department** sessions that day, not their whole load) |
 
-> **Phase 3 (D6): `ROOM_CAPACITY_SUFFICIENT`, `FACULTY_MAX_HOURS_PER_DAY` and `FACULTY_MAX_HOURS_PER_WEEK` are NOT structural anymore.** They compare capacities/strengths/caps the importer invents, so they shaped the timetable with no real signal. They remain registered validators — a profile `hard_constraints` row of the same type re-enables them (the INSTITUTIONAL toggle) the day the college supplies real numbers. Measured before the change they rejected 0 of 31,370 candidate evaluations, so removal changed nothing on the live data.
+**INSTITUTIONAL (fires only from a profile/college-default row):**
 
-**Hard — data-driven (registry in `app/engine/constraint_registry.py`):**
+| Type                              | Validator                                          | config_json keys |
+|-----------------------------------|----------------------------------------------------|------------------|
+| `SAME_SUBJECT_SAME_DAY`           | `_same_subject_same_day` (default: at most one LECTURE per subject per group per day; labs/tutorials exempt — the 160 real violations are all lecture+lab/tutorial pairings, A1) | `include_session_types?` |
+| `MAX_ONE_LAB_PER_DAY`             | `_max_one_lab_per_day` (counts lab **windows**, not subjects, A1) | `group_id?` |
+| `CROSS_DEPT_DAILY_CAP`            | `_cross_dept_daily_cap` (cap from `CollegeSettings.config_json.max_cross_dept_per_day`; counts only the faculty's **cross-department** sessions that day) | — |
+| `ROOM_CAPACITY_SUFFICIENT`        | `_room_capacity_sufficient` (batch slots exempt — a parallel practical only fills its batch's room) | — |
+| `FACULTY_MAX_HOURS_PER_DAY`       | `_faculty_max_hours_per_day` (uses the faculty's own `max_hours_per_day`) | — |
+| `FACULTY_MAX_HOURS_PER_WEEK`      | `_faculty_max_hours_per_week` (uses the faculty's own `max_hours_per_week`) | — |
+
+> **Phase 3 (D6):** `ROOM_CAPACITY_SUFFICIENT` and the two faculty caps compare capacities/
+> strengths/caps the importer invents, so they are **not** seeded as college defaults — they
+> stay off until a college row re-enables them with real numbers. Measured before the change
+> they rejected 0 of 31,370 candidate evaluations, so removal changed nothing on the live data.
+
+**OPTIONAL (data-driven, per-profile):**
 
 | Type                              | config_json keys                                            | Validator                          |
 |-----------------------------------|-------------------------------------------------------------|------------------------------------|
@@ -435,13 +467,9 @@ rule can be added without a schema migration.
 
 - `TEACHER_SUBJECT_MATCH` (hard) — implicit, because the solver only generates sessions from `subject_assignments` rows, which already bind a faculty to a subject/group.
 
-> The catalog (`ConstraintType` enum) is the single source of truth for what the API surface accepts in `GET /constraints/types` — the endpoint derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the enum in `app/models/constraints.py`), so a new enum member can never drift from discovery.
+> The catalog (`ConstraintType` enum) is the single source of truth for what the API surface accepts in `GET /constraints/types` — the endpoint derives its hard/soft lists from `HARD_CONSTRAINT_TYPES` / `SOFT_CONSTRAINT_TYPES` (defined next to the enum in `app/models/constraints.py`), so a new enum member can never drift from discovery. Since Phase 3b the endpoint also returns each type's **tier** (INVARIANT / INSTITUTIONAL / OPTIONAL / PREFERENCE, from `CONSTRAINT_TIERS` in the registry) and a **JSON-schema** for its `config_json` (`CONFIG_SCHEMAS`) — the constraint editor UI renders a form from that alone.
 
-> Since the registry refactor (commit `3c30e04`) the structural checks live in
-> `app/engine/constraint_registry.py` too, as always-on entries (`STRUCTURAL_RULES`)
-> that `ConstraintChecker.check_all` dispatches on every candidate regardless of
-> the profile's `hard_constraints` rows. They remain non-negotiable and never
-> per-profile; rows of a structural type are decorative.
+> **Registry/enum parity (Phase 3b, A10):** `assert_registry_enum_parity()` (registry module) is called at app startup and raises if `set(HARD_CONSTRAINT_REGISTRY)` and the enum's hard members ever drift apart — the two previously grew apart and left eight rules unreachable through the API. `GET /constraints/types` would still list them, but the Create schemas would reject them.
 
 #### Soft-Constraint Scoring (implemented — Phase 3)
 
@@ -852,10 +880,16 @@ POST   /constraints/soft               Create soft constraint with weight
 PUT    /constraints/soft/{id}          Update soft constraint
 DELETE /constraints/soft/{id}          Soft delete
 
-GET    /constraints/types              Discovery: hard + soft type catalogs
-                                        # NOTE: this endpoint currently returns a hardcoded list
-                                        # that lags the registry; regenerate from the catalog
-                                        # when it grows.
+GET    /constraints/types              Discovery: hard + soft type catalogs.
+                                        # Each entry: {type, tier, config_schema}.
+                                        # tier: INVARIANT | INSTITUTIONAL | OPTIONAL
+                                        # (hard) | PREFERENCE (soft); config_schema is a
+                                        # JSON-schema for the type's config_json that the
+                                        # constraint editor UI renders as a form.
+                                        # NOTE: hard rows with profile_id IS NULL are
+                                        # college-wide defaults (seeded by migration
+                                        # c9d4e8f2a6b0); institutional rules fire ONLY
+                                        # from a row — edit/disable them here, no code.
 ```
 
 #### Generation (Core)
@@ -1068,7 +1102,7 @@ Step-by-step:
 - `ORToolsSolver` subclasses `GreedySolver` and overrides `solve()`, reusing the same session-building helpers. Constraint handling is split to match the `ConstraintChecker`:
   - **Per-candidate ("static") rules** — capacity, room requirements (§5.5), recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `CONTIGUOUS_LAB_SLOTS`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
   - **Relational rules** — no teacher/room/group double-book, one-subject-per-group-per-day, per-faculty daily/weekly load — are added as CP-SAT constraints (`model.Add(sum(vs) <= 1)`). A block session registers its variable in the double-book buckets for *every* slot it occupies, and contributes its full length to the load buckets, so CP-SAT treats a block as a contiguous booking.
-- **Lab windows are co-located by presence indicators (A1).** One boolean per (window, day, slot) plus, per member, `sum(member's vars there) == indicator` forces all batches of a window to the same (day, slot) — the fixed formulation; the earlier per-pair equality was infeasible whenever a member had two room candidates and silently dropped every lab. `MAX_ONE_LAB_PER_DAY` is modelled the same way (per-(group, day) window indicator ≤ 1) so CP-SAT does not pack two windows onto one day and have the final pass throw one away. The **faculty daily/weekly caps are enforced only when a profile hard-constraints row enables them** (D6): the imported caps are invented, so they are off by default exactly like the greedy path's STRUCTURAL_RULES change.
+- **Lab windows are co-located by presence indicators (A1).** One boolean per (window, day, slot) plus, per member, `sum(member's vars there) == indicator` forces all batches of a window to the same (day, slot) — the fixed formulation; the earlier per-pair equality was infeasible whenever a member had two room candidates and silently dropped every lab. `MAX_ONE_LAB_PER_DAY` is modelled the same way (per-(group, day) window indicator ≤ 1) so CP-SAT does not pack two windows onto one day and have the final pass throw one away. `SAME_SUBJECT_SAME_DAY` parity is gated on an active row (Phase 3b: institutional policy, not physics). The **faculty daily/weekly caps are enforced only when a profile hard-constraints row enables them** (D6): the imported caps are invented, so they are off by default exactly like the greedy path's institutional gating.
 - Objective: `model.Maximize(PLACEMENT_WEIGHT * sum(x.values()) + Σ soft_terms + Σ variation_terms)` — maximise placed sessions first (`PLACEMENT_WEIGHT = 1000.0`), then optimise the active soft preferences via `app/engine/soft_objective.py` (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`; gated by `enable_soft_constraint_scoring`). Rules without a registered objective builder are skipped but still rank instances post-hoc. For a seeded instance whose run is `variation="minimize-teacher-gaps"` or `"minimize-student-gaps"`, `_build_variation_terms` additionally folds a small span term into the objective (§5.3) so the re-roll actively packs the teacher's / group's sessions instead of being a pure random seed. All secondary weights stay far below `PLACEMENT_WEIGHT`, so a soft preference or variation can only shape *which* equal-cardinality solution is returned — never trade away a placed session.
 - **`EXAM_DATE_SEPARATION` is modelled as a relational CP-SAT rule** (not just a domain-pruning rule): its registry validator reads committed slots, so it cannot fire during static pruning and would otherwise only shed placements in the final pass (letting CP-SAT pack a group's exams onto one day). `_add_exam_separation` adds, per group, "at most one exam per calendar date" plus "no exams on two dates closer than `min_days`", using the materialized dates from `term_start` (inert without an anchor).
 - A final pass through the full checker (with the populated committed_slots) catches committed-dependent registry rules that CP-SAT does not model. Such rules can only *drop* a placement; they cannot produce an invalid one. Two committed-dependent rules are modelled relationally instead so they don't degrade to drops: `EXAM_DATE_SEPARATION` and `MAX_DAILY_SUBJECTS`. `MAX_CONSECUTIVE_SAME_TEACHER` and `TEACHER_YEAR_RESTRICTION` rely on the final pass. `unplaced_count` counts sessions the final pass actually committed (B9) — a placement the safety net drops is unplaced, not placed.
@@ -1515,9 +1549,10 @@ These are not profile parameters in the key/value sense — they are constraints
 | `LAB_BATCH_ROTATION`                     | ✅      | splits an assignment into two batches |
 | `HOLIDAY_CALENDAR`                       | ✅      | `parameters.holidays` — list of ISO dates; blocks matching `slot_date` (§8.8) |
 | `CONTIGUOUS_LAB_SLOTS`                   | ✅      | `block_lengths` / `default_block_length` — runs governed lab subjects as multi-slot blocks (§5.2) |
-| `SAME_SUBJECT_SAME_DAY`                  | ✅      | structural rule, no parameters |
-| `CROSS_DEPT_DAILY_CAP`                   | ✅      | `parameters.max_per_day` (default in `CollegeSettings.config_json["max_cross_dept_per_day"]`) |
-| `NO_CROSS_TIMETABLE_TEACHER/ROOM/GROUP_CONFLICT` | ✅ | structural rule, no parameters |
+| `SAME_SUBJECT_SAME_DAY`                  | ✅      | INSTITUTIONAL — fires only from a profile/college-default row; default LECTURE-only, `include_session_types` extends it |
+| `CROSS_DEPT_DAILY_CAP`                   | ✅      | INSTITUTIONAL — `parameters.max_per_day` (default in `CollegeSettings.config_json["max_cross_dept_per_day"]`) |
+| `NO_CROSS_TIMETABLE_TEACHER/ROOM/GROUP_CONFLICT` | ✅ | INVARIANT — always-on, no parameters |
+| `ROOM_CAPACITY_SUFFICIENT`               | ✅      | INSTITUTIONAL — off unless a college/profile row enables it (D6: invented capacity) |
 | `MAX_DAILY_LOAD_TEACHER` (legacy)        | ❌      | replaced by `FACULTY_MAX_HOURS_PER_DAY`; old key never reads |
 | `MAX_WEEKLY_LOAD_TEACHER` (legacy)       | ❌      | replaced by `FACULTY_MAX_HOURS_PER_WEEK` |
 | `MIN_PREPARATION_GAP_HOURS`              | ❌      | not enforced anywhere |
@@ -1530,7 +1565,7 @@ These are not profile parameters in the key/value sense — they are constraints
 | `max_daily_subjects`         | ✅ as the `MAX_DAILY_SUBJECTS` data-driven rule (config `max`) |
 | `allow_free_last_slot`       | ✅ as the `ALLOW_FREE_LAST_SLOT` data-driven rule (config `slots_per_day`) |
 | `min_free_slots_per_week`    | ❌ not enforced |
-| `SAME_SUBJECT_SAME_DAY` (constraint) | ✅ prevents a group from having the same subject twice on the same day |
+| `SAME_SUBJECT_SAME_DAY` (constraint) | ✅ prevents a group from having the same subject twice on the same day (INSTITUTIONAL; fires from a profile/college-default row) |
 
 ### 8.4 Room Constraints
 
@@ -1606,11 +1641,11 @@ This section reflects the **actual** state of the codebase rather than the origi
 
 ### ✅ Shipped (matches the doc above)
 
-- **Schema (24 tables)** — Alembic chain `aeaadc4f2374 → … → d7a3c5e9f1b2 → f5a1b3c8e6d2`; latest migration is `92a486f10bf9` (`app_notifications`, the in-app notification channel).
+- **Schema (25 tables)** — Alembic chain `aeaadc4f2374 → … → b6c2d4e8f0a2`; latest migration is `c9d4e8f2a6b0` (seeds the college-default institutional constraint rows).
 - **CRUD** — `/auth`, `/profiles`, `/subjects`, `/faculty`, `/groups`, `/rooms`, `/blackouts`, `/availability`, `/assignments`, `/settings`, `/constraints`.
 - **Generation** — `POST /generate` with greedy (default) and OR-Tools CP-SAT, running synchronously by default or through a Celery worker when `ASYNC_GENERATION=true` (§7.1). `Scheduler` is split into `create_generation()` (PENDING row + run_id) and `solve_generation()` (worker entry point); failures flip the run to `FAILED` with `error_log`.
 - **Profile combination resolution** — `POST /generate` accepts `combination_id`; `ProfileResolver` (`app/engine/profile_resolver.py`) merges member resources / parameters / hard+soft constraints into one effective profile before solving (§6.2). `GET /profiles/combinations` lists combinations with member names/weights and a `resolution_status` preview, and `POST /profiles/combinations/{id}/resolve` returns the merged `ResolvedProfile` for manual preview (§4.2).
-- **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; structural rules (double-booking, capacity, availability, blackouts, cross-timetable safety, faculty load caps, same-subject-per-day, cross-department cap) plus rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `MAX_DAILY_SUBJECTS`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `EXAM_DATE_SEPARATION`). All six soft types (`TEACHER_PREFERS_MORNING`, `AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD`) ship scorers + CP-SAT objective builders, and the greedy solver pursues them during placement via a preference-aware scan.
+- **Constraint engine** — `HARD_CONSTRAINT_REGISTRY` + `SOFT_CONSTRAINT_REGISTRY`; rules are **tiered** (INVARIANT / INSTITUTIONAL / OPTIONAL / PREFERENCE, Phase 3b A10): invariant physics (double-booking, room requirements, availability, blackouts, cross-timetable safety, break slots, lab-rotation integrity) is always-on, while institutional policy (`SAME_SUBJECT_SAME_DAY`, `MAX_ONE_LAB_PER_DAY`, `CROSS_DEPT_DAILY_CAP`, room capacity, faculty load caps) fires only from a profile/college-default row — the migration + importer seed the defaults that preserve pre-Phase-3b behaviour, and a registrar tunes them through the API. Optional rule-pack rules (`SUBJECT_TIME_PREFERENCE`, `MAX_CONSECUTIVE_SAME_TEACHER`, `MAX_DAILY_SUBJECTS`, `TEACHER_YEAR_RESTRICTION`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `EXAM_DATE_SEPARATION`, `CONTIGUOUS_LAB_SLOTS`) stay per-profile opt-in. All six soft types (`TEACHER_PREFERS_MORNING`, `AVOID_CONSECUTIVE_SAME_SUBJECT`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD`) ship scorers + CP-SAT objective builders, and the greedy solver pursues them during placement via a preference-aware scan. A startup assertion (`assert_registry_enum_parity`) pins the registry to the `ConstraintType` enum, and `GET /constraints/types` returns tier + config JSON-schema per type.
 - **Exam scheduling** — `session_type: EXAM` profile mode turns each assignment into one `SessionType.EXAM` session; `EXAM_DATE_SEPARATION` spaces a group's exams by `min_days` (relational CP-SAT rule in OR-Tools); the published-conflict loader exempts the examing groups' own class slots so one branch can exam while others teach (§5.4).
 - **Multi-slot lab sessions** — `CONTIGUOUS_LAB_SLOTS` registry rule: `_build_sessions` expands governed lab subjects into contiguous blocks, the checker double-booking/load/reservation checks are block-aware via `SlotCandidate.block_length`, and OR-Tools models blocks per start slot with per-sub-slot exclusivity (§5.2).
 - **Soft scoring** — `TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS` registered as post-hoc scorers **and** as CP-SAT objective builders (`soft_objective.py`); `AVOID_CONSECUTIVE_SAME_SUBJECT`, `DISTRIBUTE_SUBJECTS_EVENLY`, `BALANCE_TEACHER_LOAD` catalogued only.

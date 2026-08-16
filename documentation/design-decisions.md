@@ -900,3 +900,41 @@ CP-SAT placement the checker will keep. `unplaced_count` now counts committed se
 **Measured.** COMP-TE-D: 0 labs → 8 labs placed (23 of 27 sessions; the 4 unplaced are the
 shared-faculty window from DD-036). COMP-SE-A: 0 → 12 labs (29 of 33). Regression test pins a
 2-window profile fully placed and co-located by OR-Tools.
+
+### DD-042 — Constraints are tiered INVARIANT / INSTITUTIONAL / OPTIONAL / PREFERENCE
+
+**Status: Decided / Tested.**
+
+**Problem.** The old `STRUCTURAL_RULES` list mixed physics with policy: `SAME_SUBJECT_SAME_DAY`
+and `MAX_ONE_LAB_PER_DAY` — the two rules the college's own grids contradict most — were
+always-on AND absent from the `ConstraintType` enum, so they could only be edited by direct DB
+write (A10). Eight registered validators were unreachable through the API.
+
+**Decision.** Split the rules into four tiers:
+
+- **INVARIANT** — physics (double-booking, cross-timetable conflicts, room requirements,
+  availability, blackouts, break slots, lab-rotation integrity). Always dispatched, no row can
+  switch one off.
+- **INSTITUTIONAL** — policy that varies per college (`SAME_SUBJECT_SAME_DAY`,
+  `MAX_ONE_LAB_PER_DAY`, `CROSS_DEPT_DAILY_CAP`, `ROOM_CAPACITY_SUFFICIENT`, both faculty
+  caps). Fires ONLY from a profile or college-default `hard_constraints` row
+  (`profile_id IS NULL` = college-wide). Migration `c9d4e8f2a6b0` seeds a college-default set
+  so existing behaviour survives unchanged; a registrar toggles/edits the rows through the API.
+- **OPTIONAL** — per-profile data-driven rules (`SUBJECT_TIME_PREFERENCE` etc.).
+- **PREFERENCE** — the soft rules.
+
+The two faculty caps and `ROOM_CAPACITY_SUFFICIENT` are NOT seeded (they compare invented
+quantities, DD-039); a college row re-enables them the day real numbers arrive.
+
+**Enforcement.** `ConstraintChecker.check_all` dispatches `INVARIANT_RULES` on every candidate;
+institutional/optional rows go through the configured-rule dispatch. OR-Tools gates its
+`SAME_SUBJECT_SAME_DAY` parity on an active row, matching greedy. A startup assertion
+(`assert_registry_enum_parity`) raises if the validator registry and the `ConstraintType` enum
+ever drift again. `GET /constraints/types` now returns tier + a JSON-schema for each
+`config_json`, which drives the constraint editor UI.
+
+**Follow-ups (OPEN).** Phase 3b item 5 — move the importer's hardcoded constants
+(`REAL_DATA_CODES`, break slot, block lengths, scheme hours, batch counts) into
+institution-profile parameters [D2]. Profile-level override semantics for a college-default rule
+(a profile row currently adds to the default; it cannot switch a default off for one profile
+alone — the UI edits the default row instead).

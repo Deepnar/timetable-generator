@@ -194,6 +194,46 @@ unplaced are the shared-faculty window), COMP-SE-A 0 labs → 12 (29/33). 237 te
 
 ---
 
+## 🧪 Phase 3b — Make constraints editable, items 1–4 (16 Aug 2026, A10 / DD-042)
+
+Fifth tranche of the DD-031 rebuild plan: the constraint boundary is drawn where the audit said
+it was backwards — physics is always-on, policy is a tunable row, and every rule is reachable
+through the API.
+
+- [x] **`STRUCTURAL_RULES` split into `INVARIANT_RULES` + `DEFAULT_INSTITUTIONAL_RULES`** —
+  physics (double-booking, cross-timetable conflicts, room requirements, availability,
+  blackouts, break slots, lab-rotation integrity) stays always-on; policy (`SAME_SUBJECT_SAME_DAY`,
+  `MAX_ONE_LAB_PER_DAY`, `CROSS_DEPT_DAILY_CAP`, `ROOM_CAPACITY_SUFFICIENT`, both faculty caps)
+  fires only from a row. `ConstraintChecker.check_all` dispatches invariants only; configured
+  rows dispatch everything else.
+- [x] **College-default rows** — `hard_constraints.profile_id IS NULL` = applies to every
+  profile. Migration `c9d4e8f2a6b0` seeds `SAME_SUBJECT_SAME_DAY` / `MAX_ONE_LAB_PER_DAY` /
+  `CROSS_DEPT_DAILY_CAP` so nothing changes silently; the importer re-seeds the same rows after
+  `--wipe` (which truncates `hard_constraints`). The faculty caps and room capacity are NOT
+  seeded (DD-039: invented quantities).
+- [x] **All previously-unreachable validators added to `ConstraintType`** — the 8 from A10 are
+  now `POST /constraints/hard`-able (6 were still missing; Phase 3 had added the two faculty
+  caps). **Startup assertion** `assert_registry_enum_parity()` raises if registry and enum ever
+  drift again.
+- [x] **`GET /constraints/types` returns tier + config JSON-schema** per type (from
+  `CONSTRAINT_TIERS` / `CONFIG_SCHEMAS` in the registry) — the constraint editor UI renders a
+  form from it; no code change needed to tune a rule.
+- [x] **OR-Tools parity** — the `SAME_SUBJECT_SAME_DAY` relational constraint is gated on an
+  active row, matching greedy's configured-rule dispatch.
+
+**Measured:** 241 tests green (4 new: tier+schema catalog, registry/enum parity, institutional
+rule off without a row / on with the college-default row). Live DB migrated; college-default
+rows verified; regeneration of a published division behaves identically (slot counts unchanged
+modulo the published cross-timetable reservations).
+
+**Remaining in Phase 3b:** item 5 — move the importer's hardcoded constants (`REAL_DATA_CODES`,
+`lunch_break_after_slot`, `default_block_length`, the scheme-hours map, the batch counts) into
+institution-profile parameters [D2]; and the constraint editor UI itself (scheduled with
+Phase 6's frontend work). The done-when — "a registrar can change max labs per day or the break
+slot in the UI, no code change" — lands when the UI editor does.
+
+---
+
 ## 🔎 Newly Identified (cross-check pass — not yet on the roadmap)
 
 Bugs/gaps found while auditing that `plan.md` does **not** already cover:
