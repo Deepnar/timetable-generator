@@ -326,10 +326,16 @@ class Scheduler:
                     >= diversity_min
                     for prev in accepted_signatures
                 )
-                if variation != VariationMode.BEST and is_distinct:
+                # Quality is the default (A6): when soft rules are active every
+                # attempt is scored and the best distinct one is kept below, so
+                # the default path optimises instead of taking the first
+                # different timetable. With no soft rules there is nothing to
+                # score and the first distinct attempt still wins (diversity
+                # semantics unchanged).
+                if not soft_rules and variation != VariationMode.BEST and is_distinct:
                     break
 
-            if variation == VariationMode.BEST:
+            if variation == VariationMode.BEST or soft_rules:
                 distinct = [
                     (c, sig, sc, u) for c, sig, sc, u in attempts
                     if all(
@@ -643,6 +649,14 @@ class Scheduler:
         room, or group at a given time slot independently — a published
         booking conflicts no matter what the other two dimensions are.
 
+        Phase 4 (A4): the dict also carries per-faculty load counts from the
+        published instances — ``faculty_day_counts`` (faculty -> day ->
+        slot-count) and ``faculty_week_counts`` (faculty -> slot-count) — so
+        the faculty caps stay honest across runs. A teacher who already
+        teaches 20h in published timetables is measured against the cap with
+        that load included; without this the caps only ever saw one run's
+        committed slots (a quarter of the real load for a 4-division teacher).
+
         ``exempt_groups``: groups whose published slots are NOT reserved. An
         exam generation passes its own groups here — a branch on exams has
         suspended its classes, so its published class slots (teacher, room,
@@ -658,6 +672,8 @@ class Scheduler:
             "faculty": set(),
             "room": set(),
             "group": set(),
+            "faculty_day_counts": {},
+            "faculty_week_counts": {},
         }
         exempt = set(exempt_groups or ())
         published_ids = self.db.scalars(
@@ -682,6 +698,12 @@ class Scheduler:
             key = (slot.day_of_week, slot.slot_number)
             if slot.faculty_id is not None:
                 reserved["faculty"].add((slot.faculty_id, *key))
+                week = reserved["faculty_week_counts"]
+                day = reserved["faculty_day_counts"]
+                week[slot.faculty_id] = week.get(slot.faculty_id, 0) + 1
+                day.setdefault(slot.faculty_id, {})
+                day[slot.faculty_id][slot.day_of_week] = (
+                    day[slot.faculty_id].get(slot.day_of_week, 0) + 1)
             if slot.room_id is not None:
                 reserved["room"].add((slot.room_id, *key))
             if slot.student_group_id is not None:

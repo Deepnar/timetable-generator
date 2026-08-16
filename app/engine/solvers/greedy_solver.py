@@ -439,8 +439,46 @@ class GreedySolver:
                 parallel_batch_map=None,
             )
 
-        # most constrained first
+        # Most-constrained-first (A6): order by room scarcity x faculty
+        # scarcity x group load x block size. The sessions that are hardest to
+        # place go first so they get the best slots; the old two-boolean sort
+        # (is-lab, is-cross-dept) ignored every factor that actually decides
+        # feasibility. The room domain mirrors _get_rooms: labs match the lab
+        # pool, non-lab sessions with a home room are restricted to it.
+        room_pool_ids = self._get_profile_resources(ResourceType.ROOM)
+        room_pool = [
+            r for r in self.db.scalars(
+                select(Room).where(Room.id.in_(room_pool_ids),
+                                   Room.is_active == True)
+            ).all()
+        ]
+        faculty_demand: dict[int, int] = defaultdict(int)
+        group_demand: dict[int, int] = defaultdict(int)
+        for a in assignments:
+            if a.faculty_id is not None:
+                faculty_demand[a.faculty_id] += 1
+            if a.group_id is not None:
+                group_demand[a.group_id] += 1
+
+        def _room_count(s) -> int:
+            matching = [r for r in room_pool
+                        if room_matches_requirements(r, s.room_requirements)[0]]
+            if s.session_type != SessionType.LAB:
+                g = groups.get(s.student_group_id)
+                if g is not None:
+                    home = {g.home_room_id, g.home_room_secondary_id}
+                    home = {i for i in home if i is not None}
+                    if home:
+                        restricted = [r for r in matching if r.id in home]
+                        if restricted:
+                            return len(restricted)
+            return len(matching)
+
         sessions.sort(key=lambda s: (
+            _room_count(s),
+            -faculty_demand.get(s.faculty_id, 0),
+            -group_demand.get(s.student_group_id, 0),
+            -s.block_length,
             0 if s.session_type == SessionType.LAB else 1,
             0 if s.is_cross_department else 1,
         ))

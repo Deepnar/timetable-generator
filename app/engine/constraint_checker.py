@@ -128,7 +128,23 @@ class ConstraintChecker:
         (SAME_SUBJECT_SAME_DAY, MAX_ONE_LAB_PER_DAY, faculty caps, room
         capacity) fires from a profile or college-default ``hard_constraints``
         row, optional rules from a profile row (Phase 3b, A10).
+
+        ``fail_fast`` returns on the first violation instead of collecting
+        every one — the solver's acceptance test only needs a boolean (A6).
         """
+        return self._check(candidate, fail_fast=False)
+
+    def is_valid(self, candidate: SlotCandidate) -> bool:
+        """Fail-fast acceptance test: returns on the first violation (A6).
+
+        The greedy solver rejects/accepts thousands of candidates per run and
+        never reads the violation list, so collecting every violation was
+        pure waste — the previous is_valid ran all rules even after the first
+        failure. ``check_all`` keeps the full report for diagnostics.
+        """
+        return len(self._check(candidate, fail_fast=True)) == 0
+
+    def _check(self, candidate: SlotCandidate, fail_fast: bool) -> list[ConstraintViolation]:
         violations: list[ConstraintViolation] = []
         for rule_type in INVARIANT_RULES:
             validator = HARD_CONSTRAINT_REGISTRY.get(rule_type)
@@ -137,14 +153,14 @@ class ConstraintChecker:
             reason = validator(candidate, self.committed_slots, None, self.ctx)
             if reason:
                 violations.append(ConstraintViolation(rule_type, reason))
-        violations += self._check_configured(candidate)
+                if fail_fast:
+                    return violations
+        violations += self._check_configured(candidate, fail_fast)
         return violations
 
-    def is_valid(self, candidate: SlotCandidate) -> bool:
-        return len(self.check_all(candidate)) == 0
-
     # ── configured (row-driven) rules ────────────────────────
-    def _check_configured(self, c: SlotCandidate) -> list[ConstraintViolation]:
+    def _check_configured(self, c: SlotCandidate,
+                          fail_fast: bool = False) -> list[ConstraintViolation]:
         """Run every active profile/college-default hard constraint row.
 
         Each row's ``constraint_type`` selects a registered validator that
@@ -171,4 +187,6 @@ class ConstraintChecker:
             )
             if reason:
                 violations.append(ConstraintViolation(str(rule_type), reason))
+                if fail_fast:
+                    break
         return violations

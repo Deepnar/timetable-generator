@@ -871,7 +871,14 @@ def _respect_teacher_unavailability(candidate, committed, config, ctx) -> Option
 
 @hard_rule("FACULTY_MAX_HOURS_PER_DAY")
 def _faculty_max_hours_per_day(candidate, committed, config, ctx) -> Optional[str]:
-    """A teacher's ``max_hours_per_day``; a block counts as its full length."""
+    """A teacher's ``max_hours_per_day``; a block counts as its full length.
+
+    The cap is measured against the candidate plus this run's committed slots
+    PLUS the teacher's published load in other timetables (A4): a teacher who
+    already teaches in PUBLISHED divisions is checked against the cap with
+    that load included, so caps compose across runs instead of each run
+    seeing a quarter of the real week.
+    """
     faculty = ctx.faculty(candidate.faculty_id)
     if not faculty or not faculty.max_hours_per_day:
         return None
@@ -880,27 +887,37 @@ def _faculty_max_hours_per_day(candidate, committed, config, ctx) -> Optional[st
         if s.faculty_id == candidate.faculty_id
         and s.day_of_week == candidate.day_of_week
     ) + candidate.block_length
-    if day_count > faculty.max_hours_per_day:
+    published = (ctx.reserved.get("faculty_day_counts") or {}).get(
+        candidate.faculty_id, {}).get(candidate.day_of_week, 0)
+    if day_count + published > faculty.max_hours_per_day:
         return (
             f"faculty {candidate.faculty_id} would exceed daily cap "
-            f"{faculty.max_hours_per_day} on day {candidate.day_of_week}"
+            f"{faculty.max_hours_per_day} on day {candidate.day_of_week} "
+            f"({published} published hours already)"
         )
     return None
 
 
 @hard_rule("FACULTY_MAX_HOURS_PER_WEEK")
 def _faculty_max_hours_per_week(candidate, committed, config, ctx) -> Optional[str]:
-    """A teacher's ``max_hours_per_week``; a block counts as its full length."""
+    """A teacher's ``max_hours_per_week``; a block counts as its full length.
+
+    Published load from other timetables is included (A4), the same as the
+    daily cap.
+    """
     faculty = ctx.faculty(candidate.faculty_id)
     if not faculty or not faculty.max_hours_per_week:
         return None
     week_count = sum(
         1 for s in committed if s.faculty_id == candidate.faculty_id
     ) + candidate.block_length
-    if week_count > faculty.max_hours_per_week:
+    published = (ctx.reserved.get("faculty_week_counts") or {}).get(
+        candidate.faculty_id, 0)
+    if week_count + published > faculty.max_hours_per_week:
         return (
             f"faculty {candidate.faculty_id} would exceed weekly cap "
-            f"{faculty.max_hours_per_week}"
+            f"{faculty.max_hours_per_week} ({published} published hours "
+            f"already)"
         )
     return None
 
