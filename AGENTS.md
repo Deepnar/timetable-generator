@@ -107,7 +107,7 @@ token via the global `require_auth` middleware in `app/main.py` (exempt only `/h
   single linear chain (`aeaadc4f2374 → e47081302c4e → 0d633dc08f98 → 0f8db8a263c5 → e5f8a91c0d4e →
   b7d9f2a1c3e4 → c8e1a4b6d2f7 → d3f5a7c9e1b2 → e9f4a2b6d8c0 → b4f1c9d3e7a2 → c2e8a4d6f0b1 →
   d7a3c5e9f1b2 → f5a1b3c8e6d2 → 1d8688977519 → 48c4fc85dd73 → d319882e1438 → 9fe4f7187298 →
-  92a486f10bf9 → b3a1c7e2d9f4 → c4d2e8f1a5b7 → e6a1b7c3d9f2 → f7b2c8d4e1a3`).
+  92a486f10bf9 → b3a1c7e2d9f4 → c4d2e8f1a5b7 → e6a1b7c3d9f2 → f7b2c8d4e1a3 → a1b3c5d7e9f1`).
 - There are **22 tables** (older docs saying "21" predate `audit_logs`).
 - No linter/formatter is enforced; PEP 8, 4-space indent. Commits follow the standing rules below.
 

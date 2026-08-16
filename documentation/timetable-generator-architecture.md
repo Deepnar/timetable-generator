@@ -61,7 +61,7 @@ Every generation run produces **multiple candidate timetables** (instances). The
 
 The backend uses SQLAlchemy 2.0 mapped-column models on PostgreSQL. This section lists every table the application defines, in the order they were added by Alembic. **The Alembic migrations are the source of truth** for column types — the snippets below are a human-readable guide, not a literal `CREATE TABLE` to copy.
 
-**Migration chain (single linear, head = `f7b2c8d4e1a3`):**
+**Migration chain (single linear, head = `a1b3c5d7e9f1`):**
 
 ```
 aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty_availability, room_blackouts)
@@ -86,6 +86,7 @@ aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty
    → c4d2e8f1a5b7   period_number (weekly lab periods)
    → e6a1b7c3d9f2   deduplicate subject_assignments + unique (subject, group, batch, period)
    → f7b2c8d4e1a3   student_groups.home_room_id / home_room_secondary_id (venue, A5)
+   → a1b3c5d7e9f1   assignments.block_length + slots.window_key (lab windows, A1)
 ```
 
 There are **24 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, `timetable_overrides`, `app_notifications`, plus `audit_logs`.
@@ -216,7 +217,8 @@ CREATE TABLE subject_assignments (
     weekly_hours INTEGER NOT NULL DEFAULT 1,
     load_share   FLOAT NOT NULL DEFAULT 1.0              -- e.g. 0.8/0.2 shared teaching
     batch_number INTEGER,                                -- per-batch lab faculty (D1..DN)
-    period_number INTEGER                                -- weekly period of a batched lab
+    period_number INTEGER,                               -- GROUP-scoped window id (A1)
+    block_length INTEGER                                 -- window's slot span (grid-derived; 1 common, 2 = merged block)
 );
 
 CREATE UNIQUE INDEX uq_subject_assignments_subject_group_batch_period
@@ -383,8 +385,9 @@ rule can be added without a schema migration.
 | `NO_CROSS_TIMETABLE_TEACHER_CONFLICT` | `_check_published_conflicts`                     |
 | `NO_CROSS_TIMETABLE_ROOM_CONFLICT`    | `_check_published_conflicts`                     |
 | `NO_CROSS_TIMETABLE_GROUP_CONFLICT`   | `_check_published_conflicts`                     |
-| `SAME_SUBJECT_SAME_DAY`           | `_check_same_subject_same_day`                       |
+| `SAME_SUBJECT_SAME_DAY`           | `_check_same_subject_same_day` (default: at most one LECTURE per subject per group per day; labs/tutorials exempt — the 160 real violations are all lecture+lab/tutorial pairings, A1) |
 | `NO_TEACHING_IN_BREAK_SLOT`       | `_no_teaching_in_break_slot` (reads `ctx.break_slots` from the profile's `break_slots` param; a block spanning a break is rejected too) |
+| `LAB_ROTATION_COMPLETE`           | `_lab_rotation_complete` (each batch receives each lab subject exactly once — a Latin square, constructed not searched, A1) |
 | `CROSS_DEPT_DAILY_CAP`            | `_check_cross_dept_cap` (driven by `config_json.max_cross_dept_per_day`; counts only the faculty's **cross-department** sessions that day, not their whole load) |
 
 **Hard — data-driven (registry in `app/engine/constraint_registry.py`):**
@@ -485,6 +488,8 @@ CREATE TABLE timetable_slots (
     faculty_id        INTEGER REFERENCES faculty(id),
     room_id           INTEGER REFERENCES rooms(id),
     student_group_id  INTEGER REFERENCES student_groups(id),
+    batch_number      INTEGER,                                        -- per-batch lab practical (DD-024)
+    window_key        VARCHAR(64),                                    -- lab-window identity (A1)
     session_type      sessiontype NOT NULL,                           -- LECTURE | LAB | TUTORIAL | SEMINAR | EVENT | EXAM | IP | FREE | CUSTOM
     is_manual_override BOOLEAN NOT NULL DEFAULT FALSE,
     override_reason   VARCHAR(300),
@@ -1126,31 +1131,36 @@ How it works end to end:
 
 Known limitations: `_check_cross_dept_cap` still counts committed *slots* rather than sessions, so a committed block contributes its length to the per-day cross-dept tally; the soft CP-SAT objective builders (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`) key placements by a block's start slot only.
 
-#### Parallel practicals (batches) — DD-030
+#### Lab windows (A1 — replaces the DD-030 per-subject batch model)
 
-A class is split into batches (3 for FE, 2 lab groups D1D2/D3D4 for SE+) and every batch
-is in a practical at the same time in a **different room**. The greedy solver places a
-lab period as an atomic group of parallel sessions:
+A lab window is the atomic scheduling unit: **one division splits into batches that
+simultaneously do (possibly different) subjects**, each in its own room, rotating week to week.
+`COMP-TE-D` day 0 is the canonical case: `Lab CG D1D2 SuS/PD 324` **and**
+`Lab IIS D3D4 SPS/PM 325` — one window, two subjects, four batches.
 
-1. **Data** — `subject_assignments.batch_number` tags which lab batch a row's faculty
-   covers; `period_number` tags which weekly period (a subject runs several lab periods a
-   week, e.g. CG: D1D2 Monday, D3D4 Wednesday). `timetable_slots.batch_number` tags each
-   generated slot.
-2. **Expansion** — `_build_sessions` groups batched rows by `(subject, group,
-   period_number)`; each period becomes one base block carrying a `parallel_batch_map`
-   (batch → faculty). `_expand_lab_batches` (greedy only) turns it into one
-   `SessionToSchedule` per batch sharing a `parallel_key`.
-3. **Placement** — `_place_parallel_group` finds a (day, slot) where **B distinct rooms**
-   (and distinct faculty) pass the checker simultaneously; the division is fully occupied
-   during the window, so `NO_GROUP_DOUBLE_BOOK` keeps other subjects out and max-one-lab-
-   per-day holds structurally (`MAX_ONE_LAB_PER_DAY` rule also enforces it for
-   whole-division labs). Without a per-batch map, batch count is auto-derived from the
-   group's year (`lab_batches` profile param overrides).
-4. **Capacity** — a batch slot is exempt from `ROOM_CAPACITY_SUFFICIENT`'s division-
-   strength comparison (the batch only fills part of the class). Parallel siblings are
-   ignored by `NO_GROUP_DOUBLE_BOOK` / `SAME_SUBJECT_SAME_DAY` / `MAX_ONE_LAB_PER_DAY`
-   via `_is_parallel_sibling` (same group/day/slots/subject, both batched).
-5. **OR-Tools** — not modelled yet (keeps the whole-division CP-SAT model; DD-030).
+1. **Data** — `subject_assignments.period_number` is **group-scoped**: a window is
+   `(group_id, period_number)` and its members are the `(batch_number, subject_id, faculty_id)`
+   rows sharing that period. Two different lab subjects in the same window share a period number.
+   `block_length` carries the window's slot span from the grid (1 for most divisions, 2 for BE's
+   merged 2h block). `timetable_slots.window_key` stamps every generated batch slot with its
+   window.
+2. **Expansion** — `_build_sessions` groups batched rows by `(group_id, period_number)`; each
+   window becomes one base session carrying a `window_members` map
+   (batch → (subject_id, faculty_id)) and a `window_key`. `_expand_lab_batches` turns it into one
+   `SessionToSchedule` per batch — each with its **own subject** — sharing a `parallel_key`.
+   Without a per-batch map, batch count is auto-derived from the group's year (`lab_batches`
+   profile param overrides).
+3. **Placement** — `_place_parallel_group` finds a (day, slot) where **B distinct rooms** (and
+   distinct faculty) pass the checker simultaneously; the division is fully occupied during the
+   window. Siblings are recognised by **window identity** (`window_key`), not subject, so
+   different-subject members of one window are not a group double-book.
+4. **Rules** — `MAX_ONE_LAB_PER_DAY` counts **windows** per group per day (members of the same
+   window are siblings); `LAB_ROTATION_COMPLETE` enforces the batch↔subject Latin square
+   (constructed from the grid, not searched); `SAME_SUBJECT_SAME_DAY` defaults to at most one
+   **LECTURE** per subject per day, exempting labs/tutorials (the real timetable violates the old
+   rule 160 times, all lecture+lab/tutorial pairings).
+5. **OR-Tools** — calls `_expand_lab_batches`, models window co-location (all members at the same
+   day+slot), and propagates `batch_number`/`window_key` to committed slots.
 
 #### Home rooms (`student_groups.home_room_id` / `home_room_secondary_id`)
 

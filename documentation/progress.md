@@ -124,6 +124,38 @@ Second tranche of the DD-031 rebuild plan: the time grid and the room domain.
 | slot times vs `grids.json` | 18:30 end | **exact (0 mismatches)** |
 | unplaced sessions | 26/36 divisions | still present (honest — removed the fake Saturday/break capacity; zero-unplaced is Phase 4) |
 
+## 🧪 Phase 2 — Model the lab window (16 Aug 2026, A1)
+
+Third tranche of the DD-031 rebuild plan: the lab window becomes the atomic scheduling unit.
+
+- [x] **`period_number` re-scoped to the GROUP** — a window is `(group_id, period_number)`; its
+  members are `(batch_number, subject_id, faculty_id)` rows sharing that period. The importer
+  groups lab cells by (day, contiguous-slot-run) and numbers windows per group, so CG's D1D2 and
+  IIS's D3D4 in the same window share one period. `subject_assignments.block_length` carries the
+  window's slot span (1 for most, 2 for BE's merged block).
+- [x] **Window construction in the solver** — `_build_sessions` groups batched rows by
+  `(group_id, period_number)` into a base session with `window_members`; `_expand_lab_batches`
+  emits one session per batch, each with its own subject. `timetable_slots.window_key` stamps
+  every batch slot (migration `a1b3c5d7e9f1`).
+- [x] **Siblings match window identity, not subject** — `_is_parallel_sibling` compares
+  `window_key`, so different-subject members of one window are not a group double-book.
+- [x] **`MAX_ONE_LAB_PER_DAY` counts windows** per group per day.
+- [x] **`LAB_ROTATION_COMPLETE`** — the batch↔subject rotation is a Latin square constructed from
+  the grid (never searched); the validator rejects a duplicate (batch, subject) pairing.
+- [x] **`SAME_SUBJECT_SAME_DAY` relaxed** — defaults to at most one LECTURE per subject per day,
+  labs/tutorials exempt (the real timetable violates the old rule 160 times, all lecture+lab or
+  lecture+tutorial pairings). Configurable via `include_session_types`.
+- [x] **OR-Tools fixed** — calls `_expand_lab_batches`, models window co-location, propagates
+  `batch_number`/`window_key` (was: half a timetable, zero practicals).
+- [x] **Importer fixes** — faculty mapped by position within a cell's batch list (D3D4 SPS/PM →
+  batch 3 = SPS, batch 4 = PM; the old `b-1` indexing gave every batch the same teacher), and
+  3-letter glossary initials (SPS, VNS, HPK) are now captured.
+
+**Measured (11 COMP divisions):** 21/30 windows fully co-located (all batches same day+slot, up
+from 0); 21 windows carry 2+ subjects; COMP-TE-D day 0 = batches 1,2 on CG + 3,4 on IIS at the
+same slot. Phase 1 metrics hold (0 break, 0 Saturday, 100% room stability). 9 scattered windows
+are shared-faculty data gaps (unresolved initials — Phase 3).
+
 ---
 
 ## 🔎 Newly Identified (cross-check pass — not yet on the roadmap)

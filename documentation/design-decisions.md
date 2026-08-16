@@ -745,3 +745,52 @@ home division (it moves to its other venue room or stays unplaced). The real col
 venues per division, so this is faithful; the cross-division contention it exposes is a Phase 4
 (cohort) problem. Measured: **100% room stability** across all 11 COMP divisions, with honest
 unplaced sessions replacing the previously fake Saturday/break capacity.
+
+## Phase 2 remediation (2026-08-16)
+
+### DD-036 — The lab window is the atomic scheduling unit; period is group-scoped
+
+**Status: Decided / Tested.**
+
+**Problem.** The engine modelled "one subject, N batches": `_build_sessions` grouped by
+`(subject_id, group_id)` first, then `period_number` inside that, so `period_number` was scoped to
+a subject. Two different lab subjects in the same window could never be co-located — nothing linked
+them, `_is_parallel_sibling` required the same subject (so they were a group double-book), and
+`MAX_ONE_LAB_PER_DAY` pushed each subject onto its own day. The real college runs the opposite
+shape: `COMP-TE-D` day 0 has `Lab CG D1D2` **and** `Lab IIS D3D4` in one window, two subjects, four
+teachers.
+
+**Decision.** Promote the window to a first-class unit:
+
+1. **`period_number` is group-scoped.** A window is `(group_id, period_number)`; its members are
+   `(batch_number, subject_id, faculty_id)` rows sharing that period. The importer groups lab
+   cells by (day, contiguous-slot-run) and numbers the windows per group, so CG's D1D2 cell and
+   IIS's D3D4 cell share one period. `block_length` on each assignment row carries the window's
+   slot span from the grid (1 for most divisions, 2 for BE's merged 2h block).
+2. **Solver builds windows.** `_build_sessions` groups batched rows by `(group_id, period_number)`
+   into a base session with `window_members` (batch → subject, faculty); `_expand_lab_batches`
+   emits one `SessionToSchedule` per batch, each with its own subject, sharing `parallel_key`.
+   `timetable_slots.window_key` stamps every batch slot.
+3. **Siblings match window identity, not subject.** `_is_parallel_sibling` compares `window_key`;
+   different-subject members of one window are the same division-wide session, so
+   `NO_GROUP_DOUBLE_BOOK` allows them.
+4. **`MAX_ONE_LAB_PER_DAY` counts windows** per group per day; **`LAB_ROTATION_COMPLETE`** enforces
+   the batch↔subject Latin square (constructed from the grid, never searched).
+5. **`SAME_SUBJECT_SAME_DAY`** defaults to at most one LECTURE per subject per day, exempting
+   labs/tutorials — the real timetable violates the old always-on rule 160 times, all lecture+lab
+   or lecture+tutorial pairings. Configurable via `include_session_types`.
+6. **OR-Tools** calls `_expand_lab_batches`, models window co-location, and propagates
+   `batch_number`/`window_key`.
+
+**Trade-offs recorded.** (a) The Latin square is *read* from the grid's declared members, not
+re-derived by the solver — the rotation the college publishes IS the construction; `LAB_ROTATION_COMPLETE`
+validates it. (b) Remaining scattered windows (9 of 30) are all shared-faculty windows caused by
+unresolved faculty initials (HP vs HPK, SPS etc.) — a data-collection item for Phase 3, not a model
+bug; when members have distinct faculty the window co-locates. (c) The importer's faculty mapping
+is now by position within a cell's batch list (D3D4 SPS/PM → batch 3 = SPS, batch 4 = PM), fixing
+the old `b-1` indexing that gave every batch of a D3D4 cell the same teacher.
+
+**Measured (11 COMP divisions).** 21 of 30 windows fully co-located (all batches same day+slot,
+up from 0); 21 windows carry 2+ subjects (≈ the audit's 52 of 78 = 67%); COMP-TE-D day 0 is now
+recognisably the real shape — batches 1,2 on CG and 3,4 on IIS at the same slot. Phase 1 metrics
+hold: 0 break-slot sessions, 0 Saturday, 100% room stability.
