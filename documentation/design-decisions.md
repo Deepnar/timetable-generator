@@ -1051,3 +1051,31 @@ per-group grids first, then cohort profiles, then LNS.
 **Follow-ups (OPEN).** Per-group grid parameters (the cohort prerequisite); the DD-045
 artifact-shape choice (cohort instance vs slice-per-division); construct-then-repair LNS (A11)
 as the end-game solver architecture.
+
+### DD-046 — A subject runs two streams: lecture hours and tutorial hours
+
+**Status: Decided / Tested.**
+
+**Problem.** The grid's TUTORIAL cells ("M-III TuT C1 OK 323") were folded into the assignment's
+`weekly_hours` and every hour expanded as a LECTURE session, because the subject's
+`requirements_json.session_type` is single-valued. SAME_SUBJECT_SAME_DAY (at most one LECTURE
+per day) then needed one distinct day per hour — IT-SE-C's M-III and DSA asked 7 hours on a
+5-day week, leaving 2 sessions per subject unplaced, while the college's own grid puts a
+lecture and a tutorial of the same subject on the same day. (The audit flagged the underlying
+gap as DD-024's "no explicit tutorial/practical/both attribute driving two session streams".)
+
+**Decision.** `subject_assignments.tutorial_hours` (migration `d4e8f2a6c0b1`): the importer
+counts the grid's TUTORIAL cells for the (subject, division) and stores the split; the solver
+expands `weekly_hours - tutorial_hours` sessions of the subject's own type plus `tutorial_hours`
+TUTORIAL sessions (single-slot), which SAME_SUBJECT_SAME_DAY exempts by default. The hours
+metric is unchanged (weekly_hours still totals the streams). Hand-created rows may set it
+through the API.
+
+**Measured.** IT-SE-C unplaced 4 → 0. Golden COMP+IT: 21/21 divisions, zero unplaced, zero
+break/Saturday violations, 100% room stability, 0 solver-attributable hour misses. 263 tests
+green (7 new: tutorial split/exemption, synthetic shapes, fidelity helpers used by the golden
+script).
+
+**Follow-ups (OPEN).** The practical stream (a subject with LECTURE + LAB demand beyond the lab
+window model) may need the same treatment if a college schedules it that way; today lab demand
+is window-shaped from the grid, which is the TCET pattern.

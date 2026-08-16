@@ -161,4 +161,13 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 > of every year differ in their grids, so the cohort needs per-group grid parameters (an engine
 > change), while the phase's done-when is already met per division and the other cohort
 > motivations (room competition, caps) are inert today. Build per-group grids → cohort profiles
-> → LNS when the college enables caps or asks for the per-year document.
+> → LNS when the college enables caps or asks for the per-year document. **Phase 5 — Prove it —
+> first tranche DONE** (fidelity scorer library `app/engine/fidelity.py` with the A8 metrics and
+> grid-side-gap classification; `scripts/synthetic_problem.py` plants valid timetables and
+> derives the solver inputs — 4 shapes in the suite, all placed, including the D3 second-fixture
+> shape with no engine changes; `scripts/golden_test.py` regenerates every division and fails on
+> regression — COMP+IT 21/21 zero unplaced, 0 solver-attributable hour misses; **DD-046**: the
+> tutorial stream split fixed IT-SE-C's 4 unplaced; IT re-admitted with `--codes COMP,IT`).
+> Remaining in Phase 5: retire `build_synthetic_branches.py` as a scoring input (done in
+> practice — the synthetic problems + golden test replaced it), the fixture through the importer
+> adapter, and the remaining branches (EXTC etc.) gated on the suite staying green.

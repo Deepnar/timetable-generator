@@ -295,6 +295,44 @@ per-year document.
 
 ---
 
+## 🧪 Phase 5 — Prove it, and prove it stays proved — first tranche (16 Aug 2026, A8/D4/D3/DD-046)
+
+The audit's "tests measure mechanics, not timetable quality" finding, answered with numbers.
+
+- [x] **Fidelity scorer library** (`app/engine/fidelity.py`) — the A8 metrics as pure functions:
+  weekly hours per (subject, division) vs the published grid (±1), break-slot and Saturday
+  violations, lecture room stability, teachers per (subject, division) for non-batch rows,
+  faculty utilisation, batch coverage, and **grid-side gap detection** — subjects whose grid
+  cells name no teacher (PROJECT, online electives like AAD) are the registrar's to fix, not
+  solver regressions.
+- [x] **Synthetic problem generator** (`scripts/synthetic_problem.py`, D4) — plant a valid
+  timetable by pattern, derive the solver's inputs from it: weekly hours = placed counts,
+  assignments = who was placed, rooms = what was used, batch rows per window. Any unplaced
+  session is **provably a solver bug**. Four shapes in the suite: default, the D3 second-fixture
+  shape (6 slots, break 3, 5-day, 2 batches, 2-slot labs, NO home rooms), a 4-division/4-batch
+  stress, and a lab-heavy window shape — all placed, zero engine changes for the second fixture.
+- [x] **Golden test** (`scripts/golden_test.py`) — regenerates every division, scores it, fails
+  on regression. COMP+IT: **21/21 divisions, zero unplaced, zero break/Saturday violations,
+  100% room stability, 0 solver-attributable hour misses** (7 grid gaps).
+- [x] **DD-046 — the tutorial stream** — IT's re-admission exposed the flattened-demand bug: a
+  subject's TUTORIAL cells inflated weekly_hours, every hour expanded as a LECTURE session, and
+  SAME_SUBJECT_SAME_DAY needed one distinct day per hour (7h on 5 days → 2 unplaced per subject
+  on IT-SE-C). `subject_assignments.tutorial_hours` (migration `d4e8f2a6c0b1`) carries the
+  split; the solver expands TUTORIAL sessions which the rule exempts. **IT-SE-C 4 → 0.**
+- [x] **IT re-admitted** — the importer's scope is now `--codes COMP,IT`; the site publishes
+  21/21 divisions.
+
+**Measured:** 263 tests green (10 new: 4 synthetic shapes, 3 tutorial-stream, fidelity helpers
+exercised by the golden script). Golden baseline: COMP+IT 21/21, zero unplaced, 0
+solver-attributable hour misses.
+
+**Remaining in Phase 5:** the second-fixture adapter through the importer (D3's "CI generates
+both" at the data-adapter level), and the remaining branches (EXTC, E&CS, MECH, CIVIL) gated on
+the suite staying green. `build_synthetic_branches.py` is retired as a scoring input — the
+synthetic problems + golden test replaced it.
+
+---
+
 ## 🔎 Newly Identified (cross-check pass — not yet on the roadmap)
 
 Bugs/gaps found while auditing that `plan.md` does **not** already cover:
