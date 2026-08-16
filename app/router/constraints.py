@@ -144,7 +144,34 @@ def delete_soft_constraint(
 
 @router.get("/types")
 def get_constraint_types():
+    """Catalog every constraint type with its tier and config schema.
+
+    Phase 3b (A10): the catalog drives the constraint editor UI. Each hard
+    type carries the tier that decides its affordance — INVARIANT (locked,
+    physics), INSTITUTIONAL (college policy, tunable through rows), OPTIONAL
+    (per-profile opt-in) — plus a JSON-schema for its ``config_json`` so the
+    UI can render a form without a code change. Soft types are always
+    PREFERENCE tier (weighted, never block).
+    """
+    from app.engine.constraint_registry import (
+        CONSTRAINT_TIERS, CONFIG_SCHEMAS,
+    )
+
     return {
-        "hard": [t.value for t in HARD_CONSTRAINT_TYPES],
-        "soft": [t.value for t in SOFT_CONSTRAINT_TYPES],
+        "hard": [
+            {
+                "type": t.value,
+                "tier": CONSTRAINT_TIERS.get(t.value, "OPTIONAL"),
+                "config_schema": CONFIG_SCHEMAS.get(t.value, {"type": "object"}),
+            }
+            for t in HARD_CONSTRAINT_TYPES
+        ],
+        "soft": [
+            {
+                "type": t.value,
+                "tier": "PREFERENCE",
+                "config_schema": {"type": "object"},
+            }
+            for t in SOFT_CONSTRAINT_TYPES
+        ],
     }
