@@ -1008,3 +1008,46 @@ frontend cell renderer (Phase 6 C2) should show the full pair from `window_key`/
 committed-slot index refactor was deferred — measured solves are 0.55s for all 11 divisions, so
 the linear scans are not yet the bottleneck. The college still owes mentors for PROJECT
 (DD-037) and the unresolved initials that synthetic faculty now stand in for.
+
+### DD-045 — Cohort solving is deferred: per-group grids are its prerequisite, and the exit metric is already met
+
+**Status: Decided / Live-verification pending.** (Decision made 16 Aug 2026 against the live
+COMP data; the cohort build itself is planned work, not shipped.)
+
+**Problem.** Phase 4's headline is "solve the cohort, not the division": one generation per
+(department, year) so faculty load composes across divisions and no division gets the leftovers.
+The audit budgeted it as mostly a data-shape change ("the greedy expansion already filters by
+`profile_group_ids`").
+
+**Measured blocker.** A profile's grid parameters are single-valued (`break_slots`,
+`working_days`, `saturday_policy`, `slot_times`), but the divisions of every COMP year differ:
+
+| Year | Divisions | break | days / saturday |
+|---|---|---|---|
+| SE | A/B | 4 | Mon–Fri |
+| SE | C | 5 | Mon–Fri |
+| SE | D | none | Mon–Fri |
+| TE | A/C/D | 4 | Mon–Fri |
+| TE | B | 3 | Mon–Fri |
+| BE | A | 6 | Mon–Fri **+ Sat (ACTIVITY_ONLY)** |
+| BE | B/C | 6 | Mon–Fri |
+
+A cohort profile cannot express this: a solve with `break=[4]` would teach TE-B in its break
+slot and leave slot 4 empty; BE-A's Saturday policy differs from its own year's B/C. The cohort
+therefore needs **per-group grid parameters** (`break_slots_by_group`, `working_days_by_group`,
+`saturday_policy_by_group`) threaded through greedy scans, the checker's
+`NO_TEACHING_IN_BREAK_SLOT`, OR-Tools' day domains, the importer, and the profile resolver — a
+genuine engine change (the audit's own "per-day grids" item, DD-024), not a data-shape tweak.
+
+**Decision.** Defer the cohort build. Three measured facts: (1) fresh per-division solves place
+**zero unplaced across all 11 COMP divisions in 0.55s** — Phase 4's done-when is already met per
+division; (2) the audit's other cohort motivations are currently inert — rooms are 4×
+oversupplied (A5), the faculty caps are off until real numbers arrive (DD-039), and
+cross-division double-booking is already prevented by published-conflict reservations; (3) the
+artifact-shape question (per-year instance vs solve-once-slice-per-division) is a frontend
+decision (Phase 6). When the college enables caps or asks for the per-year document, build
+per-group grids first, then cohort profiles, then LNS.
+
+**Follow-ups (OPEN).** Per-group grid parameters (the cohort prerequisite); the DD-045
+artifact-shape choice (cohort instance vs slice-per-division); construct-then-repair LNS (A11)
+as the end-game solver architecture.

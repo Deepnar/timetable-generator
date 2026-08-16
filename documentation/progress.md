@@ -271,17 +271,27 @@ attacked from the data side first.
 - [x] **A4 — published faculty load feeds the caps** — `_load_published_conflicts` returns
   per-faculty day/week counts; `FACULTY_MAX_HOURS_PER_DAY/WEEK` measure candidate + committed +
   published, so caps compose across runs.
-- [x] **Deferred with measurement** — the committed-slot index refactor: fresh solves of all 11
-  divisions take 0.55s total, so the linear scans are not yet the bottleneck.
+- [x] **Deferred with measurement — cohort profiles (DD-045)** — deferred, not built: every
+  year's divisions differ in their grids (SE: breaks 4/5/none; TE: 4/3; BE-A has
+  Saturday+ACTIVITY_ONLY while B/C do not), and a profile's grid parameters are single-valued —
+  the cohort needs **per-group grid parameters** (break_slots_by_group / working_days_by_group /
+  saturday_policy_by_group) threaded through greedy, the checker, OR-Tools, the importer and the
+  resolver. Meanwhile the done-when ("zero unplaced across the COMP cohort, under a minute") is
+  already met per division, and the audit's other cohort motivations are inert (rooms 4×
+  oversupplied, caps off until real numbers arrive). Build per-group grids → cohort profiles →
+  LNS when the college enables caps or asks for the per-year document.
+- [x] **Committed-slot index (A6)** — `ConstraintContext.rebuild_index` buckets committed slots
+  by resource; every validator reads O(1) buckets instead of scanning the set. Zero unplaced
+  unchanged.
 
 **Measured (11 COMP divisions, fresh solves):** **unplaced 10 → 0** (0.55s total, well under
 the minute-per-cohort budget); hours-per-(subject, division) 3/53 outside ±1, all PROJECT (the
 honest no-mentor gap); all 11 divisions republished with zero unplaced sessions; 256 tests
 green (11 new: parser rules, pair merging, fail-fast, published-load caps, published counts).
 
-**Remaining in Phase 4:** cohort profiles — one generation per (department, year) — which is a
-product-shape decision (how a cohort instance maps to the per-division UI) needing DD-045; and
-construct-then-repair LNS (A11).
+**Remaining in Phase 4:** cohort profiles (prerequisite: per-group grid parameters, DD-045) and
+construct-then-repair LNS (A11) — both gated on the college enabling caps or asking for the
+per-year document.
 
 ---
 

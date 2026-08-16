@@ -1176,6 +1176,7 @@ status = solver.Solve(model)
 
 - Used by default and when OR-Tools is unavailable. Validates every (session, day, slot, room) candidate with `ConstraintChecker.is_valid()` (fail-fast, Phase 4 A6 — returns on the first violation) and commits the first that passes.
 - **Most-constrained first (Phase 4, A6):** sessions sort by room scarcity × faculty demand × group load × block size — the hardest placements get the best slots (the old two-boolean sort ignored everything that decides feasibility).
+- **Indexed committed slots (Phase 4, A6):** `ConstraintContext.rebuild_index` buckets the committed slots by resource ((faculty|room|group, day), (group, day, subject), LAB-per-day, faculty-all) once per `check_all`; every validator reads O(1) buckets instead of scanning the whole committed set.
 - **Single-teacher batch pairs merge (DD-044):** window members that share (subject, faculty) — a lab cell with one teacher for a batch pair ("Lab DWM A1A2 SG") — merge into ONE session covering the full batch list (representative batch recorded on the slot), so the window co-locates instead of failing and scattering.
 - Much faster, lower quality but always produces *something*.
 

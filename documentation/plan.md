@@ -153,9 +153,12 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 > `CollegeSettings.config_json`, seeded once and registrar-editable via `PUT /settings`, with
 > the scope gate becoming the `--codes` CLI flag and `config_json` updates merging). The
 > constraint editor UI itself is scheduled with Phase 6's frontend work. **Phase 4 — Solve the
-> cohort, not the division, is IN PROGRESS** (DD-044: the cell parser reads lab faculty
+> cohort, not the division — first tranche DONE** (DD-044: the cell parser reads lab faculty
 > positionally and single-teacher batch pairs merge into one session — unplaced across the 11
 > COMP divisions dropped 10 → 0; A6: fail-fast `is_valid`, most-constrained-first ordering,
-> best-scoring-distinct-attempt quality default; A4: published faculty load counts feed the
-> caps). Remaining in Phase 4: cohort profiles (one generation per (department, year) — a
-> product-shape decision, DD-045) and construct-then-repair LNS (A11).
+> best-scoring-distinct-attempt quality default, committed-slot index; A4: published faculty
+> load counts feed the caps). **Cohort profiles and LNS are deferred (DD-045):** the divisions
+> of every year differ in their grids, so the cohort needs per-group grid parameters (an engine
+> change), while the phase's done-when is already met per division and the other cohort
+> motivations (room competition, caps) are inert today. Build per-group grids → cohort profiles
+> → LNS when the college enables caps or asks for the per-year document.
