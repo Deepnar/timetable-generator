@@ -226,11 +226,23 @@ rule off without a row / on with the college-default row). Live DB migrated; col
 rows verified; regeneration of a published division behaves identically (slot counts unchanged
 modulo the published cross-timetable reservations).
 
-**Remaining in Phase 3b:** item 5 — move the importer's hardcoded constants (`REAL_DATA_CODES`,
-`lunch_break_after_slot`, `default_block_length`, the scheme-hours map, the batch counts) into
-institution-profile parameters [D2]; and the constraint editor UI itself (scheduled with
-Phase 6's frontend work). The done-when — "a registrar can change max labs per day or the break
-slot in the UI, no code change" — lands when the UI editor does.
+- [x] **Phase 3b item 5 — importer constants → institution facts document** (D2 / DD-043): the
+  college's answers moved out of `scripts/import_tcet.py` into
+  `CollegeSettings.config_json` — `scheme_hours` (L:3/T:1/P:2 fallback), `year_strengths`
+  (per-year class strengths), `batches_per_year` (FE→3, SE+→2). The importer seeds missing keys
+  ONCE at import start and reads them back, so `PUT /settings` edits win with no code change;
+  `update_settings` now merges `config_json` key-by-key (a partial edit cannot clobber sibling
+  keys like `max_cross_dept_per_day`). The import scope gate became the `--codes` CLI flag
+  (default COMP; `--codes COMP,IT` re-admits IT at Phase 5). `lunch_break_after_slot` no longer
+  exists (Phase 1); `default_block_length` already flowed through CONTIGUOUS_LAB_SLOTS rows.
+- [x] **Measured after re-seed** — identical Phase 3 numbers (41 rooms, 392 faculty, 11 groups,
+  30 subjects, 173 assignments = 154 GRID + 19 AUTOFILL, 100 competencies; 48/51 within ±1, the
+  3 misses still PROJECT). 246 tests green (5 new). Live `PUT /settings` edit round-trips;
+  college republished (11/11 COMP divisions).
+
+**Phase 3b is COMPLETE.** The done-when — "a registrar can change max labs per day or the break
+slot in the UI, no code change" — is backend-complete; the UI editor itself is scheduled with
+Phase 6's frontend work. Next: **Phase 4 — Solve the cohort, not the division**.
 
 ---
 

@@ -143,12 +143,14 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 > least-loaded qualified assignment, `faculty_subject_competency`, `profile_resources` pruned
 > 3,710 → 96, `source` provenance, invented-quantity constraints off, pre-solve feasibility
 > report, OR-Tools window/MAX_ONE_LAB_PER_DAY/B9 fixes; measured 48/51 (subject, division) hours
-> within ±1, 0 over cap). **Phase 3b — Make constraints editable, items 1–4, is DONE** (DD-042:
+> within ±1, 0 over cap). **Phase 3b — Make constraints editable is DONE** (DD-042:
 > `STRUCTURAL_RULES` split into `INVARIANT_RULES` + `DEFAULT_INSTITUTIONAL_RULES`; institutional
 > rules fire only from profile/college-default rows, seeded by migration `c9d4e8f2a6b0` (+ the
 > importer re-seeds after `--wipe`); all 8 previously-unreachable validators added to the
 > `ConstraintType` enum with a startup registry/enum parity assertion; `GET /constraints/types`
-> returns tier + config JSON-schema per type). Remaining in Phase 3b: **item 5** — move the
-> importer's hardcoded constants (`REAL_DATA_CODES`, break slot, block lengths, scheme hours,
-> batch counts) into institution-profile parameters [D2], and the constraint editor UI (Phase 6
-> carries the UI work). Next: **Phase 4 — Solve the cohort, not the division**.
+> returns tier + config JSON-schema per type; DD-043: the importer's college facts — scheme
+> hours, per-year strengths, per-year batch counts — moved into
+> `CollegeSettings.config_json`, seeded once and registrar-editable via `PUT /settings`, with
+> the scope gate becoming the `--codes` CLI flag and `config_json` updates merging). The
+> constraint editor UI itself is scheduled with Phase 6's frontend work. Next: **Phase 4 —
+> Solve the cohort, not the division**.

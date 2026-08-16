@@ -245,7 +245,10 @@ CREATE TABLE faculty_subject_competency (
 -- COLLEGE SETTINGS SINGLETON (Phase 1 — implemented)
 -- One row (id=1), auto-created on startup and lazily by `get_settings()`.
 -- Per-college feature flags the engine reads at generation time; `config_json`
--- holds free-form tunables (e.g. `max_cross_dept_per_day`).
+-- is the college's declarative facts document (D2, DD-043): free-form tunables
+-- plus the institution facts the importer seeds once and reads back
+-- (scheme_hours / year_strengths / batches_per_year — see §8.1).
+-- `update_settings` MERGES config_json key-by-key (partial PUTs never clobber).
 CREATE TABLE college_settings (
     id                              INTEGER PRIMARY KEY,        -- always 1; not DB-enforced
     enable_lab_batches              BOOLEAN NOT NULL DEFAULT FALSE,
@@ -352,6 +355,23 @@ CREATE TABLE profile_parameters (
 | `allow_saturday`           | BOOLEAN | false (legacy; superseded by `saturday_policy`) |
 | `buffer_slots_per_day`     | INT     | 1                       |
 | `max_room_utilization_pct` | FLOAT   | 0.85                    |
+
+#### College-level facts document (`CollegeSettings.config_json`, D2 / DD-043)
+
+The college's declarative answers — not per-division (those are profile params above), college-
+wide, editable through `PUT /settings` with no code change. The importer seeds missing keys once
+and reads them back; a different college writes a different adapter or fills the form by hand.
+
+| key               | value                                             | consumed by                                  |
+|-------------------|---------------------------------------------------|----------------------------------------------|
+| `scheme_hours`    | `{"LECTURE": 3, "TUTORIAL": 1, "LAB": 2, "ACTIVITY": 2}` — weekly hours per stream kind, the fallback when a grid is silent | `scripts/import_tcet.py` (subject + assignment hours) |
+| `year_strengths`  | `{"1": 63, "2": 63, "3": 70, "4": 60}` — class strengths per year when the source does not publish them | `scripts/import_tcet.py` (student_groups.strength) |
+| `batches_per_year`| `{"1": 3, "2": 2, "3": 2, "4": 2}` — lab batch counts per year | `scripts/import_tcet.py` (auto-fill batch expansion) |
+| `max_cross_dept_per_day` | int — cross-department session cap | `CROSS_DEPT_DAILY_CAP` validator (§3.3) |
+
+`update_settings` MERGES `config_json` key-by-key, so editing one fact never clobbers its
+siblings. The importer's scope gate is the `--codes` CLI flag (default `COMP`, Phase 0-5 scope
+[D5]); `--codes COMP,IT` re-admits IT at Phase 5.
 
 ### 3.3 Constraint Tables
 

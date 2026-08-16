@@ -938,3 +938,38 @@ ever drift again. `GET /constraints/types` now returns tier + a JSON-schema for 
 institution-profile parameters [D2]. Profile-level override semantics for a college-default rule
 (a profile row currently adds to the default; it cannot switch a default off for one profile
 alone — the UI edits the default row instead).
+
+### DD-043 — The college's facts live in `CollegeSettings.config_json`; the importer seeds them once
+
+**Status: Decided / Tested.**
+
+**Problem.** The importer carried the college's answers as module constants: `_scheme_hours`
+(L:3/T:1/P:2), the per-year strengths `{1:63, 2:63, 3:70, 4:60}`, and `batches = 3 if year==1
+else 2`. Changing any of them was a code edit + re-import; D2's boundary says the engine (and
+the adapter's *answers*) belong in a declarative document the college owns.
+
+**Decision.** The three facts live in `CollegeSettings.config_json` under `scheme_hours`,
+`year_strengths`, `batches_per_year`. The importer **seeds missing keys once** at the start of
+an import (its knowledge of its source — a different college writes a different adapter or fills
+the form by hand) and **reads them back from the document** on every use; registrar edits via
+`PUT /settings` win on later runs and on re-imports. `update_settings` now **merges** `config_json`
+key-by-key instead of replacing it, so editing one fact (or `max_cross_dept_per_day`) cannot
+clobber its siblings. The import scope gate (`REAL_DATA_CODES`) became the `--codes` CLI flag
+(default COMP, the Phase 0-5 scope rule); re-admitting IT at Phase 5 is `--codes COMP,IT`, not an
+edit.
+
+**Why not profile parameters or a JSON file.** The facts are college-level (all subjects/groups/
+divisions), not per-division, so `profile_parameters` is the wrong shape; `CollegeSettings` is
+already the college's UI-editable document and is not truncated by `--wipe`. A sidecar JSON file
+would bypass the API and need a loader.
+
+**Measured.** Re-seed with the new importer reproduces the Phase 3 numbers exactly (41 rooms,
+392 faculty, 11 groups, 30 subjects, 173 assignments = 154 GRID + 19 AUTOFILL, 100
+competencies; 48/51 (subject, division) within ±1). 246 tests green (5 new: one-time seeding,
+registrar edits win, scheme lookup, `--codes` parsing, settings merge). Live `PUT /settings`
+edit round-trips through the API and the re-seeded facts survive.
+
+**Follow-ups (OPEN).** The synthesized lab-subject `min_capacity: 40` and the synthetic faculty
+caps (`max_hours_per_week=30`, `max_hours_per_day=8`) are still adapter constants; they are
+invented quantities (D6) — the caps are inert without a constraint row. A future pass can move
+them into the document the same way.
