@@ -44,23 +44,23 @@
   {
    "subject_code": "DLDCA",
    "group_name": "COMP-SE-A",
-   "faculty_initials": "PM",
+   "faculty_initials": "LJS",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 2,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Mr. Parth Mehta"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "DLDCA",
    "group_name": "COMP-SE-A",
-   "faculty_initials": "LJS",
+   "faculty_initials": "PM",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 2,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count"
+   "_note": "hours_per_week null — derive from grid slot count",
+   "faculty_name": "Mr. Parth Mehta"
   },
   {
    "subject_code": "PS-II",
@@ -107,23 +107,23 @@
   {
    "subject_code": "DLDCA",
    "group_name": "COMP-SE-A",
-   "faculty_initials": "PM",
+   "faculty_initials": "LJS",
    "weekly_hours": null,
    "batch_number": 3,
    "period_id": 3,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Mr. Parth Mehta"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "DLDCA",
    "group_name": "COMP-SE-A",
-   "faculty_initials": "LJS",
+   "faculty_initials": "PM",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 3,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count"
+   "_note": "hours_per_week null — derive from grid slot count",
+   "faculty_name": "Mr. Parth Mehta"
   },
   {
    "subject_code": "DS",
@@ -138,7 +138,7 @@
   {
    "subject_code": "DS",
    "group_name": "COMP-SE-A",
-   "faculty_initials": "PP",
+   "faculty_initials": "RS",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 4,
@@ -168,23 +168,23 @@
   {
    "subject_code": "DLDCA",
    "group_name": "COMP-SE-B",
-   "faculty_initials": "GJ",
+   "faculty_initials": "LJS",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 1,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Dr. Garima Joshi"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "DLDCA",
    "group_name": "COMP-SE-B",
-   "faculty_initials": "LJS",
+   "faculty_initials": "GJ",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 1,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count"
+   "_note": "hours_per_week null — derive from grid slot count",
+   "faculty_name": "Dr. Garima Joshi"
   },
   {
    "subject_code": "PS-II",
@@ -222,13 +222,12 @@
   {
    "subject_code": "DBMS",
    "group_name": "COMP-SE-B",
-   "faculty_initials": "LS",
+   "faculty_initials": "HP",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 2,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Dr. Loukik Salvi"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "DLDCA",
@@ -460,7 +459,7 @@
   {
    "subject_code": "DBMS",
    "group_name": "COMP-SE-D",
-   "faculty_initials": "SP",
+   "faculty_initials": "VK",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 2,
@@ -593,7 +592,7 @@
   {
    "subject_code": "MP",
    "group_name": "COMP-TE-A",
-   "faculty_initials": "VN",
+   "faculty_initials": "VK",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 2,
@@ -613,7 +612,7 @@
   {
    "subject_code": "MP",
    "group_name": "COMP-TE-A",
-   "faculty_initials": "RB",
+   "faculty_initials": "LJS",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 2,
@@ -621,7 +620,7 @@
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "MP",
+   "subject_code": "IIS",
    "group_name": "COMP-TE-A",
    "faculty_initials": "SB",
    "weekly_hours": null,
@@ -631,9 +630,9 @@
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "MP",
+   "subject_code": "IIS",
    "group_name": "COMP-TE-A",
-   "faculty_initials": "SB",
+   "faculty_initials": "MP",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 3,
@@ -653,7 +652,7 @@
   {
    "subject_code": "CG",
    "group_name": "COMP-TE-A",
-   "faculty_initials": "MS",
+   "faculty_initials": "RS",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 3,
@@ -661,9 +660,9 @@
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "MP",
+   "subject_code": "IIS",
    "group_name": "COMP-TE-B",
-   "faculty_initials": null,
+   "faculty_initials": "MP",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 1,
@@ -671,9 +670,9 @@
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "MP",
+   "subject_code": "IIS",
    "group_name": "COMP-TE-B",
-   "faculty_initials": null,
+   "faculty_initials": "MP",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 1,
@@ -764,18 +763,17 @@
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "MP",
+   "subject_code": "IIS",
    "group_name": "COMP-TE-B",
-   "faculty_initials": "DJ",
+   "faculty_initials": "MP",
    "weekly_hours": null,
    "batch_number": 3,
    "period_id": 3,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Ms. Deepali Joshi"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "MP",
+   "subject_code": "IIS",
    "group_name": "COMP-TE-B",
    "faculty_initials": "DJ",
    "weekly_hours": null,
@@ -809,7 +807,7 @@
   {
    "subject_code": "IIS",
    "group_name": "COMP-TE-C",
-   "faculty_initials": "AP",
+   "faculty_initials": "RIS",
    "weekly_hours": null,
    "batch_number": 3,
    "period_id": 1,
@@ -819,7 +817,7 @@
   {
    "subject_code": "IIS",
    "group_name": "COMP-TE-C",
-   "faculty_initials": "RIS",
+   "faculty_initials": "AP",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 1,
@@ -880,7 +878,7 @@
   {
    "subject_code": "IIS",
    "group_name": "COMP-TE-C",
-   "faculty_initials": "RIS",
+   "faculty_initials": "VK",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 3,
@@ -900,7 +898,7 @@
   {
    "subject_code": "CG",
    "group_name": "COMP-TE-C",
-   "faculty_initials": "MS",
+   "faculty_initials": "HR",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 3,
@@ -930,24 +928,24 @@
   {
    "subject_code": "IIS",
    "group_name": "COMP-TE-D",
-   "faculty_initials": "PM",
+   "faculty_initials": "SPS",
    "weekly_hours": null,
    "batch_number": 3,
    "period_id": 1,
    "block_length": 1,
    "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Mr. Parth Mehta"
+   "faculty_name": "Ms.Soumyamol P.S."
   },
   {
    "subject_code": "IIS",
    "group_name": "COMP-TE-D",
-   "faculty_initials": "SPS",
+   "faculty_initials": "PM",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 1,
    "block_length": 1,
    "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Ms.Soumyamol P.S."
+   "faculty_name": "Mr. Parth Mehta"
   },
   {
    "subject_code": "MP",
@@ -1005,7 +1003,7 @@
   {
    "subject_code": "CG",
    "group_name": "COMP-TE-D",
-   "faculty_initials": "SuS",
+   "faculty_initials": "HP",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 3,
@@ -1015,23 +1013,23 @@
   {
    "subject_code": "IIS",
    "group_name": "COMP-TE-D",
-   "faculty_initials": "SS",
+   "faculty_initials": "SPS",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 3,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count"
+   "_note": "hours_per_week null — derive from grid slot count",
+   "faculty_name": "Ms.Soumyamol P.S."
   },
   {
    "subject_code": "IIS",
    "group_name": "COMP-TE-D",
-   "faculty_initials": "SPS",
+   "faculty_initials": "SS",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 3,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Ms.Soumyamol P.S."
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "DWM",
@@ -1078,7 +1076,7 @@
   {
    "subject_code": "CSS",
    "group_name": "COMP-BE-A",
-   "faculty_initials": null,
+   "faculty_initials": "DS",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 2,
@@ -1088,7 +1086,7 @@
   {
    "subject_code": "CSS",
    "group_name": "COMP-BE-A",
-   "faculty_initials": null,
+   "faculty_initials": "DS",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 2,
@@ -1265,13 +1263,12 @@
   {
    "subject_code": "DSA",
    "group_name": "IT-SE-A",
-   "faculty_initials": "KD",
+   "faculty_initials": "MMV",
    "weekly_hours": null,
    "batch_number": 3,
    "period_id": 2,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Ms. Kriti Das"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "DSA",
@@ -1283,37 +1280,37 @@
    "block_length": 1,
    "_note": "hours_per_week null — derive from grid slot count",
    "faculty_name": "Ms. Kriti Das"
-  },
-  {
-   "subject_code": "PS-III",
-   "group_name": "IT-SE-A",
-   "faculty_initials": "PS",
-   "weekly_hours": null,
-   "batch_number": 3,
-   "period_id": 3,
-   "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "PS-III",
    "group_name": "IT-SE-A",
    "faculty_initials": "MP",
    "weekly_hours": null,
-   "batch_number": 4,
+   "batch_number": 3,
    "period_id": 3,
    "block_length": 1,
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
+   "subject_code": "PS-III",
+   "group_name": "IT-SE-A",
+   "faculty_initials": "TS",
+   "weekly_hours": null,
+   "batch_number": 4,
+   "period_id": 3,
+   "block_length": 1,
+   "_note": "hours_per_week null — derive from grid slot count",
+   "faculty_name": "Ms. Tanvi Shah"
+  },
+  {
    "subject_code": "DSA",
    "group_name": "IT-SE-A",
-   "faculty_initials": "MG",
+   "faculty_initials": "MMV",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 3,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Ms. Megha Gupta"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "DSA",
@@ -1350,7 +1347,7 @@
   {
    "subject_code": "PS-III",
    "group_name": "IT-SE-A",
-   "faculty_initials": "PS",
+   "faculty_initials": "MP",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 4,
@@ -1360,7 +1357,7 @@
   {
    "subject_code": "PS-III",
    "group_name": "IT-SE-A",
-   "faculty_initials": "MP",
+   "faculty_initials": "NeP",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 4,
@@ -1483,7 +1480,7 @@
   {
    "subject_code": "DCD",
    "group_name": "IT-SE-B",
-   "faculty_initials": "SC",
+   "faculty_initials": "NeP",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 3,
@@ -1553,7 +1550,7 @@
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "PS",
+   "subject_code": "PS-III",
    "group_name": "IT-SE-C",
    "faculty_initials": "SD",
    "weekly_hours": null,
@@ -1563,7 +1560,7 @@
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "PS",
+   "subject_code": "PS-III",
    "group_name": "IT-SE-C",
    "faculty_initials": "SD",
    "weekly_hours": null,
@@ -1594,7 +1591,7 @@
    "faculty_name": "Dr. Rahul Neve"
   },
   {
-   "subject_code": "PS",
+   "subject_code": "PS-III",
    "group_name": "IT-SE-C",
    "faculty_initials": "SD",
    "weekly_hours": null,
@@ -1604,7 +1601,7 @@
    "_note": "hours_per_week null — derive from grid slot count"
   },
   {
-   "subject_code": "PS",
+   "subject_code": "PS-III",
    "group_name": "IT-SE-C",
    "faculty_initials": "NB",
    "weekly_hours": null,
@@ -1792,13 +1789,12 @@
   {
    "subject_code": "DBMS",
    "group_name": "IT-SE-D",
-   "faculty_initials": "RN",
+   "faculty_initials": "PS",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 3,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Dr. Rahul Neve"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "PS-III",
@@ -1856,13 +1852,12 @@
   {
    "subject_code": "DBMS",
    "group_name": "IT-SE-D",
-   "faculty_initials": "RN",
+   "faculty_initials": "PS",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 4,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Dr. Rahul Neve"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "OS",
@@ -2040,13 +2035,12 @@
   {
    "subject_code": "CNS",
    "group_name": "IT-TE-B",
-   "faculty_initials": "KD",
+   "faculty_initials": "ML",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 2,
    "block_length": 1,
-   "_note": "hours_per_week null — derive from grid slot count",
-   "faculty_name": "Ms. Kriti Das"
+   "_note": "hours_per_week null — derive from grid slot count"
   },
   {
    "subject_code": "WP",
@@ -2061,7 +2055,7 @@
   {
    "subject_code": "WP",
    "group_name": "IT-TE-B",
-   "faculty_initials": "MP",
+   "faculty_initials": "KrD",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 2,
@@ -2206,7 +2200,7 @@
   {
    "subject_code": "OS",
    "group_name": "IT-TE-C",
-   "faculty_initials": "NP",
+   "faculty_initials": "MMV",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 3,
@@ -2236,7 +2230,7 @@
   {
    "subject_code": "MLITD",
    "group_name": "IT-BE-A",
-   "faculty_initials": null,
+   "faculty_initials": "MMV",
    "weekly_hours": null,
    "batch_number": 1,
    "period_id": 1,
@@ -2246,7 +2240,7 @@
   {
    "subject_code": "MLITD",
    "group_name": "IT-BE-A",
-   "faculty_initials": null,
+   "faculty_initials": "MMV",
    "weekly_hours": null,
    "batch_number": 2,
    "period_id": 1,
@@ -2338,7 +2332,7 @@
   {
    "subject_code": "BDA",
    "group_name": "IT-BE-B",
-   "faculty_initials": null,
+   "faculty_initials": "KrD",
    "weekly_hours": null,
    "batch_number": 3,
    "period_id": 1,
@@ -2348,7 +2342,7 @@
   {
    "subject_code": "BDA",
    "group_name": "IT-BE-B",
-   "faculty_initials": null,
+   "faculty_initials": "KrD",
    "weekly_hours": null,
    "batch_number": 4,
    "period_id": 1,
@@ -2751,6 +2745,13 @@
    "faculty_name": "Ms. Bhumika Malhotra"
   },
   {
+   "subject_code": "IIS",
+   "group_name": "COMP-TE-B",
+   "faculty_initials": "MP",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
    "subject_code": "TOC",
    "group_name": "COMP-TE-B",
    "faculty_initials": "GJ",
@@ -3238,6 +3239,13 @@
    "faculty_name": "Dr. Arpit Rawankar"
   },
   {
+   "subject_code": "AC",
+   "group_name": "EXTC-SE-A",
+   "faculty_initials": "SS",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
    "subject_code": "M-IV",
    "group_name": "EXTC-SE-A",
    "faculty_initials": "SSH",
@@ -3262,6 +3270,13 @@
    "subject_code": "SS",
    "group_name": "EXTC-SE-B",
    "faculty_initials": "DS",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
+   "subject_code": "AC",
+   "group_name": "EXTC-SE-B",
+   "faculty_initials": "SS",
    "weekly_hours": null,
    "batch_number": null
   },
@@ -3316,6 +3331,13 @@
    "batch_number": null
   },
   {
+   "subject_code": "DBMS",
+   "group_name": "EXTC-TE-A",
+   "faculty_initials": "PS",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
    "subject_code": "OE-I",
    "group_name": "EXTC-TE-A",
    "faculty_initials": "MG",
@@ -3331,11 +3353,41 @@
    "batch_number": null
   },
   {
-   "subject_code": "DBMS",
+   "subject_code": "PS-V",
    "group_name": "EXTC-TE-A",
    "faculty_initials": "PS",
    "weekly_hours": null,
    "batch_number": null
+  },
+  {
+   "subject_code": "PS-V",
+   "group_name": "EXTC-TE-A",
+   "faculty_initials": "SM",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
+   "subject_code": "PS-V",
+   "group_name": "EXTC-TE-A",
+   "faculty_initials": "AY",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
+   "subject_code": "DIP",
+   "group_name": "EXTC-TE-A",
+   "faculty_initials": "RKM",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Ms. Rashmita K Mohapatra"
+  },
+  {
+   "subject_code": "DIP",
+   "group_name": "EXTC-TE-A",
+   "faculty_initials": "LJ",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Dr. Lochan Jolly"
   },
   {
    "subject_code": "WMH",
@@ -3346,12 +3398,26 @@
    "faculty_name": "Ms. Bhumika Malhotra"
   },
   {
-   "subject_code": "OE-I",
-   "group_name": "EXTC-TE-B",
-   "faculty_initials": "PC",
+   "subject_code": "CCN",
+   "group_name": "EXTC-TE-A",
+   "faculty_initials": "AM",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
+   "subject_code": "DIP",
+   "group_name": "EXTC-TE-A",
+   "faculty_initials": "AR",
    "weekly_hours": null,
    "batch_number": null,
-   "faculty_name": "Ms. Purnima Chandrasekar"
+   "faculty_name": "Dr. Arpit Rawankar"
+  },
+  {
+   "subject_code": "CCN",
+   "group_name": "EXTC-TE-B",
+   "faculty_initials": "PS",
+   "weekly_hours": null,
+   "batch_number": null
   },
   {
    "subject_code": "CCN",
@@ -3361,11 +3427,50 @@
    "batch_number": null
   },
   {
+   "subject_code": "CCN",
+   "group_name": "EXTC-TE-B",
+   "faculty_initials": "MG",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Ms. Megha Gupta"
+  },
+  {
+   "subject_code": "OE-I",
+   "group_name": "EXTC-TE-B",
+   "faculty_initials": "PC",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Ms. Purnima Chandrasekar"
+  },
+  {
    "subject_code": "DBMS",
    "group_name": "EXTC-TE-B",
    "faculty_initials": "AY",
    "weekly_hours": null,
    "batch_number": null
+  },
+  {
+   "subject_code": "DBMS",
+   "group_name": "EXTC-TE-B",
+   "faculty_initials": "PS",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
+   "subject_code": "DIP",
+   "group_name": "EXTC-TE-B",
+   "faculty_initials": "RKM",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Ms. Rashmita K Mohapatra"
+  },
+  {
+   "subject_code": "DIP",
+   "group_name": "EXTC-TE-B",
+   "faculty_initials": "LJ",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Dr. Lochan Jolly"
   },
   {
    "subject_code": "WMH",
@@ -3381,6 +3486,29 @@
    "faculty_initials": "MC",
    "weekly_hours": null,
    "batch_number": null
+  },
+  {
+   "subject_code": "DIP",
+   "group_name": "EXTC-TE-B",
+   "faculty_initials": "AR",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Dr. Arpit Rawankar"
+  },
+  {
+   "subject_code": "DIP",
+   "group_name": "EXTC-TE-B",
+   "faculty_initials": "DS",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
+   "subject_code": "ERP",
+   "group_name": "EXTC-BE-A",
+   "faculty_initials": "PC",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Ms. Purnima Chandrasekar"
   },
   {
    "subject_code": "ERP",
@@ -3419,6 +3547,13 @@
    "batch_number": null
   },
   {
+   "subject_code": "CED",
+   "group_name": "CIVIL-SE",
+   "faculty_initials": "AS",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
    "subject_code": "BMCT",
    "group_name": "CIVIL-SE",
    "faculty_initials": "PN",
@@ -3432,6 +3567,21 @@
    "weekly_hours": null,
    "batch_number": null,
    "faculty_name": "Mr. Atul Chaturvedi"
+  },
+  {
+   "subject_code": "BMCT",
+   "group_name": "CIVIL-SE",
+   "faculty_initials": "SR",
+   "weekly_hours": null,
+   "batch_number": null,
+   "faculty_name": "Sheetal Rathi"
+  },
+  {
+   "subject_code": "BMCT",
+   "group_name": "CIVIL-SE",
+   "faculty_initials": "GP",
+   "weekly_hours": null,
+   "batch_number": null
   },
   {
    "subject_code": "UHV-II",
@@ -3448,21 +3598,14 @@
    "batch_number": null
   },
   {
-   "subject_code": "AAD-III",
-   "group_name": "CIVIL-SE",
-   "faculty_initials": "AAD",
-   "weekly_hours": null,
-   "batch_number": null
-  },
-  {
-   "subject_code": "AH",
+   "subject_code": "BSR",
    "group_name": "CIVIL-TE",
    "faculty_initials": "AS",
    "weekly_hours": null,
    "batch_number": null
   },
   {
-   "subject_code": "AH",
+   "subject_code": "BSR",
    "group_name": "CIVIL-TE",
    "faculty_initials": "AV",
    "weekly_hours": null,
@@ -3482,14 +3625,6 @@
    "faculty_initials": "SA",
    "weekly_hours": null,
    "batch_number": null
-  },
-  {
-   "subject_code": "BSR",
-   "group_name": "CIVIL-TE",
-   "faculty_initials": "AV",
-   "weekly_hours": null,
-   "batch_number": null,
-   "faculty_name": "Dr. Anil K. Vasoya"
   },
   {
    "subject_code": "AH",
@@ -3785,6 +3920,13 @@
    "batch_number": null
   },
   {
+   "subject_code": "CCF",
+   "group_name": "MECH-BE",
+   "faculty_initials": "SS",
+   "weekly_hours": null,
+   "batch_number": null
+  },
+  {
    "subject_code": "IEM",
    "group_name": "MECH-BE",
    "faculty_initials": "SS",
@@ -3805,13 +3947,6 @@
    "weekly_hours": null,
    "batch_number": null,
    "faculty_name": "Mr. Parth Mehta"
-  },
-  {
-   "subject_code": "OE-III",
-   "group_name": "MECH-BE",
-   "faculty_initials": "KG",
-   "weekly_hours": null,
-   "batch_number": null
   },
   {
    "subject_code": "COA",
