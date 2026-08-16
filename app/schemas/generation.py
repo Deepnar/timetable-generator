@@ -33,6 +33,9 @@ class GenerationResponse(BaseModel):
     completed_at: Optional[datetime] = None
     error_log: Optional[str] = None
     placement_warning: Optional[str] = None
+    # Pre-solve demand-vs-capacity report (A4): computed before the solver
+    # runs; on hard infeasibility the run is FAILED and this holds the report.
+    feasibility_report: Optional[dict] = None
 
     class Config:
         from_attributes = True

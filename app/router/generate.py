@@ -8,7 +8,7 @@ from app.models.generation import TimetableGeneration
 from app.schemas.generation import GenerationRequest, GenerationResponse
 from app.utils.auth import get_current_admin, require_roles
 from app.utils.pagination import Pagination, pagination, paginate
-from app.engine.scheduler import Scheduler, GenerationLockError
+from app.engine.scheduler import Scheduler, GenerationLockError, FeasibilityError
 from app.tasks.generation import enqueue_generation
 from app.services import redis_client
 from app.config import settings
@@ -88,6 +88,17 @@ def trigger_generation(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e)
+        )
+    except FeasibilityError as e:
+        # The run row is already marked FAILED with the report as error_log;
+        # the client gets a 409 with the report so it can see exactly which
+        # resource is over capacity.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": str(e),
+                "feasibility_report": e.report,
+            },
         )
     except ValueError as e:
         raise HTTPException(

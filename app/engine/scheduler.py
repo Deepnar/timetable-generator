@@ -12,14 +12,17 @@ The run is split into two entry points so it can be executed either inline
 (``run()`` — the synchronous HTTP path) or by a background worker:
 
 * ``create_generation()`` — validate the input contract and persist the
-  PENDING run row so the API can return a ``run_id`` immediately.
+  PENDING run row so the API can return a ``run_id`` immediately. It also
+  computes the pre-solve feasibility report (A4): a generation whose demand
+  cannot fit the real capacity fails here, loudly, instead of completing with
+  a warning.
 * ``solve_generation()`` — load a run by id, solve it, and flip the row to
   COMPLETED (or FAILED with ``error_log``), stamping ``run_duration_ms``.
 """
 import time
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.models.generation import (
     TimetableGeneration,
@@ -30,6 +33,11 @@ from app.models.generation import (
     AlgorithmType,
     VariationMode,
 )
+from app.models.subject_assignments import SubjectAssignment
+from app.models.rooms import Room, RoomType
+from app.models.groups import StudentGroup
+from app.models.faculty import Faculty
+from app.models.subjects import Subject
 from app.services.settings_service import get_settings
 from app.services import redis_client
 from app.models.profiles import ResourceType
@@ -42,6 +50,18 @@ from app.engine.scorer import score_instance, ScoringContext
 class GenerationLockError(RuntimeError):
     """Raised when a generation cannot run because another run is already
     solving the same resources. The run row is marked FAILED before raising."""
+
+
+class FeasibilityError(RuntimeError):
+    """Raised when a generation's demand cannot fit the real capacity.
+
+    The run row is marked FAILED with the feasibility report as ``error_log``
+    before raising, so both the sync path (409 to the client) and the async
+    worker see an honest failure instead of a COMPLETED run with a warning."""
+
+    def __init__(self, message: str, report: dict):
+        super().__init__(message)
+        self.report = report
 
 
 class Scheduler:
@@ -121,6 +141,21 @@ class Scheduler:
             generation_status=GenerationStatus.PENDING,
         )
         self.db.add(generation)
+        self.db.flush()
+
+        # Pre-solve feasibility report (A4): a run whose demand cannot fit the
+        # real capacity must fail HERE, loudly, not complete with a warning
+        # string. The report is stored on the row either way so the UI can
+        # show the balance even when the run proceeds.
+        report = self._feasibility_report(resolved)
+        generation.feasibility_report = report
+        if not report["feasible"]:
+            generation.generation_status = GenerationStatus.FAILED
+            generation.error_log = report["summary"]
+            generation.completed_at = datetime.utcnow()
+            self.db.commit()
+            report = {**report, "run_id": generation.id}
+            raise FeasibilityError(report["summary"], report)
         self.db.flush()
         return generation
 
@@ -341,6 +376,154 @@ class Scheduler:
         self.db.commit()
 
         return generation
+
+    def _feasibility_report(self, resolved) -> dict:
+        """Pre-solve demand-vs-capacity report (A4).
+
+        Compares what the solver will be asked to place against the real
+        capacity of the profile's resources:
+
+        - **per_group** — demanded sessions vs weekly slots (working_days ×
+          teachable slots). Hard: exceeding this cannot be fixed by solving.
+        - **per_room_type** — demanded sessions per room type vs available
+          room-slots of that type. Hard: a session that needs a lab and no
+          lab is free cannot be placed.
+        - **per_faculty** — demanded hours per teacher vs their weekly cap.
+          Informational only: the imported caps are invented placeholders
+          (D6), so an over-cap teacher is reported, not a hard failure.
+
+        The report is stored on the generation row; when a hard dimension is
+        over capacity the run is marked FAILED before any solving happens.
+        """
+        profile_group_ids = resolved.resource_ids(ResourceType.STUDENT_GROUP)
+        profile_subject_ids = resolved.resource_ids(ResourceType.SUBJECT)
+
+        # Weekly slot capacity for the profile's groups.
+        slots_per_day = 0
+        try:
+            slots_per_day = int(resolved.params.get("slots_per_day", 0) or 0)
+        except (TypeError, ValueError):
+            slots_per_day = 0
+        break_slots = resolved.params.get("break_slots") or []
+        if not isinstance(break_slots, list):
+            break_slots = []
+        try:
+            teachable_per_day = max(slots_per_day - len(break_slots), 0)
+        except TypeError:
+            teachable_per_day = 0
+        working_days = resolved.params.get("working_days") or []
+        if not isinstance(working_days, list):
+            working_days = []
+        weekly_slots = len(working_days) * teachable_per_day
+
+        # Demand: non-batched rows expand into weekly_hours sessions; batched
+        # rows group into one window per (group, period) occupying
+        # block_length slots.
+        assignments = self.db.scalars(
+            select(SubjectAssignment).where(
+                SubjectAssignment.subject_id.in_(profile_subject_ids)
+                if profile_subject_ids else True,
+                SubjectAssignment.group_id.in_(profile_group_ids)
+                if profile_group_ids else True,
+            )
+        ).all()
+        group_demand: dict[int, int] = {}
+        group_blocks: dict[tuple, int] = {}
+        faculty_demand: dict[int, int] = {}
+        session_rooms: dict[str, int] = {"LAB": 0, "CLASSROOM": 0}
+        for a in assignments:
+            if a.faculty_id is not None:
+                faculty_demand[a.faculty_id] = (
+                    faculty_demand.get(a.faculty_id, 0) + (a.weekly_hours or 1))
+            if a.batch_number is not None:
+                block = int(a.block_length or 1)
+                group_blocks[(a.group_id, a.period_number or 1)] = max(
+                    group_blocks.get((a.group_id, a.period_number or 1), 0), block)
+            else:
+                group_demand[a.group_id] = (
+                    group_demand.get(a.group_id, 0) + (a.weekly_hours or 1))
+                subject = self.db.get(Subject, a.subject_id) if a.subject_id else None
+                if subject is not None:
+                    stype = (subject.requirements_json or {}).get(
+                        "session_type", "LECTURE")
+                    key = "LAB" if stype == "LAB" else "CLASSROOM"
+                    session_rooms[key] = session_rooms.get(key, 0) + (a.weekly_hours or 1)
+        for (gid, _period), block in group_blocks.items():
+            group_demand[gid] = group_demand.get(gid, 0) + block
+            session_rooms["LAB"] = session_rooms.get("LAB", 0) + block
+
+        per_group: list[dict] = []
+        for gid in profile_group_ids:
+            group = self.db.get(StudentGroup, gid)
+            demand = group_demand.get(gid, 0)
+            per_group.append({
+                "group_id": gid,
+                "name": group.name if group else str(gid),
+                "demand_sessions": demand,
+                "capacity_sessions": weekly_slots,
+                "ok": demand <= weekly_slots,
+            })
+
+        # Room-slot capacity per type: rooms × weekly slots.
+        rooms = self.db.scalars(select(Room)).all()
+        room_capacity: dict[str, int] = {}
+        for r in rooms:
+            t = r.room_type.value if hasattr(r.room_type, "value") else str(r.room_type)
+            room_capacity[t] = room_capacity.get(t, 0) + weekly_slots
+        per_room_type: list[dict] = []
+        for t in ("LAB", "CLASSROOM"):
+            demand = session_rooms.get(t, 0)
+            cap = room_capacity.get(t, 0)
+            per_room_type.append({
+                "room_type": t,
+                "demand_sessions": demand,
+                "capacity_sessions": cap,
+                "ok": demand <= cap,
+            })
+
+        per_faculty: list[dict] = []
+        for fid, demand in sorted(faculty_demand.items(), key=lambda kv: -kv[1]):
+            fac = self.db.get(Faculty, fid)
+            per_faculty.append({
+                "faculty_id": fid,
+                "name": fac.name if fac else str(fid),
+                "demand_hours": demand,
+                "max_hours_per_week": fac.max_hours_per_week if fac else None,
+                "ok": demand <= (fac.max_hours_per_week if fac else demand),
+            })
+
+        hard_bad = [g for g in per_group if not g["ok"]] + \
+                   [r for r in per_room_type if not r["ok"]]
+        feasible = not hard_bad
+        if hard_bad:
+            parts = []
+            for g in per_group:
+                if not g["ok"]:
+                    parts.append(
+                        f"{g['name']} (demand {g['demand_sessions']} > "
+                        f"capacity {g['capacity_sessions']})")
+            for r in per_room_type:
+                if not r["ok"]:
+                    parts.append(
+                        f"{r['room_type']} rooms (demand {r['demand_sessions']} "
+                        f"> capacity {r['capacity_sessions']})")
+            summary = (
+                f"Pre-solve feasibility check FAILED: demand exceeds real "
+                f"capacity — {', '.join(parts)}"
+            )
+        else:
+            summary = (
+                f"Pre-solve feasibility OK: {len(per_group)} group(s), "
+                f"{len(per_room_type)} room type(s) within capacity"
+            )
+        return {
+            "feasible": feasible,
+            "summary": summary,
+            "weekly_slots": weekly_slots,
+            "per_group": per_group,
+            "per_room_type": per_room_type,
+            "per_faculty": per_faculty,
+        }
 
     def _make_solver(
         self,
