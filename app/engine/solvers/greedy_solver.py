@@ -591,6 +591,13 @@ class GreedySolver:
             if session_type == SessionType.LAB else None
         )
 
+        # Two streams (DD-046): ``tutorial_hours`` of the weekly load are
+        # TUTORIAL sessions (single-slot, exempt from SAME_SUBJECT_SAME_DAY —
+        # the real grids put a lecture and a tutorial of the same subject on
+        # one day); the rest expands as the subject's own type.
+        tutorial_hours = int(getattr(assignment, "tutorial_hours", None) or 0)
+        lecture_hours = max(assignment.weekly_hours - tutorial_hours, 0)
+
         def _mk(block_len):
             s = SessionToSchedule(
                 subject_id=subject.id,
@@ -607,14 +614,25 @@ class GreedySolver:
             return s
 
         if block_length and block_length >= 2:
-            full_blocks, remainder = divmod(assignment.weekly_hours, block_length)
+            full_blocks, remainder = divmod(lecture_hours, block_length)
             for _ in range(full_blocks):
                 sessions.append(_mk(block_length))
             for _ in range(remainder):
                 sessions.append(_mk(1))
         else:
-            for _ in range(assignment.weekly_hours):
+            for _ in range(lecture_hours):
                 sessions.append(_mk(1))
+        for _ in range(tutorial_hours):
+            sessions.append(SessionToSchedule(
+                subject_id=subject.id,
+                faculty_id=assignment.faculty_id,
+                student_group_id=assignment.group_id,
+                session_type=SessionType.TUTORIAL,
+                requires_lab=False,
+                is_cross_department=is_cross_dept,
+                block_length=1,
+                room_requirements=reqs,
+            ))
 
     def _group_by_id(self, group_id: int):
         if not hasattr(self, "_group_cache"):

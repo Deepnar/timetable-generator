@@ -66,6 +66,15 @@ class SubjectAssignment(Base):
     # rows created through the API by hand.
     source: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
+    # How many of the weekly_hours are TUTORIAL sessions (Phase 5, DD-046).
+    # The college runs a subject as two streams — "M-III" lectures 4x + "M-III
+    # TuT" tutorials 3x — and the streams are exempt from SAME_SUBJECT_SAME_DAY
+    # (a lecture and a tutorial of the same subject share a day in the real
+    # grids). Without the split every hour flattened to a LECTURE session and
+    # the rule needed one distinct day per hour (7 hours > 5 days -> 2 unplaced
+    # per subject on IT-SE-C). NULL = the row has no tutorial stream.
+    tutorial_hours: Mapped[int | None] = mapped_column(nullable=True)
+
     # Relationships for easy querying
     subject = relationship("Subject", backref="assignments")
     faculty = relationship("Faculty", backref="subject_assignments")

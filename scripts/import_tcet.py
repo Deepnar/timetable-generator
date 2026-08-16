@@ -696,6 +696,7 @@ def main() -> int:
             if faculty.department is None or faculty.department == "Faculty":
                 faculty.department = g.department
             kind = subject.requirements_json.get("session_type", "LECTURE")
+            tutorial_hours = None
             if row.get("batch_number"):
                 # Each batch does the practical once a week; the weekly load is
                 # the institution's scheme hours for LAB (D2).
@@ -704,14 +705,22 @@ def main() -> int:
             else:
                 # The division's grid load for this subject across its
                 # non-lab kinds (a lecture subject may also have tutorial
-                # cells). The scheme constant is the logged fallback.
+                # cells). The scheme constant is the logged fallback. The
+                # TUTORIAL cells split off as the tutorial stream (DD-046):
+                # the solver expands them as TUTORIAL sessions, which are
+                # exempt from SAME_SUBJECT_SAME_DAY — the college runs a
+                # lecture and a tutorial of one subject on the same day.
                 grid_total = sum(
                     group_hours.get((row["group_name"], row["subject_code"], k), 0)
                     for k in _NON_LAB_KINDS
                 )
+                tut = group_hours.get(
+                    (row["group_name"], row["subject_code"], "TUTORIAL"), 0)
                 if grid_total:
                     hours = grid_total
                     source = "GRID"
+                    if tut:
+                        tutorial_hours = tut
                 else:
                     hours = subject.hours_per_week or _scheme_hours(facts, kind)
                     source = "SCHEME"
@@ -735,6 +744,7 @@ def main() -> int:
                 period_number=row.get("period_id"),
                 block_length=row.get("block_length"),
                 source=source,
+                tutorial_hours=tutorial_hours,
             ))
             created += 1
         # The unique index (one row per subject/group/batch/period) means
