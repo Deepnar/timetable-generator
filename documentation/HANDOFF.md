@@ -15,13 +15,10 @@ Read `AGENTS.md` (repo root) first — commands, test entry points, commit rules
 
 ## The one-paragraph situation
 
-218 → **225 tests pass** (mutation-sweep, dedup, and grid-realism suites added), and the output is
-still structurally unlike a real timetable where it matters most. The engine's always-on hard
-constraints **reject the correct answer**: TCET's own published timetables violate
-`SAME_SUBJECT_SAME_DAY` 160 times and `MAX_ONE_LAB_PER_DAY` 54 times, and real labs are 1 slot
-where the engine forces 2. The real scheduling unit — a *lab window* where one division splits into
-batches doing **different subjects** simultaneously — cannot be expressed by the current model.
-This is a modelling error, not a solver weakness. Fix the model first.
+225 → **230 tests pass** (window suite added). The engine can now express the real scheduling
+unit — a *lab window* where one division splits into batches doing **different subjects**
+simultaneously (COMP-TE-D day 0: `Lab CG D1D2` + `Lab IIS D3D4`). Remaining structural gaps are
+honest data/allocation problems (Phase 3), not modelling errors.
 
 **Phase 0 (stop the bleeding) is DONE**: role guards on every mutating route (B-CRIT-1/B-HIGH-2),
 `subject_assignments` dedup + unique index (A3), `Callable` import (B1), `CROSS_DEPT_DAILY_CAP`
@@ -32,22 +29,31 @@ counting fix (B2). Recorded as **DD-032/DD-033**.
 **DD-034/DD-035**. Measured on the 11 COMP divisions: **0 break-slot sessions, 0 Saturday sessions,
 100% room stability, slot times exactly match `grids.json`**.
 
+**Phase 2 (model the lab window) is DONE**: group-scoped `period_number`, window construction,
+`_is_parallel_sibling` by `window_key`, `MAX_ONE_LAB_PER_DAY` counts windows, `LAB_ROTATION_COMPLETE`
+Latin-square validator, `SAME_SUBJECT_SAME_DAY` relaxed to lectures-only, OR-Tools window support.
+Recorded as **DD-036**. **Measured: 21/30 windows fully co-located (up from 0), 21 carry 2+
+subjects; COMP-TE-D day 0 is the real shape.**
+
 **Current measured state** (live DB is now **COMP-only, 11 published instances** — re-seeded under
 the Phase 0–5 scope rule `REAL_DATA_CODES = {"COMP"}`):
 
-| Metric | Phase 0 (audit, 36 divs) | Phase 1 (11 COMP divs) | Target |
+| Metric | Phase 0 (audit, 36 divs) | Phase 2 (11 COMP divs) | Target |
 |---|---|---|---|
 | sessions in a break slot | 175 | **0** | 0 |
 | Saturday sessions | 163 | **0** | 0 |
 | lecture pairs split across rooms | 245 of 245 | **0 of 100% in-venue** | <5% |
+| lab windows co-located (all batches same day+slot) | 0 (unexpressible) | **21 of 30 (70%)** | 100% |
+| lab windows carrying 2+ subjects | 0 (unexpressible) | **21 of 30 (70%)** | ~67% (audit's 52/78) |
 | divisions with unplaced sessions | 26 of 36 | still present | 0 (Phase 4) |
 | lab pairs where some batch gets no practical | 35 of 63 | **0** (COMP had none) | 0 |
 | (subject, division) pairs with 2+ teachers | 37 → 0 (deduped) | **0** | 0 |
 | faculty utilisation | 5–32%, 279 idle, 2 over cap | COMP-only (~54 fac) | even (Phase 3) |
-| OR-Tools on real data | half a timetable, zero practicals | not re-tested | works or not offered |
+| OR-Tools on real data | half a timetable, zero practicals | fixed (windows + batch_number) | works or not offered |
 
-> **Note:** unplaced sessions persist but are now *honest* — Phase 1 removed the fake Saturday and
-> break-slot capacity that was hiding them. Zero-unplaced is Phase 4's job.
+> **Note:** unplaced sessions persist but are now *honest* — Phases 1–2 removed the fake Saturday,
+> break-slot, and per-subject-lab capacity that was hiding them. Zero-unplaced is Phase 4's job.
+> The 9 scattered windows are all shared-faculty data gaps (unresolved initials — Phase 3).
 
 ---
 
@@ -140,7 +146,29 @@ Five items shipped, tested, committed in six focused commits, pushed:
 slot 5 Thu-Fri). The single `break_slots: [int]` picks the modal slot; per-(day, slot) break data
 is a future refinement.
 
-### Phase 2 — Model the lab window (4–6 days) ← **start here, the big one**
+### Phase 2 — Model the lab window ✅ DONE (16 Aug 2026)
+
+Seven items shipped, tested, committed in six focused commits, pushed:
+
+1. `period_number` re-scoped to the GROUP (window = (group, period); members =
+   (batch, subject, faculty)); importer groups lab cells by (day, slot-run). **[A1]**
+2. Window construction: `_build_sessions` groups by `(group, period)`, `_expand_lab_batches`
+   emits one session per batch with its own subject. **[A1]**
+3. `_is_parallel_sibling` matches `window_key`, not subject. **[A1]**
+4. `MAX_ONE_LAB_PER_DAY` counts windows per group per day. **[A1]**
+5. `LAB_ROTATION_COMPLETE` (Latin square, constructed from the grid, never searched). **[A1]**
+6. `SAME_SUBJECT_SAME_DAY` relaxed to lectures-only default, labs/tutorials exempt. **[A1]**
+7. OR-Tools calls `_expand_lab_batches`, models window co-location, propagates
+   `batch_number`/`window_key`. **[A6]**
+
+**Exit metrics measured (11 COMP divisions):** 21/30 windows fully co-located (up from 0), 21
+carry 2+ subjects, COMP-TE-D day 0 = CG batches 1,2 + IIS batches 3,4 at the same slot.
+
+**Open from DD-036:** the 9 scattered windows are shared-faculty data gaps (unresolved initials
+like HP vs HPK, SPS) — a Phase 3 data-collection item, not a model bug. The rotation is read from
+the grid's declared members, not re-derived by the solver.
+
+### Phase 3 — Honest demand and honest allocation ← **start here**
 
 Ground truth, `COMP-TE-D` day 0 slot 5: `Lab CG D1D2 SuS/PD 324` **and** `Lab IIS D3D4 SPS/PM 325`
 — one window, two subjects, four teachers. `COMP-BE-A` shows the rotation explicitly:
@@ -261,6 +289,10 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 
 ## Open design decisions (from `design-decisions.md` — carry forward)
 
+- **DD-036 follow-up** — the 9 scattered lab windows are shared-faculty data gaps: unresolved
+  initials (HP vs HPK, SPS, etc.) resolve two batches of a window to the same teacher, so the
+  window cannot co-locate (distinct-faculty rule). Fix in Phase 3 via faculty resolution /
+  `faculty_subject_competency`, not in the solver.
 - **DD-034 follow-up** — the real grids sometimes move the break by day (COMP-SE-A: slot 4
   Mon-Wed, slot 5 Thu-Fri); the single `break_slots: [int]` picks the modal slot. A per-(day,
   slot) break model would need per-day break data; worth revisiting in Phase 2 when lab windows
@@ -293,7 +325,7 @@ on `SECRET_KEY` length and `CORS_ORIGINS != "*"`. **[B-MED-3 … B-LOW-6]**
 - **No college constants in `app/engine/`.** They belong in institution-profile parameters. **[D2]**
 - **Commits**: many small focused ones, impersonal voice, staged in logical chunks (`AGENTS.md`).
 - **Docs in the same change**: `timetable-generator-architecture.md` §3 schema / §4 endpoints /
-  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-036 onward in
+  §5 engine / §8 params, plus `plan.md` + `progress.md` checkboxes. New decisions → DD-037 onward in
   `design-decisions.md`.
 
 ## Reproducing every number in this handoff
@@ -314,7 +346,7 @@ uv run python scripts/generate_tcet_import.py      # refresh info/import/*.json 
 uv run python scripts/build_synthetic_branches.py  # per-branch pools (being retired — see D4)
 uv run python -m scripts.import_tcet --wipe        # seed Postgres
 uv run python -m scripts.generate_college --instances 1 --clear-locks   # publish all (~2 min)
-uv run python -m app.tests                         # 225 tests (plumbing only — see A8)
+uv run python -m app.tests                         # 230 tests (plumbing only — see A8)
 cd frontend && npm run typecheck                   # NOT npm run build
 ```
 
@@ -332,4 +364,9 @@ Backend :8000, frontend :3001, admin@example.com / admin123. Postgres on host po
 - **New `Settings` fields must go in `.env.example`** in the same commit.
 - **Postgres NULLs are distinct** — a unique index on nullable columns does NOT dedupe NULL rows.
   Use `COALESCE(col, 0)` in the index expression (see `e6a1b7c3d9f2`).
+- **Lab windows are `(group, period)`** — `subject_assignments.period_number` is group-scoped
+  (A1); two subjects in one window share a period. The importer regenerates `assignments.json`
+  from the markdown pack — run `generate_tcet_import.py` before `import_tcet.py` if you change
+  the parser. Faculty initials are mapped by position within a cell's batch list (D3D4 SPS/PM →
+  batch 3 = SPS, batch 4 = PM).
 - `scripts/seed_demo.py` is a fabricated demo; `scripts/seed_tcet.py` is superseded by the importer.
