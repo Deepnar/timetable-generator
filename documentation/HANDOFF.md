@@ -128,10 +128,22 @@ never compose across divisions and early divisions take the best slots.
 
 ### Phase 6 — Frontend (4–6 days)
 
+**Confirmed on the live site (16 Aug 2026, COMP-SE-A/B instance pages):** the two visible
+grid defects are exactly C2 + C3/C4, verified in code — the backend data is correct:
+
 1. **Print stylesheet** — A4 landscape, one division per page. **[C1]**
-2. Redesign the parallel-batch cell — `CellStack` (`TimetableGrid.tsx:194`) hides the 3rd/4th batch
-   behind a scrollbar in a 76px row. **[C2]**
-3. `breakAfterSlot` → `breakSlots: number[]`; make `slotTime` required. **[C3, C4]**
+2. **Redesign the parallel-batch cell** — `CellStack` (`TimetableGrid.tsx:194`) stacks 4 lab
+   batches in a 76px row (`TimetableGrid.tsx:87`); text clips and batch badges overlap
+   (COMP-SE-A Mon/Tue/Wed 08:30, Thu 14:30). A 2×2 split layout or auto-grown row height.
+   **[C2]**
+3. **Real break + slot times reach the grid** — `breakAfterSlot={4}` is **hardcoded**
+   (`instances/[id]/page.tsx:153`), so the break row is wrong for every division whose break is
+   not slot 4 (SE-C: 5, TE-B: 3, BE-*: 6), and the break slot renders as an **empty unlabeled
+   row** because `slotTime` is derived from *placed* slots (`use-grid-sessions.ts:84-95`) —
+   nothing is placed in the break slot, so its label falls back to a bare `"4"`. The backend
+   already has the truth (`break_slots` + verbatim `slot_times` per profile) but the instance
+   page never fetches profile params. Fix: `breakSlots: number[]` prop + required `slotTime`,
+   fed from the profile's params. **[C3, C4]**
 4. Post-generation review: score breakdown, unplaced list **with reasons** (the checker already
    produces them and they are discarded), diff vs published. **[C6]**
 5. Accessibility: grid semantics, keyboard nav, non-colour subject encoding; move route protection
