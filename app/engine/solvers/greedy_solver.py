@@ -78,6 +78,13 @@ class SessionToSchedule:
         # expansion creates one parallel session per entry, each carrying its
         # own subject. Replaces the old single-subject ``parallel_batch_map``.
         self.window_members: dict[int, tuple] | None = None
+        # DD-044: per representative batch, the FULL batch list a merged
+        # single-teacher member covers (e.g. "Lab DWM A1A2 SG" -> {1: [1, 2]}).
+        # The representative batch is what the placed slot records.
+        self.window_batches: dict[int, list[int]] = {}
+        # The batch coverage of an expanded member session (defaults to the
+        # single batch); useful for UI rendering of merged pairs.
+        self.batch_list: list[int] | None = None
 
 
 class GreedySolver:
@@ -400,9 +407,29 @@ class GreedySolver:
                     block_length = int(r.block_length)
             members = {b: (r.subject_id, r.faculty_id)
                        for b, r in by_batch.items()}
-            base = by_batch[min(by_batch)]
+            # DD-044: a single-teacher pair ("Lab DWM A1A2 SG 324") emits one
+            # member row per batch sharing one faculty — a window those members
+            # can never co-locate in (one teacher cannot run two batches at
+            # once). The college's grid means ONE session covering the pair:
+            # merge members that share (subject, faculty) into a single session
+            # carrying the full batch list, so the window becomes co-locatable
+            # and the pair's students are still covered. The representative
+            # batch (the lowest) is what the placed slot records.
+            merged_members: dict[int, tuple] = {}
+            merged_batches: dict[int, list[int]] = {}
+            rep_for_member: dict[tuple, int] = {}
+            for b, member in sorted(members.items()):
+                rep = rep_for_member.get(member)
+                if rep is None:
+                    rep = b
+                    rep_for_member[member] = rep
+                    merged_members[rep] = member
+                    merged_batches[rep] = []
+                merged_batches[rep].append(b)
+            base = by_batch[min(merged_members)]
             base_session = self._make_window_base(
-                base, members, group_id, period, subjects, groups, block_length)
+                base, merged_members, group_id, period, subjects, groups,
+                block_length, merged_batches=merged_batches)
             if base_session is not None:
                 sessions.append(base_session)
 
@@ -432,13 +459,17 @@ class GreedySolver:
         return sessions
 
     def _make_window_base(self, base, members, group_id, period, subjects,
-                          groups, block_length=None) -> SessionToSchedule | None:
+                          groups, block_length=None,
+                          merged_batches: dict[int, list[int]] | None = None
+                          ) -> SessionToSchedule | None:
         """Build the base session for one lab window.
 
         ``members`` maps batch_number -> (subject_id, faculty_id). The window
         is expanded into one parallel session per member by
         :meth:`_expand_lab_batches`; each member carries its own subject and
         shares ``window_key`` so the checker treats them as siblings.
+        ``merged_batches`` (DD-044) maps a representative batch to the full
+        batch list a merged member covers (a single-teacher pair).
         """
         subject = subjects.get(base.subject_id)
         if subject is None:
@@ -477,6 +508,7 @@ class GreedySolver:
         s.window_members = dict(members)
         s.window_key = f"w{group_id}:{period}"
         s.parallel_key = ("window", group_id, period)
+        s.window_batches = dict(merged_batches or {})
         return s
 
     # ── parallel practicals (batches) ─────────────────────────
@@ -633,7 +665,10 @@ class GreedySolver:
         expanded: list[SessionToSchedule] = []
         for s in sessions:
             if s.session_type == SessionType.LAB and s.window_members:
-                # One parallel session per batch, each with its own subject.
+                # One parallel session per member, each with its own subject.
+                # A merged member (DD-044) covers several batches with one
+                # teacher; the representative batch is recorded on the slot and
+                # the full coverage list rides along for the UI/rotation.
                 for b, (subj_id, fid) in sorted(s.window_members.items()):
                     member_subject = self.db.get(Subject, subj_id)
                     reqs = effective_requirements(member_subject) if member_subject else s.room_requirements
@@ -650,6 +685,7 @@ class GreedySolver:
                         parallel_key=s.parallel_key,
                     ))
                     expanded[-1].window_key = s.window_key
+                    expanded[-1].batch_list = s.window_batches.get(b, [b])
                 continue
             if s.session_type == SessionType.LAB and s.block_length >= 2:
                 # No window members: derive faculty from the pool (auto batches).
