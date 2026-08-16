@@ -15,11 +15,13 @@ cached lookups so validators don't each re-query the database.
 
 Every rule — including the core structural ones (double-booking, capacity,
 room requirements, availability, blackouts, faculty load, cross-timetable
-safety) — lives in this registry. The structural rules are *always-on*: the
-:class:`ConstraintChecker` dispatches the :data:`STRUCTURAL_RULES` list on
+safety) — lives in this registry. The invariant rules are *always-on*: the
+:class:`ConstraintChecker` dispatches the :data:`INVARIANT_RULES` list on
 every candidate, independent of any ``hard_constraints`` row, so they can
-never be turned off by data. Data-driven rules (``SUBJECT_TIME_PREFERENCE``
-etc.) are dispatched only when a profile row asks for them.
+never be turned off by data. Institutional policy rules
+(``SAME_SUBJECT_SAME_DAY``, ``MAX_ONE_LAB_PER_DAY``, the faculty caps, room
+capacity) and data-driven rules fire only when a profile or college-default
+row asks for them.
 """
 from __future__ import annotations
 
@@ -36,18 +38,30 @@ from app.models.faculty import Faculty, FacultyAvailability, AvailabilityType
 # type string -> validator
 HARD_CONSTRAINT_REGISTRY: dict[str, Callable] = {}
 
-# The always-on structural rules, in the order the checker reports them.
-# They are dispatched by :meth:`ConstraintChecker.check_all` on every candidate
-# regardless of the profile's ``hard_constraints`` rows; rows of these types
-# stay decorative (a profile cannot switch a structural rule off).
+# ── constraint tiers (Phase 3b, A10) ──────────────────────────
+# The old single STRUCTURAL_RULES list mixed physics with policy, so the rules
+# that most needed tuning per college (SAME_SUBJECT_SAME_DAY, MAX_ONE_LAB_PER_DAY)
+# were always-on AND unreachable through the API. The tiers are:
 #
-# Phase 3 (D6): ROOM_CAPACITY_SUFFICIENT and the two faculty caps are NOT here
-# anymore. They compare quantities the importer invents (capacity 80 vs
-# strength 70, caps 8/30 on every teacher), and a rule fed by noise shapes the
-# timetable without any real signal. They remain registered, so a profile
-# ``hard_constraints`` row of the same type re-enables them (the INSTITUTIONAL
-# toggle) the day the college supplies real numbers.
-STRUCTURAL_RULES: tuple[str, ...] = (
+# * INVARIANT      — physics. A person/room cannot be in two places at once.
+#                    Dispatched on every candidate regardless of any DB row;
+#                    a row of an invariant type stays decorative.
+# * INSTITUTIONAL  — real policy that varies by college. Fires ONLY from a
+#                    profile or college-default ``hard_constraints`` row; the
+#                    migration seeds a college-default set so existing
+#                    behaviour survives. A registrar edits/removes the row.
+# * OPTIONAL       — data-driven rules a profile opts into with a row
+#                    (``SUBJECT_TIME_PREFERENCE`` etc.).
+# * PREFERENCE     — soft rules (weighted, never block).
+TIER_INVARIANT = "INVARIANT"
+TIER_INSTITUTIONAL = "INSTITUTIONAL"
+TIER_OPTIONAL = "OPTIONAL"
+TIER_PREFERENCE = "PREFERENCE"
+
+# The always-on physics rules, in the order the checker reports them.
+# Dispatched by :meth:`ConstraintChecker.check_all` on every candidate
+# regardless of the profile's ``hard_constraints`` rows.
+INVARIANT_RULES: tuple[str, ...] = (
     "NO_TEACHER_DOUBLE_BOOK",
     "NO_ROOM_DOUBLE_BOOK",
     "NO_GROUP_DOUBLE_BOOK",
@@ -59,9 +73,200 @@ STRUCTURAL_RULES: tuple[str, ...] = (
     "RESPECT_ROOM_BLACKOUT",
     "NO_TEACHING_IN_BREAK_SLOT",
     "LAB_ROTATION_COMPLETE",
-    "SAME_SUBJECT_SAME_DAY",
-    "CROSS_DEPT_DAILY_CAP",
 )
+
+# Policy rules that were always-on before Phase 3b. They now fire ONLY from a
+# profile/college-default row (the migration seeds a college-default set), so
+# a registrar can change or disable them through the API — which is the
+# product. The two faculty caps and ROOM_CAPACITY_SUFFICIENT are deliberately
+# NOT seeded: they compare quantities the importer invents (D6), so they stay
+# off until a college row re-enables them with real numbers.
+DEFAULT_INSTITUTIONAL_RULES: tuple[str, ...] = (
+    "SAME_SUBJECT_SAME_DAY",
+    "MAX_ONE_LAB_PER_DAY",
+    "CROSS_DEPT_DAILY_CAP",
+    "ROOM_CAPACITY_SUFFICIENT",
+    "FACULTY_MAX_HOURS_PER_DAY",
+    "FACULTY_MAX_HOURS_PER_WEEK",
+)
+
+# The policy defaults seeded by a migration for every college: the rules that
+# were always-on and must keep firing until a registrar says otherwise.
+# (type -> config_json)
+DEFAULT_INSTITUTIONAL_CONFIGS: dict[str, dict] = {
+    "SAME_SUBJECT_SAME_DAY": {},
+    "MAX_ONE_LAB_PER_DAY": {},
+    "CROSS_DEPT_DAILY_CAP": {},
+}
+
+# tier per registered hard type — drives ``GET /constraints/types`` and the
+# UI editor's locked/tunable affordances.
+CONSTRAINT_TIERS: dict[str, str] = {}
+for _t in INVARIANT_RULES:
+    CONSTRAINT_TIERS[_t] = TIER_INVARIANT
+for _t in DEFAULT_INSTITUTIONAL_RULES:
+    CONSTRAINT_TIERS[_t] = TIER_INSTITUTIONAL
+
+# JSON-schema (draft-07 subset) for each type's ``config_json``, so the UI
+# can render a form without code. An empty schema means the rule takes no
+# config. Soft rules carry a ``weight`` column instead.
+CONFIG_SCHEMAS: dict[str, dict] = {
+    "SAME_SUBJECT_SAME_DAY": {
+        "type": "object",
+        "properties": {
+            "include_session_types": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "enum": ["LECTURE", "LAB", "TUTORIAL", "ACTIVITY", "EXAM"],
+                },
+                "description": (
+                    "session types the rule counts; default is LECTURE only "
+                    "(labs/tutorials exempt, matching the published grids)"
+                ),
+            },
+        },
+    },
+    "MAX_ONE_LAB_PER_DAY": {
+        "type": "object",
+        "properties": {
+            "group_id": {
+                "type": "integer",
+                "description": "narrow the rule to one group",
+            },
+        },
+    },
+    "CROSS_DEPT_DAILY_CAP": {
+        "type": "object",
+        "description": (
+            "cap read from CollegeSettings.config_json.max_cross_dept_per_day"
+        ),
+    },
+    "ROOM_CAPACITY_SUFFICIENT": {
+        "type": "object",
+        "description": "compares rooms.capacity against student_groups.strength",
+    },
+    "FACULTY_MAX_HOURS_PER_DAY": {
+        "type": "object",
+        "description": "uses each faculty member's max_hours_per_day column",
+    },
+    "FACULTY_MAX_HOURS_PER_WEEK": {
+        "type": "object",
+        "description": "uses each faculty member's max_hours_per_week column",
+    },
+    "SUBJECT_TIME_PREFERENCE": {
+        "type": "object",
+        "properties": {
+            "subject_id": {"type": "integer"},
+            "max_slot": {"type": "integer", "minimum": 1},
+            "min_slot": {"type": "integer", "minimum": 1},
+            "period": {"type": "string", "enum": ["MORNING", "AFTERNOON"]},
+            "boundary_slot": {"type": "integer", "minimum": 1},
+        },
+    },
+    "MAX_CONSECUTIVE_SAME_TEACHER": {
+        "type": "object",
+        "required": ["max"],
+        "properties": {
+            "max": {"type": "integer", "minimum": 1},
+            "faculty_id": {"type": "integer"},
+        },
+    },
+    "MAX_DAILY_SUBJECTS": {
+        "type": "object",
+        "required": ["max"],
+        "properties": {
+            "max": {"type": "integer", "minimum": 1},
+            "group_id": {"type": "integer"},
+            "subject_id": {"type": "integer"},
+        },
+    },
+    "ALLOW_FREE_LAST_SLOT": {
+        "type": "object",
+        "properties": {
+            "slots_per_day": {"type": "integer", "minimum": 1, "default": 7},
+            "group_id": {"type": "integer"},
+            "day_of_week": {"type": "integer", "minimum": 0, "maximum": 6},
+        },
+    },
+    "TEACHER_YEAR_RESTRICTION": {
+        "type": "object",
+        "required": ["faculty_id", "allowed_years"],
+        "properties": {
+            "faculty_id": {"type": "integer"},
+            "allowed_years": {
+                "type": "array",
+                "items": {"type": "integer", "minimum": 1},
+            },
+        },
+    },
+    "LAB_BATCH_ROTATION": {
+        "type": "object",
+        "properties": {
+            "group_days": {
+                "type": "object",
+                "description": "group_id -> [day_of_week, ...]",
+                "additionalProperties": {
+                    "type": "array",
+                    "items": {"type": "integer", "minimum": 0, "maximum": 6},
+                },
+            },
+        },
+    },
+    "HOLIDAY_CALENDAR": {
+        "type": "object",
+        "required": ["holidays"],
+        "properties": {
+            "holidays": {
+                "type": "array",
+                "items": {"type": "string", "format": "date"},
+            },
+        },
+    },
+    "EXAM_DATE_SEPARATION": {
+        "type": "object",
+        "required": ["min_days"],
+        "properties": {
+            "min_days": {"type": "integer", "minimum": 1},
+            "group_id": {"type": "integer"},
+        },
+    },
+    "CONTIGUOUS_LAB_SLOTS": {
+        "type": "object",
+        "properties": {
+            "default_block_length": {"type": "integer", "minimum": 1},
+            "block_lengths": {
+                "type": "object",
+                "description": "subject_id -> block length",
+                "additionalProperties": {"type": "integer", "minimum": 1},
+            },
+        },
+    },
+}
+
+
+def assert_registry_enum_parity() -> None:
+    """Fail startup when the registry and the API enum have drifted.
+
+    Phase 3b (A10): eight registered validators were not in the
+    ``ConstraintType`` enum, so they were unreachable through the API and only
+    insertable by direct DB write — including the two rules that contradict
+    the college's published grids most. The two sets live apart; this raises
+    the moment they diverge so the gap is caught at startup, not by a
+    registrar discovering a rule cannot be edited.
+    """
+    from app.models.constraints import HARD_CONSTRAINT_TYPES
+
+    enum_values = {t.value for t in HARD_CONSTRAINT_TYPES}
+    registered = set(HARD_CONSTRAINT_REGISTRY)
+    missing = registered - enum_values
+    stale = enum_values - registered
+    if missing or stale:
+        raise RuntimeError(
+            "constraint registry and ConstraintType enum have drifted — "
+            f"registered but not in the enum: {sorted(missing)}; "
+            f"in the enum but not registered: {sorted(stale)}"
+        )
 
 
 def hard_rule(constraint_type) -> Callable:
@@ -453,11 +658,14 @@ def _contiguous_lab_slots(candidate, committed, config, ctx) -> Optional[str]:
     return None
 
 
-# ── structural (always-on) validators ─────────────────────────
-# The non-negotiable checks that used to live inline in ConstraintChecker.
-# They are registered here so every rule is a validator; the checker runs them
-# via STRUCTURAL_RULES on every candidate, so no profile row can switch one
-# off (a row of a structural type stays decorative).
+# ── invariant (always-on) validators ─────────────────────────
+# The non-negotiable physics checks that used to live inline in
+# ConstraintChecker. They are registered here so every rule is a validator;
+# the checker runs them via INVARIANT_RULES on every candidate, so no profile
+# row can switch one off (a row of an invariant type stays decorative).
+# Institutional policy rules (SAME_SUBJECT_SAME_DAY, MAX_ONE_LAB_PER_DAY,
+# faculty caps, room capacity) live BELOW with the other registered rows and
+# fire only when a profile/college-default hard_constraints row exists.
 
 def _availability_window_applies(w, slot_date) -> bool:
     """Whether an availability row is active for a candidate slot.
@@ -914,3 +1122,9 @@ hard_rule("HOLIDAY_CALENDAR")(_holiday_calendar)
 hard_rule("EXAM_DATE_SEPARATION")(_exam_date_separation)
 hard_rule("CONTIGUOUS_LAB_SLOTS")(_contiguous_lab_slots)
 hard_rule("MAX_ONE_LAB_PER_DAY")(_max_one_lab_per_day)
+
+# Any registered rule that is neither invariant nor institutional is an
+# OPTIONAL per-profile rule; default it here so CONSTRAINT_TIERS always covers
+# the full registry (assert_registry_enum_parity guards the enum side).
+for _rule_type in HARD_CONSTRAINT_REGISTRY:
+    CONSTRAINT_TIERS.setdefault(_rule_type, TIER_OPTIONAL)

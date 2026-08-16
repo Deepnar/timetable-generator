@@ -181,8 +181,19 @@ class ORToolsSolver(GreedySolver):
             model.Add(sum(vs) <= 1)
         for vs in by_group_slot.values():
             model.Add(sum(vs) <= 1)
-        for vs in by_group_subject_day.values():
-            model.Add(sum(vs) <= 1)
+        # SAME_SUBJECT_SAME_DAY parity, gated on an active row (Phase 3b, A10):
+        # the rule is institutional policy now, not physics — it fires only
+        # when a profile/college-default hard_constraints row enables it,
+        # exactly like the greedy checker's configured-rule dispatch. The
+        # final safety-net checker below still guards every committed slot.
+        same_day_rules = [
+            r for r in hard_constraints
+            if getattr(r.constraint_type, "value", r.constraint_type)
+            == "SAME_SUBJECT_SAME_DAY" and getattr(r, "is_active", True)
+        ]
+        if same_day_rules:
+            for vs in by_group_subject_day.values():
+                model.Add(sum(vs) <= 1)
 
         # A lab window's members (different batches, possibly different
         # subjects) must be placed at the SAME (day, slot): the division is one
@@ -258,7 +269,7 @@ class ORToolsSolver(GreedySolver):
         # Phase 3 (D6): the faculty caps compare invented 8h/30h numbers, so
         # they are enforced here only when a profile row explicitly enables
         # them (the institutional toggle) — the same gating the greedy path
-        # gets by keeping the types out of STRUCTURAL_RULES.
+        # gets from Phase 3b's tier split.
         toggle_day = any(
             getattr(r.constraint_type, "value", r.constraint_type)
             == "FACULTY_MAX_HOURS_PER_DAY"

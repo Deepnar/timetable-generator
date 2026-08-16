@@ -3,12 +3,14 @@
 Every rule returns a list of :class:`ConstraintViolation`; an empty list
 means the candidate slot is acceptable.
 
-All rules — the always-on structural ones and the data-driven profile rules —
-are registered validators in ``app.engine.constraint_registry``. The
-structural rules (double-booking, capacity, room requirements, availability,
-blackouts, faculty load, cross-timetable safety) are dispatched here on every
-candidate regardless of the profile's rows; the configured rows are dispatched
-after them.
+All rules — the always-on invariant ones and the row-driven institutional/
+optional ones — are registered validators in ``app.engine.constraint_registry``.
+The invariant rules (double-booking, room requirements, availability,
+blackouts, cross-timetable safety, break slots, lab rotation) are dispatched
+here on every candidate regardless of the profile's rows; institutional policy
+rules (SAME_SUBJECT_SAME_DAY, MAX_ONE_LAB_PER_DAY, faculty caps, room
+capacity) and optional rules fire only from a profile or college-default
+``hard_constraints`` row (Phase 3b, A10).
 """
 from datetime import time
 
@@ -18,7 +20,7 @@ from app.models.generation import TimetableSlot
 from app.models.settings import CollegeSettings
 from app.engine.constraint_registry import (
     HARD_CONSTRAINT_REGISTRY,
-    STRUCTURAL_RULES,
+    INVARIANT_RULES,
     ConstraintContext,
 )
 
@@ -118,14 +120,17 @@ class ConstraintChecker:
 
     # ── public api ───────────────────────────────────────────
     def check_all(self, candidate: SlotCandidate) -> list[ConstraintViolation]:
-        """Run the always-on structural rules, then the configured ones.
+        """Run the always-on invariant rules, then the configured ones.
 
-        Structural rules are dispatched from the registry in the order of
-        ``STRUCTURAL_RULES``; a profile row cannot switch one off. Only after
-        them are the profile's data-driven rules run.
+        Invariant rules (physics) are dispatched from the registry in the
+        order of ``INVARIANT_RULES``; a profile row cannot switch one off.
+        Only after them are the row-driven rules run — institutional policy
+        (SAME_SUBJECT_SAME_DAY, MAX_ONE_LAB_PER_DAY, faculty caps, room
+        capacity) fires from a profile or college-default ``hard_constraints``
+        row, optional rules from a profile row (Phase 3b, A10).
         """
         violations: list[ConstraintViolation] = []
-        for rule_type in STRUCTURAL_RULES:
+        for rule_type in INVARIANT_RULES:
             validator = HARD_CONSTRAINT_REGISTRY.get(rule_type)
             if validator is None:
                 continue
@@ -138,22 +143,24 @@ class ConstraintChecker:
     def is_valid(self, candidate: SlotCandidate) -> bool:
         return len(self.check_all(candidate)) == 0
 
-    # ── configured (data-driven) rules ───────────────────────
+    # ── configured (row-driven) rules ────────────────────────
     def _check_configured(self, c: SlotCandidate) -> list[ConstraintViolation]:
-        """Run every profile-configured hard constraint through the registry.
+        """Run every active profile/college-default hard constraint row.
 
-        Each active row's ``constraint_type`` selects a registered validator
-        that interprets the row's ``config_json``. Unknown types are ignored
-        so an out-of-date deployment degrades gracefully; structural types are
-        skipped because they are already always-on (a row of a structural type
-        stays decorative).
+        Each row's ``constraint_type`` selects a registered validator that
+        interprets the row's ``config_json``. Institutional policy rules fire
+        from here — a college default row (profile_id NULL) or a profile row —
+        so a registrar can change or disable them through the API. Invariant
+        types are skipped because they are already always-on (a row of an
+        invariant type stays decorative). Unknown types are ignored so an
+        out-of-date deployment degrades gracefully.
         """
         violations: list[ConstraintViolation] = []
         for rule in self.configured:
             if not getattr(rule, "is_active", True):
                 continue
             rule_type = getattr(rule.constraint_type, "value", rule.constraint_type)
-            if rule_type in STRUCTURAL_RULES:
+            if rule_type in INVARIANT_RULES:
                 continue
             validator = HARD_CONSTRAINT_REGISTRY.get(rule_type)
             if validator is None:

@@ -10,23 +10,36 @@ class ConstraintType(str, enum.Enum):
     the ``constraint_type`` columns are plain strings so a new data-driven
     rule needs only a new entry here plus a validator registered in
     ``app.engine.constraint_registry`` (no schema migration).
+
+    Tiers (Phase 3b, A10): INVARIANT rules are physics and always enforced;
+    INSTITUTIONAL rules are policy that fires only from a profile/college-
+    default row (a college-default set is seeded by migration); the rest are
+    OPTIONAL per-profile rules. ``assert_registry_enum_parity()`` fails
+    startup if this catalog and the validator registry ever drift apart.
     """
-    # Hard — structural (always enforced by the checker)
+    # INVARIANT — physics (always enforced by the checker)
     NO_TEACHER_DOUBLE_BOOK = "NO_TEACHER_DOUBLE_BOOK"
     NO_ROOM_DOUBLE_BOOK = "NO_ROOM_DOUBLE_BOOK"
     NO_GROUP_DOUBLE_BOOK = "NO_GROUP_DOUBLE_BOOK"
-    ROOM_CAPACITY_SUFFICIENT = "ROOM_CAPACITY_SUFFICIENT"
+    NO_CROSS_TIMETABLE_TEACHER_CONFLICT = "NO_CROSS_TIMETABLE_TEACHER_CONFLICT"
+    NO_CROSS_TIMETABLE_ROOM_CONFLICT = "NO_CROSS_TIMETABLE_ROOM_CONFLICT"
+    NO_CROSS_TIMETABLE_GROUP_CONFLICT = "NO_CROSS_TIMETABLE_GROUP_CONFLICT"
     ROOM_REQUIREMENTS_MET = "ROOM_REQUIREMENTS_MET"
     RESPECT_TEACHER_UNAVAILABILITY = "RESPECT_TEACHER_UNAVAILABILITY"
     RESPECT_ROOM_BLACKOUT = "RESPECT_ROOM_BLACKOUT"
-    CONTIGUOUS_LAB_SLOTS = "CONTIGUOUS_LAB_SLOTS"
-    EXAM_DATE_SEPARATION = "EXAM_DATE_SEPARATION"
+    NO_TEACHING_IN_BREAK_SLOT = "NO_TEACHING_IN_BREAK_SLOT"
+    LAB_ROTATION_COMPLETE = "LAB_ROTATION_COMPLETE"
+    # INSTITUTIONAL — policy; fires only from a profile/college-default row.
+    SAME_SUBJECT_SAME_DAY = "SAME_SUBJECT_SAME_DAY"
+    MAX_ONE_LAB_PER_DAY = "MAX_ONE_LAB_PER_DAY"
+    CROSS_DEPT_DAILY_CAP = "CROSS_DEPT_DAILY_CAP"
+    ROOM_CAPACITY_SUFFICIENT = "ROOM_CAPACITY_SUFFICIENT"
     # Phase 3 (D6): turned OFF for imported data because they compare invented
-    # quantities (capacity/strength, 8h/30h caps). In the enum so a profile row
-    # can re-enable them the day real numbers arrive.
+    # quantities (capacity/strength, 8h/30h caps). A college row re-enables
+    # them the day real numbers arrive.
     FACULTY_MAX_HOURS_PER_DAY = "FACULTY_MAX_HOURS_PER_DAY"
     FACULTY_MAX_HOURS_PER_WEEK = "FACULTY_MAX_HOURS_PER_WEEK"
-    # Hard — data-driven (opt-in per profile via config_json; see registry)
+    # OPTIONAL — data-driven, opt-in per profile via config_json (see registry)
     SUBJECT_TIME_PREFERENCE = "SUBJECT_TIME_PREFERENCE"
     MAX_CONSECUTIVE_SAME_TEACHER = "MAX_CONSECUTIVE_SAME_TEACHER"
     MAX_DAILY_SUBJECTS = "MAX_DAILY_SUBJECTS"
@@ -34,11 +47,8 @@ class ConstraintType(str, enum.Enum):
     TEACHER_YEAR_RESTRICTION = "TEACHER_YEAR_RESTRICTION"
     LAB_BATCH_ROTATION = "LAB_BATCH_ROTATION"
     HOLIDAY_CALENDAR = "HOLIDAY_CALENDAR"
-    # Phase 2 (A1): the batch<->subject rotation over a group's lab windows
-    # must form a complete Latin square — every batch receives every lab
-    # subject exactly once. Structural: the solver constructs the rotation,
-    # never searches for it.
-    LAB_ROTATION_COMPLETE = "LAB_ROTATION_COMPLETE"
+    EXAM_DATE_SEPARATION = "EXAM_DATE_SEPARATION"
+    CONTIGUOUS_LAB_SLOTS = "CONTIGUOUS_LAB_SLOTS"
     # Soft
     TEACHER_PREFERS_MORNING = "TEACHER_PREFERS_MORNING"
     AVOID_CONSECUTIVE_SAME_SUBJECT = "AVOID_CONSECUTIVE_SAME_SUBJECT"
@@ -51,16 +61,24 @@ class ConstraintType(str, enum.Enum):
 # The hard/soft split is a catalog concern; keeping it here, next to the enum,
 # means ``GET /constraints/types`` and any tooling always reflect exactly what
 # the Create schemas accept. Every member must appear in exactly one list.
+# assert_registry_enum_parity() additionally requires this list to match the
+# validator registry exactly (Phase 3b, A10 — they drifted apart before).
 HARD_CONSTRAINT_TYPES = [
     ConstraintType.NO_TEACHER_DOUBLE_BOOK,
     ConstraintType.NO_ROOM_DOUBLE_BOOK,
     ConstraintType.NO_GROUP_DOUBLE_BOOK,
-    ConstraintType.ROOM_CAPACITY_SUFFICIENT,
+    ConstraintType.NO_CROSS_TIMETABLE_TEACHER_CONFLICT,
+    ConstraintType.NO_CROSS_TIMETABLE_ROOM_CONFLICT,
+    ConstraintType.NO_CROSS_TIMETABLE_GROUP_CONFLICT,
     ConstraintType.ROOM_REQUIREMENTS_MET,
     ConstraintType.RESPECT_TEACHER_UNAVAILABILITY,
     ConstraintType.RESPECT_ROOM_BLACKOUT,
-    ConstraintType.CONTIGUOUS_LAB_SLOTS,
-    ConstraintType.EXAM_DATE_SEPARATION,
+    ConstraintType.NO_TEACHING_IN_BREAK_SLOT,
+    ConstraintType.LAB_ROTATION_COMPLETE,
+    ConstraintType.SAME_SUBJECT_SAME_DAY,
+    ConstraintType.MAX_ONE_LAB_PER_DAY,
+    ConstraintType.CROSS_DEPT_DAILY_CAP,
+    ConstraintType.ROOM_CAPACITY_SUFFICIENT,
     ConstraintType.FACULTY_MAX_HOURS_PER_DAY,
     ConstraintType.FACULTY_MAX_HOURS_PER_WEEK,
     ConstraintType.SUBJECT_TIME_PREFERENCE,
@@ -70,7 +88,8 @@ HARD_CONSTRAINT_TYPES = [
     ConstraintType.TEACHER_YEAR_RESTRICTION,
     ConstraintType.LAB_BATCH_ROTATION,
     ConstraintType.HOLIDAY_CALENDAR,
-    ConstraintType.LAB_ROTATION_COMPLETE,
+    ConstraintType.EXAM_DATE_SEPARATION,
+    ConstraintType.CONTIGUOUS_LAB_SLOTS,
 ]
 
 SOFT_CONSTRAINT_TYPES = [

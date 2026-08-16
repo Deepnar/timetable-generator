@@ -53,7 +53,15 @@ _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Ensure the college-settings singleton row exists on startup."""
+    """Ensure the college-settings singleton row exists on startup.
+
+    Also fail fast (Phase 3b, A10) if the validator registry and the
+    ``ConstraintType`` enum have drifted — the two previously grew apart and
+    left eight rules unreachable through the API.
+    """
+    from app.engine.constraint_registry import assert_registry_enum_parity
+
+    assert_registry_enum_parity()
     db = SessionLocal()
     try:
         get_settings(db)
