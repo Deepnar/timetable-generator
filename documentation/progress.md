@@ -158,6 +158,42 @@ are shared-faculty data gaps (unresolved initials — Phase 3).
 
 ---
 
+## 🧪 Phase 3 — Honest demand and honest allocation (16 Aug 2026, A3/A9/B4/D6)
+
+Fourth tranche of the DD-031 rebuild plan: the demand handed to the solver is now real, the
+teachers are real, and no constraint fires on an invented number.
+
+- [x] **Weekly hours come from the published grids** (`_derive_hours`, A3) — a division's
+  assignment hours are the grid's own cell counts per subject; `_scheme_hours` is only the logged
+  fallback where the grid is silent.
+- [x] **Auto-fill demoted to `--fill-gaps`** — default import reports data gaps; `--fill-gaps`
+  assigns the least-loaded teacher who holds a `faculty_subject_competency` row, stamped
+  `source=AUTOFILL` (A9).
+- [x] **`faculty_subject_competency` table** (faculty × subject, seeded from grid-derived
+  assignments) — auto-fill and `_lab_batch_faculty` may only pick qualified teachers (B4).
+- [x] **`profile_resources` pruned to assignment-holding teachers** — 3,710 → 96 rows (A9).
+- [x] **`source` provenance** (`GRID | SCHEME | AUTOFILL`) on `subject_assignments`, surfaced as a
+  per-cell badge in the assignments UI (C5).
+- [x] **Invented-quantity constraints turned off** — `ROOM_CAPACITY_SUFFICIENT` and both faculty
+  caps leave `STRUCTURAL_RULES`; a profile row re-enables them (D6). Measured: they rejected 0 of
+  31,370 candidates before, so nothing changed on real data.
+- [x] **Pre-solve feasibility report** (A4) — demand vs capacity per group/room-type/faculty is
+  computed in `create_generation`; hard over-capacity fails the run with a 409 + report instead
+  of completing with a warning string.
+- [x] **OR-Tools fixed on real data** — window co-location uses presence indicators (the old
+  per-pair equality was infeasible with 2+ room candidates → zero labs), `MAX_ONE_LAB_PER_DAY` is
+  modelled relationally, `unplaced_count` counts committed sessions (B9), and the faculty caps
+  honor the institutional toggle.
+
+**Measured (11 COMP divisions, re-seeded with `--fill-gaps`):** 48 of 51 (subject, division)
+pairs within ±1 hour of the published grid (the 3 misses are PROJECT — its grid cells name no
+teacher at all); **0 teachers over cap** (was 2); `profile_resources` 3,710 → 96 rows; 154 GRID
++ 19 AUTOFILL assignment rows; 0 break-slot sessions, 0 Saturday, 100% in-venue, 0
+(subject, group) duplicates. OR-Tools benchmark: COMP-TE-D 0 labs → 8 labs placed (23/27; the 4
+unplaced are the shared-faculty window), COMP-SE-A 0 labs → 12 (29/33). 237 tests green.
+
+---
+
 ## 🔎 Newly Identified (cross-check pass — not yet on the roadmap)
 
 Bugs/gaps found while auditing that `plan.md` does **not** already cover:

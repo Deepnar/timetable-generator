@@ -61,7 +61,7 @@ Every generation run produces **multiple candidate timetables** (instances). The
 
 The backend uses SQLAlchemy 2.0 mapped-column models on PostgreSQL. This section lists every table the application defines, in the order they were added by Alembic. **The Alembic migrations are the source of truth** for column types — the snippets below are a human-readable guide, not a literal `CREATE TABLE` to copy.
 
-**Migration chain (single linear, head = `a1b3c5d7e9f1`):**
+**Migration chain (single linear, head = `b6c2d4e8f0a2`):**
 
 ```
 aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty_availability, room_blackouts)
@@ -87,9 +87,10 @@ aeaadc4f2374   initial tables (faculty, rooms, student_groups, subjects, faculty
    → e6a1b7c3d9f2   deduplicate subject_assignments + unique (subject, group, batch, period)
    → f7b2c8d4e1a3   student_groups.home_room_id / home_room_secondary_id (venue, A5)
    → a1b3c5d7e9f1   assignments.block_length + slots.window_key (lab windows, A1)
+   → b6c2d4e8f0a2   assignments.source + faculty_subject_competency + generations.feasibility_report (Phase 3)
 ```
 
-There are **24 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, `timetable_overrides`, `app_notifications`, plus `audit_logs`.
+There are **25 tables** registered with `Base.metadata` (all exported from `app/models/__init__.py`): `admins`, `faculty`, `rooms`, `student_groups`, `subjects`, `faculty_availability`, `room_blackouts`, `subject_assignments`, `faculty_subject_competency`, `college_settings`, `timetable_profiles`, `profile_resources`, `profile_parameters`, `profile_combinations`, `profile_combination_members`, `hard_constraints`, `soft_constraints`, `timetable_generations`, `timetable_instances`, `timetable_slots`, `timetable_history`, `timetable_reset_log`, `timetable_overrides`, `app_notifications`, plus `audit_logs`.
 
 ### 3.1 Resource & Auth Tables
 
@@ -218,13 +219,28 @@ CREATE TABLE subject_assignments (
     load_share   FLOAT NOT NULL DEFAULT 1.0              -- e.g. 0.8/0.2 shared teaching
     batch_number INTEGER,                                -- per-batch lab faculty (D1..DN)
     period_number INTEGER,                               -- GROUP-scoped window id (A1)
-    block_length INTEGER                                 -- window's slot span (grid-derived; 1 common, 2 = merged block)
+    block_length INTEGER,                                -- window's slot span (grid-derived; 1 common, 2 = merged block)
+    source       VARCHAR(10)                             -- demand provenance (Phase 3, A3):
+                                                         -- GRID | SCHEME | AUTOFILL; NULL for API-created rows
 );
 
 CREATE UNIQUE INDEX uq_subject_assignments_subject_group_batch_period
     ON subject_assignments
        (subject_id, group_id,
         COALESCE(batch_number, 0), COALESCE(period_number, 0));
+
+-- FACULTY SUBJECT COMPETENCY (Phase 3, A9/B4)
+-- Which teachers may teach which subjects. Seeded by the importer from every
+-- grid-derived assignment; --fill-gaps and the solver's lab-batch fallback may
+-- only pick teachers with a row here, so a practical never goes to someone who
+-- has not taught the subject.
+CREATE TABLE faculty_subject_competency (
+    id                SERIAL PRIMARY KEY,
+    faculty_id        INTEGER NOT NULL REFERENCES faculty(id) ON DELETE CASCADE,
+    subject_id        INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    preference_weight FLOAT,                              -- optional; NULL = competent, no preference
+    UNIQUE (faculty_id, subject_id)
+);
 
 -- COLLEGE SETTINGS SINGLETON (Phase 1 — implemented)
 -- One row (id=1), auto-created on startup and lazily by `get_settings()`.
@@ -376,12 +392,9 @@ rule can be added without a schema migration.
 | `NO_TEACHER_DOUBLE_BOOK`          | `_check_teacher_double_book`                         |
 | `NO_ROOM_DOUBLE_BOOK`             | `_check_room_double_book`                            |
 | `NO_GROUP_DOUBLE_BOOK`            | `_check_group_double_book`                           |
-| `ROOM_CAPACITY_SUFFICIENT`        | `_check_room_capacity`                               |
 | `ROOM_REQUIREMENTS_MET`           | `_room_requirements_met` (matches declared requirements vs room attributes, §5.5) |
 | `RESPECT_TEACHER_UNAVAILABILITY`  | `_check_teacher_availability` (consults `effective_from`/`effective_to` vs the slot's materialized date) |
 | `RESPECT_ROOM_BLACKOUT`           | `_check_room_blackout` (recurring weekday always; date-specific only when the slot carries a materialized `slot_date`) |
-| `FACULTY_MAX_HOURS_PER_DAY`       | `_check_faculty_load`                                |
-| `FACULTY_MAX_HOURS_PER_WEEK`      | `_check_faculty_load`                                |
 | `NO_CROSS_TIMETABLE_TEACHER_CONFLICT` | `_check_published_conflicts`                     |
 | `NO_CROSS_TIMETABLE_ROOM_CONFLICT`    | `_check_published_conflicts`                     |
 | `NO_CROSS_TIMETABLE_GROUP_CONFLICT`   | `_check_published_conflicts`                     |
@@ -389,6 +402,8 @@ rule can be added without a schema migration.
 | `NO_TEACHING_IN_BREAK_SLOT`       | `_no_teaching_in_break_slot` (reads `ctx.break_slots` from the profile's `break_slots` param; a block spanning a break is rejected too) |
 | `LAB_ROTATION_COMPLETE`           | `_lab_rotation_complete` (each batch receives each lab subject exactly once — a Latin square, constructed not searched, A1) |
 | `CROSS_DEPT_DAILY_CAP`            | `_check_cross_dept_cap` (driven by `config_json.max_cross_dept_per_day`; counts only the faculty's **cross-department** sessions that day, not their whole load) |
+
+> **Phase 3 (D6): `ROOM_CAPACITY_SUFFICIENT`, `FACULTY_MAX_HOURS_PER_DAY` and `FACULTY_MAX_HOURS_PER_WEEK` are NOT structural anymore.** They compare capacities/strengths/caps the importer invents, so they shaped the timetable with no real signal. They remain registered validators — a profile `hard_constraints` row of the same type re-enables them (the INSTITUTIONAL toggle) the day the college supplies real numbers. Measured before the change they rejected 0 of 31,370 candidate evaluations, so removal changed nothing on the live data.
 
 **Hard — data-driven (registry in `app/engine/constraint_registry.py`):**
 
@@ -457,7 +472,9 @@ CREATE TABLE timetable_generations (
     triggered_by        INTEGER NOT NULL REFERENCES admins(id),
     triggered_at        TIMESTAMP NOT NULL DEFAULT NOW(),
     completed_at        TIMESTAMP,
-    error_log           TEXT
+    error_log           TEXT,
+    placement_warning   TEXT,                            -- COMPLETED but dropped sessions (honest shortfall)
+    feasibility_report  JSON                             -- pre-solve demand-vs-capacity (Phase 3, A4)
 );
 
 -- ONE CANDIDATE OUTPUT FROM A GENERATION RUN
@@ -1019,22 +1036,23 @@ GET    /audit                          List most-recent-first audit entries
 
 `POST /generate` runs either **inline** (default, `ASYNC_GENERATION=false`) or through a **Celery worker** (`ASYNC_GENERATION=true`, §7.1). The run logic lives entirely in `Scheduler` (`app/engine/scheduler.py`), split into two entry points so the same code serves both modes:
 
-- `Scheduler.create_generation(...)` — resolves the input contract and persists the `PENDING` run row (raising 404 on a missing/inactive profile or combination up front).
+- `Scheduler.create_generation(...)` — resolves the input contract, computes the **pre-solve feasibility report** (A4) and persists the run row. A run whose demand cannot fit the real capacity (group weekly slots or room slots per type) is marked `FAILED` with the report as `error_log` and raises `FeasibilityError` → the API returns **409** with the report, instead of completing with a warning string. Missing/inactive profile or combination raises 404.
 - `Scheduler.solve_generation(run_id)` — loads the run row, re-resolves the profile from it, solves, and flips the row to `COMPLETED` (or `FAILED` + `error_log`), stamping `run_duration_ms`. It is what the worker calls. When a completed run dropped sessions (oversubscribed profile, no matching room), the solver's `unplaced_count` is written to `placement_warning` so the API surfaces it.
 - `Scheduler.run(...)` — `create_generation` + `solve_generation` in one call; the synchronous HTTP path.
 
 Step-by-step:
 
 1. **Resolve the input contract.** `ProfileResolver.resolve(profile_id, combination_id)` (`app/engine/profile_resolver.py`) produces a single :class:`ResolvedProfile` — for a plain run, exactly that profile's data; for a combination, the merged union of every member profile (see §6.2 for the merge semantics). The generation row stores `profile_id` (a single run) or `combination_id` (a combination) exactly as the caller asked, while the solver consumes the merged view. A missing or inactive profile / combination member is rejected up front.
-2. **Cross-Timetable Conflict Loader.** `Scheduler._load_published_conflicts()` selects every `TimetableSlot` belonging to every `TimetableInstance` with `status=PUBLISHED` and builds per-resource reserved sets:
+2. **Pre-solve feasibility report (A4).** `Scheduler._feasibility_report(resolved)` compares demand vs capacity per resource: per group (demanded sessions — non-batched `weekly_hours` plus lab windows' `block_length` — vs `working_days × (slots_per_day − break slots)`), per room type (sessions needing that type vs rooms of that type × weekly slots), and per faculty (summed `weekly_hours` vs `max_hours_per_week`, informational only because the imported caps are invented placeholders, D6). Stored on `generation.feasibility_report`; on hard over-capacity the run is FAILED before solving (see above).
+3. **Cross-Timetable Conflict Loader.** `Scheduler._load_published_conflicts()` selects every `TimetableSlot` belonging to every `TimetableInstance` with `status=PUBLISHED` and builds per-resource reserved sets:
    ```
    {"faculty": {(faculty_id, day_of_week, slot_number), ...},
     "room":    {(room_id,    day_of_week, slot_number), ...},
     "group":   {(group_id,   day_of_week, slot_number), ...}}
    ```
    Splitting per resource (rather than a single 5-way tuple) means a published booking blocks the faculty, room, or group at that time slot REGARDLESS of the other dimensions. An **exam generation** passes `exempt_groups=` (the profile's own `STUDENT_GROUP` ids when the profile is in exam mode): those groups' published slots are skipped, so a branch on exams can reuse its suspended class slots while every other branch's active classes stay protected (§5.4).
-3. **Build Sessions to Schedule.** From `subject_assignments` rows, expand each `(subject, faculty, group, weekly_hours, load_share)` into `weekly_hours` `SessionToSchedule` objects. Each session carries a `session_type` (derived via `subject_session_type` from the subject's declared `requirements_json.session_type`, falling back to `LAB`/`LECTURE` from `requires_lab`), the resolved room requirements (see §5.5), an `is_cross_department` flag (`group.department != subject.department`), and is dropped if the `college_settings.allow_cross_dept_subjects` flag is off and the cross-dept flag is on. In **exam mode** (§5.4) each assignment instead becomes exactly ONE `SessionType.EXAM` session.
-4. **Solver Runs N times for N candidate instances.** The run row records a `variation` strategy (from the request, default `random`) that shapes the seeded re-rolls (§5.3):
+4. **Build Sessions to Schedule.** From `subject_assignments` rows, expand each `(subject, faculty, group, weekly_hours, load_share)` into `weekly_hours` `SessionToSchedule` objects. Each session carries a `session_type` (derived via `subject_session_type` from the subject's declared `requirements_json.session_type`, falling back to `LAB`/`LECTURE` from `requires_lab`), the resolved room requirements (see §5.5), an `is_cross_department` flag (`group.department != subject.department`), and is dropped if the `college_settings.allow_cross_dept_subjects` flag is off and the cross-dept flag is on. In **exam mode** (§5.4) each assignment instead becomes exactly ONE `SessionType.EXAM` session.
+5. **Solver Runs N times for N candidate instances.** The run row records a `variation` strategy (from the request, default `random`) that shapes the seeded re-rolls (§5.3):
    - **Instance #1: seed = `None`** (deterministic baseline) unless `variation="best"`.
    - **Instance #i (i > 0): seed = `i * 100 + attempt`**; with `variation="best"`, instance #1 is seeded too (`0 * 100 + attempt`) so a genuine optimum can be found.
    - For each attempt (up to `_DIVERSITY_ATTEMPTS = 6`): greedy shuffles `working_days` / `slot_times` / `rooms` — or reorders its search by the gap criterion for `minimize-teacher-gaps` / `minimize-student-gaps`; OR-Tools varies `solver.parameters.random_seed` and, for a gap criterion, adds a small secondary objective term (§5.2).
@@ -1050,9 +1068,10 @@ Step-by-step:
 - `ORToolsSolver` subclasses `GreedySolver` and overrides `solve()`, reusing the same session-building helpers. Constraint handling is split to match the `ConstraintChecker`:
   - **Per-candidate ("static") rules** — capacity, room requirements (§5.5), recurring blackouts, teacher availability, cross-timetable reservations, and registry rules that don't depend on committed slots (`SUBJECT_TIME_PREFERENCE`, `LAB_BATCH_ROTATION`, `HOLIDAY_CALENDAR`, `CONTIGUOUS_LAB_SLOTS`) — prune the variable domain by only creating `x[s, d, t, r]` variables that the checker accepts against an EMPTY committed set.
   - **Relational rules** — no teacher/room/group double-book, one-subject-per-group-per-day, per-faculty daily/weekly load — are added as CP-SAT constraints (`model.Add(sum(vs) <= 1)`). A block session registers its variable in the double-book buckets for *every* slot it occupies, and contributes its full length to the load buckets, so CP-SAT treats a block as a contiguous booking.
+- **Lab windows are co-located by presence indicators (A1).** One boolean per (window, day, slot) plus, per member, `sum(member's vars there) == indicator` forces all batches of a window to the same (day, slot) — the fixed formulation; the earlier per-pair equality was infeasible whenever a member had two room candidates and silently dropped every lab. `MAX_ONE_LAB_PER_DAY` is modelled the same way (per-(group, day) window indicator ≤ 1) so CP-SAT does not pack two windows onto one day and have the final pass throw one away. The **faculty daily/weekly caps are enforced only when a profile hard-constraints row enables them** (D6): the imported caps are invented, so they are off by default exactly like the greedy path's STRUCTURAL_RULES change.
 - Objective: `model.Maximize(PLACEMENT_WEIGHT * sum(x.values()) + Σ soft_terms + Σ variation_terms)` — maximise placed sessions first (`PLACEMENT_WEIGHT = 1000.0`), then optimise the active soft preferences via `app/engine/soft_objective.py` (`TEACHER_PREFERS_MORNING`, `MINIMIZE_STUDENT_FREE_SLOTS`, `MINIMIZE_TEACHER_FREE_SLOTS`; gated by `enable_soft_constraint_scoring`). Rules without a registered objective builder are skipped but still rank instances post-hoc. For a seeded instance whose run is `variation="minimize-teacher-gaps"` or `"minimize-student-gaps"`, `_build_variation_terms` additionally folds a small span term into the objective (§5.3) so the re-roll actively packs the teacher's / group's sessions instead of being a pure random seed. All secondary weights stay far below `PLACEMENT_WEIGHT`, so a soft preference or variation can only shape *which* equal-cardinality solution is returned — never trade away a placed session.
 - **`EXAM_DATE_SEPARATION` is modelled as a relational CP-SAT rule** (not just a domain-pruning rule): its registry validator reads committed slots, so it cannot fire during static pruning and would otherwise only shed placements in the final pass (letting CP-SAT pack a group's exams onto one day). `_add_exam_separation` adds, per group, "at most one exam per calendar date" plus "no exams on two dates closer than `min_days`", using the materialized dates from `term_start` (inert without an anchor).
-- A final pass through the full checker (with the populated committed_slots) catches committed-dependent registry rules that CP-SAT does not model. Such rules can only *drop* a placement; they cannot produce an invalid one. Two committed-dependent rules are modelled relationally instead so they don't degrade to drops: `EXAM_DATE_SEPARATION` and `MAX_DAILY_SUBJECTS`. `MAX_CONSECUTIVE_SAME_TEACHER` and `TEACHER_YEAR_RESTRICTION` rely on the final pass.
+- A final pass through the full checker (with the populated committed_slots) catches committed-dependent registry rules that CP-SAT does not model. Such rules can only *drop* a placement; they cannot produce an invalid one. Two committed-dependent rules are modelled relationally instead so they don't degrade to drops: `EXAM_DATE_SEPARATION` and `MAX_DAILY_SUBJECTS`. `MAX_CONSECUTIVE_SAME_TEACHER` and `TEACHER_YEAR_RESTRICTION` rely on the final pass. `unplaced_count` counts sessions the final pass actually committed (B9) — a placement the safety net drops is unplaced, not placed.
 - **Hard timeout: `ORToolsSolver.max_time_seconds = 5.0`** (class constant). There is **no `solver_timeout_seconds` profile parameter** — the 30-second value in older docs is illustrative only.
 
 ```python

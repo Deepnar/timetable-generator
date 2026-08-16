@@ -138,5 +138,10 @@ This plan bridges the gap between our current **Greedy Engine** checkpoint (`v0.
 > room stability / exact grid times). **Phase 2 — Model the lab window is DONE** (group-scoped
 > `period_number`, window construction, `_is_parallel_sibling` by `window_key`, windows-counting
 > `MAX_ONE_LAB_PER_DAY`, `LAB_ROTATION_COMPLETE`, relaxed `SAME_SUBJECT_SAME_DAY`, OR-Tools window
-> support; 21/30 windows co-locate, COMP-TE-D is the real shape). Next: **Phase 3 — Honest demand
-> and honest allocation**.
+> support; 21/30 windows co-locate, COMP-TE-D is the real shape). **Phase 3 — Honest demand and
+> honest allocation is DONE** (grid-derived `weekly_hours`, `--fill-gaps` instead of auto-fill,
+> least-loaded qualified assignment, `faculty_subject_competency`, `profile_resources` pruned
+> 3,710 → 96, `source` provenance, invented-quantity constraints off, pre-solve feasibility
+> report, OR-Tools window/MAX_ONE_LAB_PER_DAY/B9 fixes; measured 48/51 (subject, division) hours
+> within ±1, 0 over cap). Next: **Phase 3b — Make constraints editable** (constraint tiering +
+> UI editor), then **Phase 4 — Solve the cohort, not the division**.

@@ -794,3 +794,109 @@ the old `b-1` indexing that gave every batch of a D3D4 cell the same teacher.
 up from 0); 21 windows carry 2+ subjects (≈ the audit's 52 of 78 = 67%); COMP-TE-D day 0 is now
 recognisably the real shape — batches 1,2 on CG and 3,4 on IIS at the same slot. Phase 1 metrics
 hold: 0 break-slot sessions, 0 Saturday, 100% room stability.
+
+## Phase 3 remediation (2026-08-16)
+
+### DD-037 — Demand is read from the grid, not invented; auto-fill becomes an explicit --fill-gaps step
+
+**Status: Decided / Tested.**
+
+**Problem.** The importer computed `_derive_hours()` from the published grids and threw it away;
+every lecture subject got a flat 3h/week (`_scheme_hours`), and an unconditional auto-fill invented
+teachers with a modulo rotation (`dept_fac[(g.id + subj_idx) % len]`). Measured result: 279 of 407
+teachers idle, 2 over cap, and the solver being asked for a fabricated week (A3/A9).
+
+**Decision.** `weekly_hours` on grid-derived assignment rows comes from the division's own grid
+cell counts (summed over its non-lab kinds). `_scheme_hours` stays as the **logged** fallback
+(`source=SCHEME`) where the grid is silent. The modulo auto-fill is deleted; the importer now
+reports data gaps by default and only invents load under an explicit `--fill-gaps` flag, which
+assigns the **least-loaded teacher who holds a `faculty_subject_competency` row** for the subject
+and stamps the row `source=AUTOFILL`.
+
+**Trade-offs recorded.** (a) A subject the college's own grid never names now produces zero
+sessions instead of a guessed assignment — that is the honest signal the registrar needs. (b) The
+remaining PROJECT gaps (BE-A/B/C) are unassignable even with `--fill-gaps`: the grid's PROJECT
+cells name no teacher, so no competency exists; the college must supply project mentors. (c)
+`--fill-gaps` is a re-seed-time tool; the in-UI Auto-fill button on the assignments page is a
+separate least-loaded suggestion and is not stamped.
+
+**Measured (11 COMP divisions, re-seeded with `--fill-gaps`).** 48 of 51 (subject, division)
+pairs within ±1 hour of the published grid; the 3 misses are PROJECT (no teacher in the grid at
+all). 0 teachers over cap (was 2). 154 GRID + 19 AUTOFILL rows.
+
+### DD-038 — Qualified-teacher relation: faculty_subject_competency gates fill and lab batches
+
+**Status: Decided / Tested.**
+
+**Problem.** Any department teacher could be assigned any department subject, and the greedy
+lab-batch fallback filled unstaffed batches from the profile pool by lowest id — handing
+practicals to teachers who had never taught the subject (A9/B4).
+
+**Decision.** New `faculty_subject_competency` (faculty × subject, optional
+`preference_weight`), seeded by the importer from every grid-derived assignment. `--fill-gaps`
+and `GreedySolver._lab_batch_faculty` may only pick teachers with a row for the subject; with no
+qualified candidate the practical stays whole-division rather than fabricating staff.
+
+**Trade-off recorded.** A subject whose grid cells never name a teacher (PROJECT) has no
+competency rows and can never be auto-filled — deliberate: inventing a teacher is worse than a
+reported gap. The college supplies competencies by hand for anything outside the grid.
+
+**Measured.** `_lab_batch_faculty` no longer fabricates: tests pin that an unqualified pool
+member is refused and that only the base + qualified teacher staff a 2-batch lab.
+
+### DD-039 — No constraint fires on an invented number: capacity and faculty caps leave STRUCTURAL_RULES
+
+**Status: Decided / Tested.**
+
+**Problem.** `ROOM_CAPACITY_SUFFICIENT` compared invented capacities (80) against invented
+strengths (63/70); both faculty caps enforced invented 8h/30h on every teacher. A rule fed by
+noise shapes the timetable and its effect is indistinguishable from a real constraint (D6).
+
+**Decision.** The three rules are removed from `STRUCTURAL_RULES`. They remain registered, so a
+profile `hard_constraints` row re-enables each (the INSTITUTIONAL toggle) the day the college
+supplies real numbers. OR-Tools' native cap constraints honour the same toggle; the two faculty-cap
+types were added to the `ConstraintType` enum so the toggle is reachable through the API.
+
+**Measured.** Before removal the three rules rejected **0 of 31,370** candidate evaluations on
+the live data — they were inert because the numbers are invented. Removal therefore changes
+nothing today and must be switched on deliberately later. Tests now assert caps are off by
+default and fire when a profile row enables them.
+
+### DD-040 — Pre-solve feasibility report: fail loudly before solving (A4)
+
+**Status: Decided / Tested.**
+
+**Problem.** A 7-session shortfall only surfaced as a warning string on a COMPLETED run; the
+auditor asked for a pre-solve check that reports infeasibility before the solver runs (A4).
+
+**Decision.** `Scheduler.create_generation` computes demand vs capacity per group (sessions vs
+`working_days × (slots_per_day − breaks)`), per room type (sessions vs rooms × weekly slots), and
+per faculty (informational — caps are invented, DD-039). The report is stored on
+`timetable_generations.feasibility_report`; a hard over-capacity marks the run FAILED with the
+report as `error_log` and the API returns **409** with the report instead of a COMPLETED-with-
+warning run.
+
+**Trade-off recorded.** Faculty over-cap is reported, not fatal — enforcing it would re-introduce
+the invented caps. Only group-slot and room-type dimensions hard-fail.
+
+**Measured.** COMP generation passes the check (capacity ≥ demand for all 11 divisions); a
+test seeds a 400h assignment and pins the 409 + FAILED row.
+
+### DD-041 — OR-Tools windows fixed: presence indicators, MAX_ONE_LAB_PER_DAY modelled, honest unplaced
+
+**Status: Decided / Tested.**
+
+**Problem.** Two Phase 3 findings on real data: (1) the Phase 2 window co-location formulation
+forced equality across *every* room variant of every member — infeasible the moment a member has
+two room candidates, so CP-SAT silently placed **zero labs**; (2) `MAX_ONE_LAB_PER_DAY` was not
+modelled, so CP-SAT packed two windows on one day and the safety net threw one away; (3)
+`unplaced_count` counted `chosen` before the safety-net filter (B9).
+
+**Decision.** One presence indicator per (window, day, slot) links each member's presence there
+(`sum(member's vars) == indicator`), so members co-locate without forcing room equality.
+`MAX_ONE_LAB_PER_DAY` becomes a per-(group, day) window-indicator constraint, keeping every
+CP-SAT placement the checker will keep. `unplaced_count` now counts committed sessions.
+
+**Measured.** COMP-TE-D: 0 labs → 8 labs placed (23 of 27 sessions; the 4 unplaced are the
+shared-faculty window from DD-036). COMP-SE-A: 0 → 12 labs (29 of 33). Regression test pins a
+2-window profile fully placed and co-located by OR-Tools.
