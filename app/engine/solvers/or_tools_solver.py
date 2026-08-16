@@ -160,7 +160,16 @@ class ORToolsSolver(GreedySolver):
                     by_window_slot[(s.window_key, day, sn)].append(var)
                 else:
                     by_group_slot[(s.student_group_id, day, n)].append(var)
-            by_group_subject_day[(s.student_group_id, s.subject_id, day)].append(var)
+            # SAME_SUBJECT_SAME_DAY parity: the checker's rule counts only
+            # LECTURE sessions by default (labs/tutorials exempt), and window
+            # siblings are the same division-wide session — so the subject-day
+            # bucket is LECTURE-only, matching greedy exactly. Counting labs
+            # here made every window with two batches of one subject
+            # infeasible (both batches land in the same bucket and sum(vs)<=1
+            # forbids co-locating them).
+            stype = str(getattr(s.session_type, "value", s.session_type)).upper()
+            if stype == "LECTURE":
+                by_group_subject_day[(s.student_group_id, s.subject_id, day)].append(var)
             by_group_day[(s.student_group_id, day)].append((s.subject_id, var))
             for _ in range(s.block_length):
                 by_teacher_day[(s.faculty_id, day)].append(var)
@@ -177,32 +186,98 @@ class ORToolsSolver(GreedySolver):
 
         # A lab window's members (different batches, possibly different
         # subjects) must be placed at the SAME (day, slot): the division is one
-        # session during a window. Each member is placed at most once, so for
-        # every pair of members and every (day, slot) their indicator sums must
-        # be equal — all on or all off together.
+        # session during a window. One indicator per (window, day, slot) and
+        # per member: every member's presence there equals the indicator, so
+        # all members are co-located. (The previous formulation forced
+        # equality across every room variant of every member, which is
+        # infeasible the moment a member has two room candidates — CP-SAT
+        # then placed zero labs.)
         window_members: dict[str, list[int]] = defaultdict(list)
         for si, s in enumerate(sessions):
             if s.window_key:
                 window_members[s.window_key].append(si)
-        for (wk, day, sn), vs in by_window_slot.items():
-            if len(vs) < 2:
+        window_presence: dict[tuple, object] = {}
+        for (wk, day, sn) in sorted(by_window_slot):
+            members_here = [
+                si for si in window_members.get(wk, [])
+                if any(si2 == si and d2 == day and sn2 == sn
+                       for (si2, d2, sn2, _r) in x)
+            ]
+            if len(members_here) < 2:
                 continue
-            for si in window_members.get(wk, []):
-                member_here = [
+            present = model.NewBoolVar(f"win_{wk}_{day}_{sn}")
+            window_presence[(wk, day, sn)] = present
+            for si in members_here:
+                member_vars = [
                     v for (si2, d2, sn2, _r), v in x.items()
                     if si2 == si and d2 == day and sn2 == sn
                 ]
-                for mv in member_here:
-                    for v in vs:
-                        model.Add(mv == v)
+                model.Add(sum(member_vars) == present)
 
+        # MAX_ONE_LAB_PER_DAY parity: at most one lab WINDOW per group per
+        # day (A1). Without this CP-SAT happily packs two windows onto one
+        # day and the safety net then drops one — a wasted placement. Non-
+        # window lab sessions count individually; window members count once
+        # via the presence indicator (a window is one session for the group).
+        one_lab_rules = [
+            r for r in hard_constraints
+            if getattr(r.constraint_type, "value", r.constraint_type)
+            == "MAX_ONE_LAB_PER_DAY" and getattr(r, "is_active", True)
+        ]
+        if one_lab_rules:
+            allowed_group = None
+            for r in one_lab_rules:
+                gid = (getattr(r, "config_json", None) or {}).get("group_id")
+                if gid is not None:
+                    allowed_group = int(gid)
+                    break
+            by_group_day_lab: dict[tuple, list] = defaultdict(list)
+            for (wk, day, sn), present in window_presence.items():
+                # window -> group from its members
+                members = window_members.get(wk, [])
+                if not members:
+                    continue
+                gid = sessions[members[0]].student_group_id
+                if allowed_group is not None and gid != allowed_group:
+                    continue
+                by_group_day_lab[(gid, day)].append(present)
+            for si, s in enumerate(sessions):
+                if s.window_key:
+                    continue  # counted via the window presence indicator
+                stype = str(getattr(s.session_type, "value", s.session_type)).upper()
+                if stype != "LAB" or s.student_group_id is None:
+                    continue
+                if allowed_group is not None and s.student_group_id != allowed_group:
+                    continue
+                for (si2, d2, sn2, _r), var in x.items():
+                    if si2 == si:
+                        by_group_day_lab[(s.student_group_id, d2)].append(var)
+            for (gid, day), vs in by_group_day_lab.items():
+                model.Add(sum(vs) <= 1)
+
+        # Phase 3 (D6): the faculty caps compare invented 8h/30h numbers, so
+        # they are enforced here only when a profile row explicitly enables
+        # them (the institutional toggle) — the same gating the greedy path
+        # gets by keeping the types out of STRUCTURAL_RULES.
+        toggle_day = any(
+            getattr(r.constraint_type, "value", r.constraint_type)
+            == "FACULTY_MAX_HOURS_PER_DAY"
+            and getattr(r, "is_active", True)
+            for r in hard_constraints
+        )
+        toggle_week = any(
+            getattr(r.constraint_type, "value", r.constraint_type)
+            == "FACULTY_MAX_HOURS_PER_WEEK"
+            and getattr(r, "is_active", True)
+            for r in hard_constraints
+        )
         for (fid, _day), vs in by_teacher_day.items():
             fac = self._faculty(fid)
-            if fac and fac.max_hours_per_day:
+            if fac and fac.max_hours_per_day and toggle_day:
                 model.Add(sum(vs) <= fac.max_hours_per_day)
         for fid, vs in by_teacher.items():
             fac = self._faculty(fid)
-            if fac and fac.max_hours_per_week:
+            if fac and fac.max_hours_per_week and toggle_week:
                 model.Add(sum(vs) <= fac.max_hours_per_week)
 
         self._add_max_consecutive_same_teacher(model, x, sessions, by_teacher_slot)
@@ -254,6 +329,7 @@ class ORToolsSolver(GreedySolver):
             reserved=self.reserved_conflicts, hard_constraints=hard_constraints,
             break_slots=break_slots,
         )
+        committed_sessions: set[int] = set()
         for si, day, sn, room_id in chosen:
             s = sessions[si]
             end_slot = sn + s.block_length - 1
@@ -284,8 +360,12 @@ class ORToolsSolver(GreedySolver):
                         batch_number=s.batch_number,
                         window_key=s.window_key,
                     ))
-        placed_sessions = {k[0] for k in chosen}
-        self.unplaced_count = len(sessions) - len(placed_sessions)
+                committed_sessions.add(si)
+        # B9: the honest unplaced count — sessions the safety net DROPPED are
+        # unplaced too. Counting ``chosen`` alone under-reported when a
+        # committed-dependent rule (e.g. MAX_ONE_LAB_PER_DAY) rejected a
+        # placement CP-SAT had optimised for.
+        self.unplaced_count = len(sessions) - len(committed_sessions)
         return self.committed_slots
 
     def _greedy_fallback(self):
