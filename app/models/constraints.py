@@ -29,6 +29,11 @@ class ConstraintType(str, enum.Enum):
     TEACHER_YEAR_RESTRICTION = "TEACHER_YEAR_RESTRICTION"
     LAB_BATCH_ROTATION = "LAB_BATCH_ROTATION"
     HOLIDAY_CALENDAR = "HOLIDAY_CALENDAR"
+    # Phase 2 (A1): the batch<->subject rotation over a group's lab windows
+    # must form a complete Latin square — every batch receives every lab
+    # subject exactly once. Structural: the solver constructs the rotation,
+    # never searches for it.
+    LAB_ROTATION_COMPLETE = "LAB_ROTATION_COMPLETE"
     # Soft
     TEACHER_PREFERS_MORNING = "TEACHER_PREFERS_MORNING"
     AVOID_CONSECUTIVE_SAME_SUBJECT = "AVOID_CONSECUTIVE_SAME_SUBJECT"
@@ -58,6 +63,7 @@ HARD_CONSTRAINT_TYPES = [
     ConstraintType.TEACHER_YEAR_RESTRICTION,
     ConstraintType.LAB_BATCH_ROTATION,
     ConstraintType.HOLIDAY_CALENDAR,
+    ConstraintType.LAB_ROTATION_COMPLETE,
 ]
 
 SOFT_CONSTRAINT_TYPES = [
