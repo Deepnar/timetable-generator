@@ -253,12 +253,12 @@ def _phase2_windows(s):
                                  session_type="LECTURE")
         assert v(cand_lec, [_Slot("LECTURE")], {}, None) is not None
 
-    @test("LAB_ROTATION_COMPLETE is registered and rejects a duplicate pairing")
+    @test("LAB_ROTATION_COMPLETE is an invariant rule and rejects a duplicate pairing")
     def t_rotation_registered(client):
         from app.engine.constraint_registry import (
-            HARD_CONSTRAINT_REGISTRY, STRUCTURAL_RULES)
+            HARD_CONSTRAINT_REGISTRY, INVARIANT_RULES)
         from app.engine.constraint_checker import SlotCandidate
-        assert "LAB_ROTATION_COMPLETE" in STRUCTURAL_RULES
+        assert "LAB_ROTATION_COMPLETE" in INVARIANT_RULES
         assert "LAB_ROTATION_COMPLETE" in HARD_CONSTRAINT_REGISTRY
         v = HARD_CONSTRAINT_REGISTRY["LAB_ROTATION_COMPLETE"]
         cand = SlotCandidate(instance_id=1, day_of_week=0, slot_number=2,

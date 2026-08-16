@@ -1787,22 +1787,145 @@ def _phase5_constraint_types(s):
         r = client.get("/constraints/types", headers=headers)
         assert r.status_code == 200, r.text
         body = r.json()
-        hard, soft = body["hard"], body["soft"]
+        hard = {t["type"] for t in body["hard"]}
+        soft = {t["type"] for t in body["soft"]}
         # New registry rules must surface here (they were missing before).
         assert "SUBJECT_TIME_PREFERENCE" in hard, hard
         assert "LAB_BATCH_ROTATION" in hard, hard
         assert "TEACHER_YEAR_RESTRICTION" in hard, hard
         assert "MAX_CONSECUTIVE_SAME_TEACHER" in hard, hard
         assert "TEACHER_PREFERS_MORNING" in soft, soft
+        # Phase 3b (A10): the eight previously unreachable rules are in the
+        # catalog now — including the two that contradict the grids most.
+        for t in ("SAME_SUBJECT_SAME_DAY", "MAX_ONE_LAB_PER_DAY",
+                  "CROSS_DEPT_DAILY_CAP", "NO_CROSS_TIMETABLE_TEACHER_CONFLICT",
+                  "NO_CROSS_TIMETABLE_ROOM_CONFLICT",
+                  "NO_CROSS_TIMETABLE_GROUP_CONFLICT",
+                  "FACULTY_MAX_HOURS_PER_DAY", "FACULTY_MAX_HOURS_PER_WEEK"):
+            assert t in hard, (t, hard)
         # The catalog lists every enum member exactly once, split by category.
         all_types = set(t.value for t in ConstraintType)
-        assert set(hard) | set(soft) == all_types, (hard, soft)
-        assert set(hard) == set(t.value for t in HARD_CONSTRAINT_TYPES)
-        assert set(soft) == set(t.value for t in SOFT_CONSTRAINT_TYPES)
+        assert hard | soft == all_types, (hard, soft)
+        assert hard == set(t.value for t in HARD_CONSTRAINT_TYPES)
+        assert soft == set(t.value for t in SOFT_CONSTRAINT_TYPES)
         # No overlap between the two categories.
-        assert set(hard).isdisjoint(soft)
+        assert hard.isdisjoint(soft)
 
-    return [t_types]
+    @test("every hard type carries a tier and a config schema")
+    def t_tiers(client):
+        from app.tests.test_runner import (
+            reset_db, create_admin, login_token, auth_headers,
+        )
+        reset_db(); create_admin()
+        headers = auth_headers(login_token(client))
+        r = client.get("/constraints/types", headers=headers)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        tiers = {t["type"]: t["tier"] for t in body["hard"]}
+        # Physics is locked; policy is tunable; per-profile rules are opt-in.
+        assert tiers["NO_TEACHER_DOUBLE_BOOK"] == "INVARIANT", tiers
+        assert tiers["NO_CROSS_TIMETABLE_TEACHER_CONFLICT"] == "INVARIANT", tiers
+        assert tiers["SAME_SUBJECT_SAME_DAY"] == "INSTITUTIONAL", tiers
+        assert tiers["MAX_ONE_LAB_PER_DAY"] == "INSTITUTIONAL", tiers
+        assert tiers["ROOM_CAPACITY_SUFFICIENT"] == "INSTITUTIONAL", tiers
+        assert tiers["SUBJECT_TIME_PREFERENCE"] == "OPTIONAL", tiers
+        assert all(t["tier"] == "PREFERENCE" for t in body["soft"]), body["soft"]
+        # The registrar-facing JSON-schema for config_json is present.
+        by_type = {t["type"]: t["config_schema"] for t in body["hard"]}
+        assert by_type["MAX_CONSECUTIVE_SAME_TEACHER"]["required"] == ["max"]
+        assert "include_session_types" in by_type["SAME_SUBJECT_SAME_DAY"]["properties"]
+        assert by_type["NO_TEACHER_DOUBLE_BOOK"] == {"type": "object"}
+
+    @test("registry and ConstraintType enum are exactly the same set")
+    def t_parity(client):
+        from app.engine.constraint_registry import (
+            HARD_CONSTRAINT_REGISTRY, assert_registry_enum_parity)
+        from app.models.constraints import HARD_CONSTRAINT_TYPES
+        assert_registry_enum_parity()
+        enum_values = {t.value for t in HARD_CONSTRAINT_TYPES}
+        assert set(HARD_CONSTRAINT_REGISTRY) == enum_values
+
+    @test("an institutional rule fires from a college-default row, not bare")
+    def t_institutional_from_row(client):
+        from app.tests.test_runner import (
+            reset_db, create_admin, login_token, auth_headers,
+            seed_minimal, TestingSessionLocal,
+        )
+        from app.models.constraints import HardConstraint
+        from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
+        from app.models.generation import TimetableSlot, SessionType
+        from datetime import time
+        from sqlalchemy import select
+        reset_db(); create_admin()
+        ids = seed_minimal(weekly_hours=2)
+        db = TestingSessionLocal()
+        try:
+            # Same-subject-same-day with no institutional row at all: free.
+            db.execute(HardConstraint.__table__.delete())
+            db.commit()
+            committed = [TimetableSlot(
+                instance_id=1, day_of_week=0, slot_number=1,
+                start_time=time(9), end_time=time(10), faculty_id=1,
+                room_id=1, student_group_id=ids["group"],
+                subject_id=ids["subject"], session_type=SessionType.LECTURE,
+            )]
+            rows = db.scalars(select(HardConstraint)).all()
+            checker = ConstraintChecker(db, committed, hard_constraints=rows)
+            cand = SlotCandidate(
+                instance_id=1, day_of_week=0, slot_number=2,
+                start_time=time(10), end_time=time(11), faculty_id=1,
+                room_id=1, student_group_id=ids["group"],
+                subject_id=ids["subject"], session_type="LECTURE",
+            )
+            kinds = {v.constraint for v in checker.check_all(cand)}
+            assert "SAME_SUBJECT_SAME_DAY" not in kinds, kinds
+        finally:
+            db.close()
+
+    @test("the college-default row re-enables SAME_SUBJECT_SAME_DAY")
+    def t_institutional_default_on(client):
+        from app.tests.test_runner import (
+            reset_db, create_admin, login_token, auth_headers,
+            seed_minimal, TestingSessionLocal,
+        )
+        from app.models.constraints import HardConstraint
+        from app.engine.constraint_checker import ConstraintChecker, SlotCandidate
+        from app.models.generation import TimetableSlot, SessionType
+        from datetime import time
+        from sqlalchemy import select
+        reset_db(); create_admin()
+        ids = seed_minimal(weekly_hours=2)
+        db = TestingSessionLocal()
+        try:
+            # seed_minimal carries the college defaults; a second lecture of
+            # the same subject on the same day must now be rejected.
+            assert db.scalars(
+                select(HardConstraint).where(
+                    HardConstraint.profile_id.is_(None),
+                    HardConstraint.constraint_type == "SAME_SUBJECT_SAME_DAY",
+                )
+            ).first() is not None
+            committed = [TimetableSlot(
+                instance_id=1, day_of_week=0, slot_number=1,
+                start_time=time(9), end_time=time(10), faculty_id=1,
+                room_id=1, student_group_id=ids["group"],
+                subject_id=ids["subject"], session_type=SessionType.LECTURE,
+            )]
+            rows = db.scalars(select(HardConstraint)).all()
+            checker = ConstraintChecker(db, committed, hard_constraints=rows)
+            cand = SlotCandidate(
+                instance_id=1, day_of_week=0, slot_number=2,
+                start_time=time(10), end_time=time(11), faculty_id=1,
+                room_id=1, student_group_id=ids["group"],
+                subject_id=ids["subject"], session_type="LECTURE",
+            )
+            kinds = {v.constraint for v in checker.check_all(cand)}
+            assert "SAME_SUBJECT_SAME_DAY" in kinds, kinds
+        finally:
+            db.close()
+
+    return [t_types, t_tiers, t_parity, t_institutional_from_row,
+            t_institutional_default_on]
 
 
 @suite("Phase 5 — Slot override re-validation")

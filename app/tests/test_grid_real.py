@@ -103,11 +103,11 @@ def _phase1_break_slots(s):
         assert all(sl["start_time"].startswith("08:00") for sl in slots), slots
         assert all(sl["end_time"].startswith("08:45") for sl in slots), slots
 
-    @test("NO_TEACHING_IN_BREAK_SLOT is a registered structural rule")
+    @test("NO_TEACHING_IN_BREAK_SLOT is a registered invariant rule")
     def t_validator_registered(client):
         from app.engine.constraint_registry import (
-            HARD_CONSTRAINT_REGISTRY, STRUCTURAL_RULES)
-        assert "NO_TEACHING_IN_BREAK_SLOT" in STRUCTURAL_RULES
+            HARD_CONSTRAINT_REGISTRY, INVARIANT_RULES)
+        assert "NO_TEACHING_IN_BREAK_SLOT" in INVARIANT_RULES
         assert "NO_TEACHING_IN_BREAK_SLOT" in HARD_CONSTRAINT_REGISTRY
 
     return [t_break_skipped, t_verbatim_times, t_validator_registered]

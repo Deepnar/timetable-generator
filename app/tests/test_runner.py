@@ -218,6 +218,15 @@ def seed_minimal(
             subject_id=subj.id, faculty_id=fac.id, group_id=grp.id,
             weekly_hours=weekly_hours, load_share=1.0,
         ))
+        # College-default institutional constraint rows, mirroring migration
+        # c9d4e8f2a6b0 (Phase 3b, A10): institutional policy fires only from a
+        # row, so the base scenario carries the same defaults a migrated DB
+        # has. Tests that want the rules OFF delete these rows.
+        from app.models.constraints import HardConstraint as _HC
+        from app.engine.constraint_registry import DEFAULT_INSTITUTIONAL_CONFIGS
+        for rule_type, config in DEFAULT_INSTITUTIONAL_CONFIGS.items():
+            db.add(_HC(profile_id=None, constraint_type=rule_type,
+                       config_json=dict(config)))
         db.commit()
         return {
             "faculty": fac.id, "group": grp.id, "classroom": classroom.id,
