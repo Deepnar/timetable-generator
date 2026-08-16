@@ -578,9 +578,11 @@ class GreedySolver:
         Assignment rows with ``batch_number`` set are authoritative (the real
         grids declare one faculty per batch, e.g. "Lab CG D1 D2 SuS/PD"). When
         none are set, the batch count is derived from the group's year and the
-        remaining batches get the next faculty in the profile's pool
-        (deterministic, lowest id) — a system suggestion the college can
-        override by adding batched assignment rows.
+        remaining batches get the next QUALIFIED faculty in the profile's pool
+        — only teachers with a ``faculty_subject_competency`` row for the
+        subject (A9/B4). Fabricating staff from idle strangers (the old
+        lowest-id fallback) silently misassigned practicals to teachers who
+        had never taught the subject.
         """
         rows = self.db.scalars(
             select(SubjectAssignment).where(
@@ -596,10 +598,22 @@ class GreedySolver:
         count = self._derive_lab_batch_count(group_id)
         if count <= 1:
             return [base_faculty_id]
+        from app.models.faculty_subject_competency import FacultySubjectCompetency
+        qualified_ids = set(
+            self.db.scalars(
+                select(FacultySubjectCompetency.faculty_id).where(
+                    FacultySubjectCompetency.subject_id == subject_id)
+            ).all()
+        )
         others = sorted(
             f for f in self._get_profile_resources(ResourceType.FACULTY)
-            if f != base_faculty_id
+            if f != base_faculty_id and f in qualified_ids
         )
+        # Never fabricate: if the pool has no qualified teacher for the extra
+        # batches, the practical stays whole-division rather than inventing
+        # staff (B4).
+        if not others:
+            return [base_faculty_id]
         return [base_faculty_id] + others[: count - 1]
 
     def _expand_lab_batches(self, sessions: list[SessionToSchedule]) -> list[SessionToSchedule]:

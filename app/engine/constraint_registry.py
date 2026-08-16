@@ -40,6 +40,13 @@ HARD_CONSTRAINT_REGISTRY: dict[str, Callable] = {}
 # They are dispatched by :meth:`ConstraintChecker.check_all` on every candidate
 # regardless of the profile's ``hard_constraints`` rows; rows of these types
 # stay decorative (a profile cannot switch a structural rule off).
+#
+# Phase 3 (D6): ROOM_CAPACITY_SUFFICIENT and the two faculty caps are NOT here
+# anymore. They compare quantities the importer invents (capacity 80 vs
+# strength 70, caps 8/30 on every teacher), and a rule fed by noise shapes the
+# timetable without any real signal. They remain registered, so a profile
+# ``hard_constraints`` row of the same type re-enables them (the INSTITUTIONAL
+# toggle) the day the college supplies real numbers.
 STRUCTURAL_RULES: tuple[str, ...] = (
     "NO_TEACHER_DOUBLE_BOOK",
     "NO_ROOM_DOUBLE_BOOK",
@@ -47,11 +54,8 @@ STRUCTURAL_RULES: tuple[str, ...] = (
     "NO_CROSS_TIMETABLE_TEACHER_CONFLICT",
     "NO_CROSS_TIMETABLE_ROOM_CONFLICT",
     "NO_CROSS_TIMETABLE_GROUP_CONFLICT",
-    "ROOM_CAPACITY_SUFFICIENT",
     "ROOM_REQUIREMENTS_MET",
     "RESPECT_TEACHER_UNAVAILABILITY",
-    "FACULTY_MAX_HOURS_PER_DAY",
-    "FACULTY_MAX_HOURS_PER_WEEK",
     "RESPECT_ROOM_BLACKOUT",
     "NO_TEACHING_IN_BREAK_SLOT",
     "LAB_ROTATION_COMPLETE",
