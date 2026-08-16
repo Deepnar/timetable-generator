@@ -145,6 +145,10 @@ class ConstraintChecker:
         return len(self._check(candidate, fail_fast=True)) == 0
 
     def _check(self, candidate: SlotCandidate, fail_fast: bool) -> list[ConstraintViolation]:
+        # Rebuild the committed-slot index once per call (the solver mutates
+        # the list in place between calls) so every validator reads O(1)
+        # buckets instead of scanning the whole committed set (A6).
+        self.ctx.rebuild_index()
         violations: list[ConstraintViolation] = []
         for rule_type in INVARIANT_RULES:
             validator = HARD_CONSTRAINT_REGISTRY.get(rule_type)

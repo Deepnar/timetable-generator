@@ -303,12 +303,81 @@ class ConstraintContext:
         self.settings = settings
         self.reserved = reserved or {}
         self.break_slots = set(break_slots or ())
+        # Rebuilt at the start of every check_all (the solver mutates the
+        # committed list in place between calls): one O(committed) pass saves
+        # every validator a full scan (A6).
+        self._day_index: dict[tuple, list] | None = None
         self._group_cache: dict[int, Optional[StudentGroup]] = {}
         self._subject_cache: dict[int, Optional[Subject]] = {}
         self._room_cache: dict[int, Optional[Room]] = {}
         self._faculty_cache: dict[int, Optional[Faculty]] = {}
         self._unavailability_cache: dict[int, list] = {}
         self._blackout_cache: dict[int, list] = {}
+
+    # ── committed-slot index (A6) ────────────────────────────
+    def rebuild_index(self) -> None:
+        """Bucket the committed slots by resource for O(1) validator lookups."""
+        from collections import defaultdict
+        idx: dict[tuple, list] = defaultdict(list)
+        for s in self.committed_slots:
+            day = s.day_of_week
+            if day is None:
+                continue
+            if s.faculty_id is not None:
+                idx[("faculty", s.faculty_id, day)].append(s)
+                idx[("faculty_all", s.faculty_id)].append(s)
+            if s.room_id is not None:
+                idx[("room", s.room_id, day)].append(s)
+            if s.student_group_id is not None:
+                idx[("group", s.student_group_id, day)].append(s)
+                if s.subject_id is not None:
+                    idx[("group_subject", s.student_group_id, day,
+                         s.subject_id)].append(s)
+                stype = getattr(s.session_type, "value", s.session_type)
+                if str(stype).upper() == "LAB":
+                    idx[("group_lab", s.student_group_id, day)].append(s)
+                    idx[("group_lab_all", s.student_group_id)].append(s)
+        self._day_index = idx
+
+    def day_slots(self, resource: str, rid: int, day: int) -> list:
+        """Committed slots of one resource kind on one day.
+
+        ``resource`` is "faculty" / "room" / "group". Falls back to a scan
+        when the index has not been built (direct validator calls in tests).
+        """
+        if self._day_index is None:
+            attr = {"faculty": "faculty_id", "room": "room_id",
+                    "group": "student_group_id"}[resource]
+            return [s for s in self.committed_slots
+                    if getattr(s, attr) == rid and s.day_of_week == day]
+        return self._day_index.get((resource, rid, day), [])
+
+    def group_subject_slots(self, group_id: int, day: int, subject_id: int) -> list:
+        if self._day_index is None:
+            return [s for s in self.committed_slots
+                    if s.student_group_id == group_id and s.day_of_week == day
+                    and s.subject_id == subject_id]
+        return self._day_index.get(("group_subject", group_id, day, subject_id), [])
+
+    def group_lab_slots(self, group_id: int, day: int) -> list:
+        if self._day_index is None:
+            return [s for s in self.committed_slots
+                    if s.student_group_id == group_id and s.day_of_week == day
+                    and str(getattr(s.session_type, "value", s.session_type)).upper() == "LAB"]
+        return self._day_index.get(("group_lab", group_id, day), [])
+
+    def group_lab_all(self, group_id: int) -> list:
+        if self._day_index is None:
+            return [s for s in self.committed_slots
+                    if s.student_group_id == group_id
+                    and str(getattr(s.session_type, "value", s.session_type)).upper() == "LAB"]
+        return self._day_index.get(("group_lab_all", group_id), [])
+
+    def faculty_all_slots(self, faculty_id: int) -> list:
+        if self._day_index is None:
+            return [s for s in self.committed_slots
+                    if s.faculty_id == faculty_id]
+        return self._day_index.get(("faculty_all", faculty_id), [])
 
     def group(self, group_id: int) -> Optional[StudentGroup]:
         if group_id not in self._group_cache:
@@ -429,9 +498,10 @@ def _max_consecutive_same_teacher(candidate, committed, config, ctx) -> Optional
 
     same_day = {
         s.slot_number
-        for s in committed
-        if s.faculty_id == candidate.faculty_id
-        and s.day_of_week == candidate.day_of_week
+        for s in (ctx.day_slots("faculty", candidate.faculty_id,
+                                candidate.day_of_week) if ctx else
+                  [s for s in committed if s.faculty_id == candidate.faculty_id
+                   and s.day_of_week == candidate.day_of_week])
     }
     occupied = set(candidate.slot_numbers)
     same_day |= occupied
@@ -476,11 +546,13 @@ def _max_daily_subjects(candidate, committed, config, ctx) -> Optional[str]:
     if candidate.student_group_id is None or candidate.day_of_week is None:
         return None
 
+    day_slots = ctx.day_slots("group", candidate.student_group_id,
+                              candidate.day_of_week) if ctx else committed
     distinct = {
         s.subject_id
-        for s in committed
-        if s.student_group_id == candidate.student_group_id
-        and s.day_of_week == candidate.day_of_week
+        for s in day_slots
+        if (ctx is None or s.student_group_id == candidate.student_group_id)
+        and (ctx is None or s.day_of_week == candidate.day_of_week)
         and s.subject_id is not None
     }
     distinct.add(candidate.subject_id)
@@ -690,10 +762,12 @@ def _availability_window_applies(w, slot_date) -> bool:
 
 @hard_rule("NO_TEACHER_DOUBLE_BOOK")
 def _no_teacher_double_book(candidate, committed, config, ctx) -> Optional[str]:
-    for s in committed:
+    day_slots = ctx.day_slots("faculty", candidate.faculty_id,
+                              candidate.day_of_week) if ctx else committed
+    for s in day_slots:
         if (
-            s.faculty_id == candidate.faculty_id
-            and s.day_of_week == candidate.day_of_week
+            (ctx is None or s.day_of_week == candidate.day_of_week)
+            and s.faculty_id == candidate.faculty_id
             and s.slot_number in candidate.slot_numbers
         ):
             return (
@@ -705,10 +779,12 @@ def _no_teacher_double_book(candidate, committed, config, ctx) -> Optional[str]:
 
 @hard_rule("NO_ROOM_DOUBLE_BOOK")
 def _no_room_double_book(candidate, committed, config, ctx) -> Optional[str]:
-    for s in committed:
+    day_slots = ctx.day_slots("room", candidate.room_id,
+                              candidate.day_of_week) if ctx else committed
+    for s in day_slots:
         if (
-            s.room_id == candidate.room_id
-            and s.day_of_week == candidate.day_of_week
+            (ctx is None or s.day_of_week == candidate.day_of_week)
+            and s.room_id == candidate.room_id
             and s.slot_number in candidate.slot_numbers
         ):
             return (
@@ -720,10 +796,12 @@ def _no_room_double_book(candidate, committed, config, ctx) -> Optional[str]:
 
 @hard_rule("NO_GROUP_DOUBLE_BOOK")
 def _no_group_double_book(candidate, committed, config, ctx) -> Optional[str]:
-    for s in committed:
+    day_slots = ctx.day_slots("group", candidate.student_group_id,
+                              candidate.day_of_week) if ctx else committed
+    for s in day_slots:
         if (
-            s.student_group_id == candidate.student_group_id
-            and s.day_of_week == candidate.day_of_week
+            (ctx is None or s.day_of_week == candidate.day_of_week)
+            and s.student_group_id == candidate.student_group_id
             and s.slot_number in candidate.slot_numbers
         ):
             # A parallel practical splits the division into batches that all
@@ -882,10 +960,11 @@ def _faculty_max_hours_per_day(candidate, committed, config, ctx) -> Optional[st
     faculty = ctx.faculty(candidate.faculty_id)
     if not faculty or not faculty.max_hours_per_day:
         return None
-    day_count = sum(
-        1 for s in committed
-        if s.faculty_id == candidate.faculty_id
-        and s.day_of_week == candidate.day_of_week
+    day_count = len(
+        ctx.day_slots("faculty", candidate.faculty_id, candidate.day_of_week)
+        if ctx else
+        [s for s in committed if s.faculty_id == candidate.faculty_id
+         and s.day_of_week == candidate.day_of_week]
     ) + candidate.block_length
     published = (ctx.reserved.get("faculty_day_counts") or {}).get(
         candidate.faculty_id, {}).get(candidate.day_of_week, 0)
@@ -908,8 +987,9 @@ def _faculty_max_hours_per_week(candidate, committed, config, ctx) -> Optional[s
     faculty = ctx.faculty(candidate.faculty_id)
     if not faculty or not faculty.max_hours_per_week:
         return None
-    week_count = sum(
-        1 for s in committed if s.faculty_id == candidate.faculty_id
+    week_count = len(
+        ctx.faculty_all_slots(candidate.faculty_id) if ctx else
+        [s for s in committed if s.faculty_id == candidate.faculty_id]
     ) + candidate.block_length
     published = (ctx.reserved.get("faculty_week_counts") or {}).get(
         candidate.faculty_id, 0)
@@ -968,7 +1048,10 @@ def _same_subject_same_day(candidate, committed, config, ctx) -> Optional[str]:
             return None
     elif cand_type != "LECTURE":
         return None
-    for s in committed:
+    day_slots = ctx.group_subject_slots(
+        candidate.student_group_id, candidate.day_of_week,
+        candidate.subject_id) if ctx else committed
+    for s in day_slots:
         raw = getattr(s, "session_type", "") or ""
         stype = getattr(raw, "value", raw)
         stype = str(stype).upper()
@@ -1035,8 +1118,8 @@ def _lab_rotation_complete(candidate, committed, config, ctx) -> Optional[str]:
     if candidate.batch_number is None or candidate.subject_id is None:
         return None
     seen: set = set()
-    for s in committed:
-        if s.student_group_id != candidate.student_group_id:
+    for s in (ctx.group_lab_all(candidate.student_group_id) if ctx else committed):
+        if ctx is None and s.student_group_id != candidate.student_group_id:
             continue
         if s.batch_number is None or s.subject_id is None:
             continue
@@ -1069,13 +1152,16 @@ def _max_one_lab_per_day(candidate, committed, config, ctx) -> Optional[str]:
         return None
     if candidate.session_type != "LAB" or candidate.student_group_id is None:
         return None
-    for s in committed:
-        if (
-            s.student_group_id == candidate.student_group_id
-            and s.day_of_week == candidate.day_of_week
-            and (s.session_type or "").upper() == "LAB"
-            and not _is_parallel_sibling(candidate, s)
-        ):
+    if ctx is not None:
+        day_labs = ctx.group_lab_slots(
+            candidate.student_group_id, candidate.day_of_week)
+    else:
+        day_labs = [s for s in committed
+                    if s.student_group_id == candidate.student_group_id
+                    and s.day_of_week == candidate.day_of_week
+                    and (s.session_type or "").upper() == "LAB"]
+    for s in day_labs:
+        if not _is_parallel_sibling(candidate, s):
             return (
                 f"group {candidate.student_group_id} already has a lab "
                 f"window on day {candidate.day_of_week}"
@@ -1099,12 +1185,9 @@ def _cross_dept_daily_cap(candidate, committed, config, ctx) -> Optional[str]:
     if cap is None:
         return None
     count = 0
-    for s in committed:
-        if (
-            s.faculty_id == candidate.faculty_id
-            and s.day_of_week == candidate.day_of_week
-            and _slot_is_cross_department(ctx, s)
-        ):
+    for s in ctx.day_slots("faculty", candidate.faculty_id,
+                           candidate.day_of_week):
+        if _slot_is_cross_department(ctx, s):
             count += 1
     if count >= int(cap):
         return (
